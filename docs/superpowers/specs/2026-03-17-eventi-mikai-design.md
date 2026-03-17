@@ -169,6 +169,7 @@ Anagrafica centralizzata medici/dottori. Storico partecipazioni derivato da join
 | promotore_id | uuid FK → users | Chi ha proposto |
 | manager_user_id | uuid FK → users | Area manager del promotore. Denormalizzato alla creazione per RLS performante. |
 | clonato_da_id | uuid FK → events | NULL se originale |
+| budget_previsto | decimal | Opzionale. Usato per verifica soglia approvazione area_manager. Se NULL, si applica la logica `area_manager_can_approve` del tipo evento. |
 | ricorrenza | enum NULL | annuale, semestrale |
 | mese_tipico | integer | 1-12, per suggerimento ricorrenza |
 | note | text | |
@@ -333,6 +334,8 @@ UNIQUE(event_id, contact_id)
 | n_partecipanti_previsti | integer | |
 | fornitore | text | Autocompletamento da valori precedenti |
 | confermata | boolean DEFAULT false | |
+| template_item_id | uuid FK → template_items NULL | Per tracciare quale item del template ha generato questa sub-activity (learning loop) |
+| generato_da_template | boolean DEFAULT false | |
 | note | text | |
 | created_at, updated_at | timestamptz | |
 
