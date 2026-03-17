@@ -101,7 +101,7 @@ Chi e' `event_staff` per un evento puo' modificare `stato_iscrizione` dei partec
 
 ---
 
-## 4. Schema database (20 tabelle)
+## 4. Schema database (21 tabelle)
 
 ### 4.1 CORE
 
@@ -167,6 +167,7 @@ Anagrafica centralizzata medici/dottori. Storico partecipazioni derivato da join
 | motivo_cancellazione | text | Obbligatorio se stato=cancellato |
 | parent_event_id | uuid FK → events | NULL se principale |
 | promotore_id | uuid FK → users | Chi ha proposto |
+| manager_user_id | uuid FK → users | Area manager del promotore. Denormalizzato alla creazione per RLS performante. |
 | clonato_da_id | uuid FK → events | NULL se originale |
 | ricorrenza | enum NULL | annuale, semestrale |
 | mese_tipico | integer | 1-12, per suggerimento ricorrenza |
@@ -197,7 +198,7 @@ Anagrafica centralizzata medici/dottori. Storico partecipazioni derivato da join
 | obbligatorio | boolean DEFAULT true | Task opzionali non bloccano auto-completamento |
 | pre_approvazione | boolean DEFAULT false | Se true, il task parte prima dell'approvazione |
 | ordine | integer | |
-| sub_tipo | enum NULL | pranzo, cena, coffee_break, meeting, altro (solo per tipo=sub_activity) |
+| sub_tipo | enum NULL | pranzo, cena, aperitivo, coffee_break, meeting, altro (solo per tipo=sub_activity) |
 | n_pax_default | integer | Solo per tipo=sub_activity |
 | logistics_tipo | enum NULL | trasporto, alloggio (solo per tipo=logistics) |
 
@@ -212,7 +213,7 @@ Anagrafica centralizzata medici/dottori. Storico partecipazioni derivato da join
 | tipo | enum | demo_kit, montaggio, strumentario, altro |
 | codice_inventario | text UNIQUE | |
 | quantita_totale | integer | |
-| posizione_attuale | enum | magazzino, evento, agente, spedito, manutenzione |
+| posizione_attuale | enum | magazzino, evento, agente, spedito, manutenzione — campo derivato, aggiornato da trigger DB su INSERT in material_movements |
 | posizione_dettaglio | text | Testo libero per dettagli |
 | foto_url | text | |
 | note | text | |
@@ -227,6 +228,8 @@ Anagrafica centralizzata medici/dottori. Storico partecipazioni derivato da join
 | event_id | uuid FK → events | |
 | material_id | uuid FK → materials | |
 | quantita_richiesta | integer | |
+| data_inizio_utilizzo | date NOT NULL | Inizio periodo richiesto (per verifica conflitti) |
+| data_fine_utilizzo | date NOT NULL | Fine periodo richiesto (per verifica conflitti) |
 | stato | enum | richiesto, approvato, rifiutato |
 | richiesto_da | uuid FK → users | |
 | approvato_da | uuid FK → users | |
@@ -235,6 +238,8 @@ Anagrafica centralizzata medici/dottori. Storico partecipazioni derivato da join
 | note | text | |
 
 Lo stato fisico (spedito, consegnato, rientrato) si legge da material_movements. Nessun doppio tracking.
+
+Verifica conflitti: query su `event_materials` dove `material_id` coincide e i range `data_inizio_utilizzo/data_fine_utilizzo` si sovrappongono e `stato != 'rifiutato'`.
 
 #### material_movements (registro fisico)
 
@@ -367,13 +372,14 @@ UNIQUE(event_id, contact_id)
 | event_id | uuid FK → events | |
 | source_tipo | enum | sub_activity, logistics, materiale, sponsorizzazione, iscrizioni, desk, gadget, altro |
 | source_id | uuid | Opzionale, punta al record specifico |
+| contact_id | uuid FK → contacts | Opzionale. Popolato quando il costo e' attribuibile a un medico/persona specifica. Necessario per report compliance MedTech (spesa per medico). |
 | descrizione | text | |
 | importo_previsto | decimal | Opzionale |
 | importo_effettivo | decimal | Opzionale |
 | fornitore | text | |
 | n_fattura | text | |
-| stato_pagamento | enum | da_pagare, approvato, pagato |
-| approvato_da | uuid FK → users | |
+| stato_pagamento | enum | da_pagare, pagato, parzialmente_pagato | Lo stato di approvazione e' determinato da `approvato_da IS NOT NULL`, non da questo campo |
+| approvato_da | uuid FK → users | NULL = non ancora approvato. Se popolato = approvato da quell'utente |
 | created_at, updated_at | timestamptz | |
 
 Tutti i campi costo sono opzionali. Nessun campo economico blocca il flusso di lavoro.
@@ -398,6 +404,7 @@ Tutti i campi costo sono opzionali. Nessun campo economico blocca il flusso di l
 | completato_da | uuid FK → users | |
 | feedback_post | text | Per loop apprendimento post-evento |
 | generato_da_template | boolean DEFAULT false | |
+| template_item_id | uuid FK → template_items NULL | Quale item del template ha generato questo task. Necessario per il loop di apprendimento post-evento (template_suggestions). |
 | ordine | integer | |
 | created_at, updated_at | timestamptz | |
 
@@ -406,7 +413,7 @@ Tutti i campi costo sono opzionali. Nessun campo economico blocca il flusso di l
 | Campo | Tipo | Note |
 |-------|------|------|
 | id | uuid PK | |
-| entita_tipo | enum | event, material, document, cost, user |
+| entita_tipo | enum | event, material, material_request, document, cost, user, participant, task, staff |
 | entita_id | uuid | |
 | azione | enum | creato, modificato, approvato, rifiutato, cancellato, stato_cambiato |
 | campo_modificato | text | |
@@ -516,8 +523,21 @@ Cancellazione richiede `motivo_cancellazione` obbligatorio.
 
 ### 5.5 Approvazione eventi a 2 livelli
 
-- Area manager: puo' approvare eventi sotto soglia (configurabile per tipo/budget)
+- Area manager: puo' approvare eventi sotto soglia (configurabile)
 - Sopra soglia: Enrica o Giovanni. Basta 1 dei 2.
+
+Le soglie sono memorizzate in una tabella di configurazione:
+
+#### approval_thresholds
+
+| Campo | Tipo | Note |
+|-------|------|------|
+| id | uuid PK | |
+| tipo_evento | enum NULL | Se NULL, vale per tutti i tipi |
+| soglia_importo | decimal | Budget massimo approvabile da area_manager |
+| area_manager_can_approve | boolean DEFAULT true | |
+
+Se l'evento non ha budget previsto, l'area manager puo' approvare solo i tipi esplicitamente abilitati.
 
 ---
 
@@ -699,6 +719,7 @@ Ogni utente puo' configurare le proprie preferenze in `notification_preferences`
 | 8 | Eventi ricorrenti | Cron mensile | Suggerisci creazione se mese_tipico prossimo mese |
 | 9 | Escalation scadenze | Cron giornaliero | -7gg in-app, -3gg email, scaduta escalation |
 | 10 | Packing list | Evento a -N giorni | Vista spedizioni settimanali automatica |
+| 11 | Sync posizione materiale | INSERT su material_movements | Trigger DB aggiorna `materials.posizione_attuale` con `a_posizione` dell'ultimo movement |
 
 ---
 
@@ -811,10 +832,10 @@ Per chi ha permesso `compliance`:
 | Hosting | GitHub Pages (SPA) |
 | Mobile | PWA (installabile, offline-capable) |
 | Email | Supabase Edge Functions |
-| Cron jobs | Supabase pg_cron |
+| Cron jobs | Servizio cron esterno gratuito (es. cron-job.org) → chiama Supabase Edge Function. pg_cron non disponibile su free tier. |
 | File storage | Supabase Storage |
 | Auth | Supabase Auth (email + password) |
-| Permessi DB | Row Level Security (RLS) |
+| Permessi DB | Row Level Security (RLS). Per area_manager: campo denormalizzato `manager_user_id` su events (popolato alla creazione dall'area manager del promotore) per evitare CTE ricorsive nelle policy RLS. |
 
 ### Costi: zero
 
