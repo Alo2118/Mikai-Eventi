@@ -803,21 +803,200 @@ Ogni utente puo' configurare le proprie preferenze in `notification_preferences`
 
 ---
 
-## 10. Funzionalita' aggiuntive
+## 10. Principi UI/UX — Interfaccia a prova di anziano
 
-### 10.1 Clonazione evento
+L'app sara' usata da persone con livelli di confidenza digitale molto diversi: da chi usa solo WhatsApp e Excel a chi e' piu' tech-savvy. Il design deve funzionare per TUTTI senza formazione. Il principio: se tua madre non riesce a usarla al primo tentativo, e' sbagliata.
+
+### 10.1 Regole fondamentali
+
+| Regola | Cosa significa in pratica |
+|--------|--------------------------|
+| **Testi grandi, leggibili** | Font base minimo 16px. Nessun testo sotto 14px. Bottoni con testo, mai solo icone. |
+| **Contrasto alto** | Rapporto contrasto minimo WCAG AA (4.5:1). No grigio chiaro su bianco. Colori saturi per gli stati. |
+| **Un'azione per schermata** | Ogni pagina ha UNA cosa principale da fare, evidente. L'utente non deve capire cosa gli si chiede. |
+| **Zero gergo tecnico** | "Stato: proposto" diventa "In attesa di approvazione". "In_preparazione" diventa "In preparazione". Nessun underscore, nessun codice, nessun termine inglese. |
+| **Touch-friendly** | Tutti gli elementi cliccabili minimo 48x48px (standard mobile). Spaziatura generosa tra bottoni. Niente menu a tendina nidificati. |
+| **Feedback immediato** | Ogni azione ha conferma visiva chiara: toast di conferma, cambio colore, segno di spunta animato. L'utente non deve chiedersi "ha funzionato?". |
+| **Nessun dead-end** | Ogni schermata ha un'azione evidente. Se non c'e' niente da fare, lo dice esplicitamente ("Tutto in ordine, nessuna azione richiesta"). |
+| **Pochi livelli di navigazione** | Massimo 2 click per arrivare a qualsiasi funzione. Home → lista → dettaglio. Mai di piu'. |
+| **Errori perdonabili** | Conferma prima di azioni distruttive ("Vuoi davvero cancellare?"). Undo dove possibile. Nessuna azione irreversibile senza doppia conferma. |
+
+### 10.2 Linguaggio dell'interfaccia
+
+Tutta l'app in italiano, con linguaggio naturale e colloquiale — non "enterprise".
+
+| Invece di... | Scrivere... |
+|-------------|-------------|
+| Submit | Invia |
+| Delete | Elimina |
+| Confirm | Conferma |
+| Status: proposto | In attesa di approvazione |
+| Status: confermato | Approvato |
+| Status: in_preparazione | In preparazione |
+| Status: pronto | Tutto pronto |
+| Status: in_corso | In corso |
+| Status: concluso | Concluso |
+| Status: cancellato | Annullato |
+| Evento creato con successo | Evento creato! |
+| Nessun risultato trovato | Nessun evento trovato. Prova a cambiare i filtri. |
+| Errore 500 | Qualcosa e' andato storto. Riprova tra qualche secondo. |
+| Upload file | Carica file |
+| Deadline | Scadenza |
+| Template | Modello |
+| Dashboard | Riepilogo |
+| Checklist | Lista attivita' |
+| Overview | Panoramica |
+
+### 10.3 Design dei bottoni e azioni
+
+**Bottone principale:** Grande, colorato, con testo chiaro che descrive l'azione.
+```
+  [ + Proponi nuovo evento ]        non    [ + Nuovo ]
+  [ Segna come spedito ]            non    [ Update status ]
+  [ Approva evento ]                non    [ Approve ]
+  [ Carica locandina ]              non    [ Upload ]
+```
+
+**Semafori di stato:** Colori grandi e inequivocabili con testo.
+```
+  🟢 Tutto pronto            non    ● pronto
+  🟡 In preparazione         non    ● in_preparazione
+  🔴 Scadenza superata       non    ● overdue
+```
+
+**Azioni pericolose:** Rosse, separate dalle altre, con conferma.
+```
+  [ Annulla evento ]  →  "Sei sicuro? L'evento verra' annullato e tutti i responsabili saranno avvisati."
+                          [ Si', annulla ]  [ No, torna indietro ]
+```
+
+### 10.4 Navigazione semplificata
+
+**Mobile (commerciali, area manager):**
+```
+┌─────────────────────────────────┐
+│  Mikai Eventi                   │
+│                                 │
+│  Buongiorno, Marco!             │
+│                                 │
+│  ┌───────────────────────────┐  │
+│  │ 🔴 1 cosa da fare         │  │
+│  │ Completa i dati per il    │  │
+│  │ Workshop del 24 marzo     │  │
+│  │         [ Completa ora → ] │  │
+│  └───────────────────────────┘  │
+│                                 │
+│  I tuoi eventi:                 │
+│  ┌───────────────────────────┐  │
+│  │ 📅 WS Poloso              │  │
+│  │ 17-18 mar · Verona        │  │
+│  │ 🟢 Approvato              │  │
+│  └───────────────────────────┘  │
+│  ┌───────────────────────────┐  │
+│  │ 📅 Congresso SICM         │  │
+│  │ 20-22 mar · Milano        │  │
+│  │ 🟡 In attesa approvazione │  │
+│  └───────────────────────────┘  │
+│                                 │
+│  ┌─────────────────────────┐   │
+│  │  + Proponi nuovo evento  │   │
+│  └─────────────────────────┘   │
+│                                 │
+├────────┬────────┬────────┬─────┤
+│ 📅     │  ➕    │  🔔    │ 👤  │
+│ Eventi │Proponi │Notifiche│ Io  │
+└────────┴────────┴────────┴─────┘
+```
+
+**Principi della home mobile:**
+- Saluto personale (non "Dashboard")
+- La cosa piu' urgente IN CIMA, con bottone diretto
+- Lista eventi minima: solo titolo, date, stato con colore
+- Bottone grande per proporre evento
+- Bottom bar con 4 icone + testo sotto (mai solo icona)
+
+**Desktop (ufficio):**
+- Sidebar con icone + testo (mai icone sole)
+- Area contenuto ampia con tabelle leggibili
+- Filtri visibili, non nascosti in dropdown
+- Azioni principali come bottoni, non come voci di menu
+
+### 10.5 Form di inserimento
+
+**Regole per i form:**
+- Un campo per riga (mai 3 campi affiancati su mobile)
+- Label SOPRA il campo (mai dentro come placeholder che scompare)
+- Campi obbligatori marcati con asterisco rosso *, quelli opzionali con "(facoltativo)"
+- Errori di validazione in rosso SOTTO il campo, con testo che spiega cosa fare: "Inserisci una data futura" non "Invalid date format"
+- Bottone di invio visibile senza scrollare (o sticky in fondo)
+- Salvataggio automatico della bozza (se l'utente chiude per sbaglio non perde tutto)
+- Select/dropdown con ricerca integrata per liste lunghe (es. contatti medici)
+- Date picker con calendario visuale, non campo di testo libero
+
+**Wizard per eventi:**
+La creazione evento e' un wizard a step, non un form unico lungo:
+```
+Step 1: Che tipo di evento? (cards grandi cliccabili, non dropdown)
+  [ Workshop ]  [ Corso ]  [ Congresso ]  [ Convegno ]  [ Cadaver Lab ]
+
+Step 2: Dove e quando?
+  Titolo: _______________
+  Date: [calendario visuale]
+  Luogo: _______________
+
+Step 3: Interno o esterno?
+  [ Evento organizzato da noi ]  [ Partecipiamo a evento di altri ]  [ Solo contributo economico ]
+
+Step 4: Riepilogo + Invia
+  Rivedi tutto → [ Invia proposta ]
+```
+
+Massimo 4 step, nessuno con piu' di 3-4 campi.
+
+### 10.6 Notifiche comprensibili
+
+Le notifiche usano linguaggio naturale, non codici:
+
+```
+Invece di:  "Event #123 status changed to confermato"
+Scrivere:   "Il Workshop Poloso del 17 marzo e' stato approvato da Enrica"
+
+Invece di:  "Task assigned: prepare marketing material"
+Scrivere:   "Hai una nuova attivita': prepara la locandina per il Workshop Poloso (scadenza: 3 marzo)"
+
+Invece di:  "Material conflict detected for material_id 456"
+Scrivere:   "Attenzione: il Kit Stylo #3 e' gia' prenotato per il Congresso SIOT (12-15 ottobre). Vuoi un kit alternativo?"
+```
+
+### 10.7 Accessibilita'
+
+| Aspetto | Implementazione |
+|---------|----------------|
+| Font | Sistema (sans-serif nativo), no font decorativi. Inter o simile come fallback. |
+| Dimensioni | 16px base, 14px minimo assoluto. Titoli 20-24px. |
+| Colori | Non usare MAI solo il colore per comunicare stato — sempre colore + icona + testo. Rosso + 🔴 + "Scaduto". |
+| Focus | Evidenziazione chiara degli elementi selezionati (outline visibile, non solo cambio colore sottile). |
+| Loading | Scheletri di caricamento (skeleton), mai schermate bianche vuote. Spinner con testo "Caricamento..." |
+| Offline | Se PWA offline, messaggio chiaro: "Sei offline. Le modifiche saranno salvate quando torni online." |
+| Tap target | Minimo 48x48px per ogni elemento interattivo (bottoni, checkbox, link, righe tabella cliccabili). |
+
+---
+
+## 11. Funzionalita' aggiuntive
+
+### 11.1 Clonazione evento
 Copia da evento passato: tipo, modalita', luogo, note, staff tipici, materiale tipico, sotto-attivita'. Date da compilare. `clonato_da_id` per tracciabilita'.
 
-### 10.2 Import iniziale
+### 11.2 Import iniziale
 Import CSV/Excel per: eventi esistenti, anagrafica materiale demo, contatti medici, utenti. Utile al lancio.
 
-### 10.3 Export calendario iCal
+### 11.3 Export calendario iCal
 Pulsante "Aggiungi al calendario" per singolo evento. Feed iCal per calendario completo.
 
-### 10.4 Stampe operative
+### 11.4 Stampe operative
 Pulsante "Stampa/PDF" per: scheda evento riepilogativa, packing list materiale, lista partecipanti. CSS print-friendly.
 
-### 10.5 Report compliance MedTech
+### 11.5 Report compliance MedTech
 Per chi ha permesso `compliance`:
 - Spesa per medico/anno
 - Spesa per tipologia (iscrizioni, viaggi, alloggi, cene)
@@ -826,7 +1005,7 @@ Per chi ha permesso `compliance`:
 
 ---
 
-## 11. Stack tecnico
+## 12. Stack tecnico
 
 | Componente | Tecnologia |
 |-----------|------------|
