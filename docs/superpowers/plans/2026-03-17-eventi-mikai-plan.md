@@ -945,7 +945,7 @@ CREATE POLICY "perms_write" ON user_permissions FOR ALL USING (get_user_role() =
 
 -- CONTACTS: ufficio+ can read/write, commerciale can read
 CREATE POLICY "contacts_read" ON contacts FOR SELECT USING (true);
-CREATE POLICY "contacts_write" ON contacts FOR INSERT USING (get_user_role() IN ('admin', 'direzione', 'ufficio'));
+CREATE POLICY "contacts_write" ON contacts FOR INSERT WITH CHECK (get_user_role() IN ('admin', 'direzione', 'ufficio'));
 CREATE POLICY "contacts_update" ON contacts FOR UPDATE USING (get_user_role() IN ('admin', 'direzione', 'ufficio'));
 
 -- EVENTS: visibility based on role (spec section 3)
@@ -967,30 +967,56 @@ CREATE POLICY "events_read" ON events FOR SELECT USING (
   END
 );
 
-CREATE POLICY "events_insert" ON events FOR INSERT WITH CHECK (true);
+CREATE POLICY "events_insert" ON events FOR INSERT WITH CHECK (
+  CASE get_user_role()
+    WHEN 'commerciale' THEN promotore_id = auth.uid()
+    WHEN 'area_manager' THEN promotore_id = auth.uid()
+    ELSE get_user_role() IN ('admin', 'direzione', 'ufficio')
+  END
+);
 CREATE POLICY "events_update" ON events FOR UPDATE USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio', 'area_manager')
 );
 
--- EVENT child tables: inherit visibility from parent event
--- This pattern is repeated for all event_* tables
+-- Helper: check if current user can see a given event (reusable for child tables)
+-- Mirrors the events_read policy logic exactly
+CREATE OR REPLACE FUNCTION can_see_event(eid uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM events e WHERE e.id = eid
+    AND (
+      CASE get_user_role()
+        WHEN 'admin' THEN true
+        WHEN 'direzione' THEN true
+        WHEN 'ufficio' THEN true
+        WHEN 'area_manager' THEN (e.manager_user_id = auth.uid() OR e.promotore_id = auth.uid())
+        WHEN 'commerciale' THEN (
+          e.promotore_id = auth.uid()
+          OR EXISTS (SELECT 1 FROM event_staff es WHERE es.event_id = e.id AND es.user_id = auth.uid())
+        )
+        ELSE false
+      END
+    )
+  )
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- EVENT child tables: inherit visibility from parent event via can_see_event()
 CREATE POLICY "event_materials_read" ON event_materials FOR SELECT USING (
-  EXISTS (SELECT 1 FROM events WHERE id = event_materials.event_id)
+  can_see_event(event_id)
 );
 CREATE POLICY "event_materials_write" ON event_materials FOR ALL USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio')
 );
 
--- Repeat similar policies for other event child tables
 CREATE POLICY "event_staff_read" ON event_staff FOR SELECT USING (
-  EXISTS (SELECT 1 FROM events WHERE id = event_staff.event_id)
+  can_see_event(event_id)
 );
 CREATE POLICY "event_staff_write" ON event_staff FOR ALL USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio')
 );
 
 CREATE POLICY "event_participants_read" ON event_participants FOR SELECT USING (
-  EXISTS (SELECT 1 FROM events WHERE id = event_participants.event_id)
+  can_see_event(event_id)
 );
 CREATE POLICY "event_participants_write" ON event_participants FOR ALL USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio')
@@ -998,28 +1024,28 @@ CREATE POLICY "event_participants_write" ON event_participants FOR ALL USING (
 );
 
 CREATE POLICY "sub_activities_read" ON event_sub_activities FOR SELECT USING (
-  EXISTS (SELECT 1 FROM events WHERE id = event_sub_activities.event_id)
+  can_see_event(event_id)
 );
 CREATE POLICY "sub_activities_write" ON event_sub_activities FOR ALL USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio')
 );
 
 CREATE POLICY "logistics_read" ON event_logistics FOR SELECT USING (
-  EXISTS (SELECT 1 FROM events WHERE id = event_logistics.event_id)
+  can_see_event(event_id)
 );
 CREATE POLICY "logistics_write" ON event_logistics FOR ALL USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio')
 );
 
 CREATE POLICY "costs_read" ON event_costs FOR SELECT USING (
-  has_permission('gestione_costi') AND EXISTS (SELECT 1 FROM events WHERE id = event_costs.event_id)
+  has_permission('gestione_costi') AND can_see_event(event_id)
 );
 CREATE POLICY "costs_write" ON event_costs FOR ALL USING (
   has_permission('gestione_costi')
 );
 
 CREATE POLICY "tasks_read" ON event_tasks FOR SELECT USING (
-  EXISTS (SELECT 1 FROM events WHERE id = event_tasks.event_id)
+  can_see_event(event_id)
 );
 CREATE POLICY "tasks_write" ON event_tasks FOR ALL USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio')
@@ -1029,7 +1055,9 @@ CREATE POLICY "tasks_write" ON event_tasks FOR ALL USING (
 CREATE POLICY "activity_read" ON activity_log FOR SELECT USING (
   get_user_role() IN ('admin', 'direzione', 'ufficio')
 );
-CREATE POLICY "activity_insert" ON activity_log FOR INSERT WITH CHECK (true);
+CREATE POLICY "activity_insert" ON activity_log FOR INSERT WITH CHECK (
+  eseguito_da = auth.uid()
+);
 
 CREATE POLICY "documents_read" ON documents FOR SELECT USING (
   event_id IS NULL OR EXISTS (SELECT 1 FROM events WHERE id = documents.event_id)
@@ -1157,7 +1185,18 @@ BEGIN
   FROM users u
   WHERE u.id = NEW.promotore_id AND u.ruolo = 'commerciale';
 
-  -- If promotore is a commerciale, their responsabile is the area_manager
+  -- Walk up the hierarchy to find the nearest area_manager
+  IF manager_id IS NULL THEN
+    -- promotore might be area_manager themselves or ufficio — walk chain
+    WITH RECURSIVE hier AS (
+      SELECT id, responsabile_id, ruolo FROM users WHERE id = NEW.promotore_id
+      UNION ALL
+      SELECT u.id, u.responsabile_id, u.ruolo FROM users u JOIN hier h ON u.id = h.responsabile_id
+      WHERE h.ruolo != 'area_manager'
+    )
+    SELECT id INTO manager_id FROM hier WHERE ruolo = 'area_manager' LIMIT 1;
+  END IF;
+
   IF manager_id IS NOT NULL THEN
     NEW.manager_user_id := manager_id;
   END IF;
@@ -1198,26 +1237,26 @@ git commit -m "feat: add RLS policies and DB triggers"
 
 -- Templates for common event types
 INSERT INTO event_templates (id, tipo_evento, modalita, nome_template) VALUES
-  ('t1000000-0000-0000-0000-000000000001', 'workshop', 'interno', 'Workshop interno standard'),
-  ('t1000000-0000-0000-0000-000000000002', 'congresso', 'esterno', 'Congresso esterno standard'),
-  ('t1000000-0000-0000-0000-000000000003', 'corso', 'interno', 'Corso chirurgico interno');
+  ('10000000-0000-0000-0000-000000000001', 'workshop', 'interno', 'Workshop interno standard'),
+  ('10000000-0000-0000-0000-000000000002', 'congresso', 'esterno', 'Congresso esterno standard'),
+  ('10000000-0000-0000-0000-000000000003', 'corso', 'interno', 'Corso chirurgico interno');
 
 -- Template items for "Workshop interno standard"
 INSERT INTO template_items (template_id, tipo, descrizione, assegnazione_ruolo_operativo, giorni_prima_evento, obbligatorio, pre_approvazione, ordine) VALUES
-  ('t1000000-0000-0000-0000-000000000001', 'checklist', 'Preparare locandina', 'marketing', -21, true, true, 1),
-  ('t1000000-0000-0000-0000-000000000001', 'checklist', 'Ordinare materiale mancante', 'logistica_ordini', -14, true, false, 2),
-  ('t1000000-0000-0000-0000-000000000001', 'checklist', 'Preparare e spedire kit demo', 'logistica_spedizioni', -7, true, false, 3),
-  ('t1000000-0000-0000-0000-000000000001', 'checklist', 'Confermare iscrizioni e inviare promemoria', 'segreteria_org', -3, true, false, 4),
-  ('t1000000-0000-0000-0000-000000000001', 'checklist', 'Verifica finale', 'segreteria_org', -1, true, false, 5),
-  ('t1000000-0000-0000-0000-000000000001', 'checklist', 'Verificare rientro materiale demo', 'logistica_spedizioni', 3, true, false, 6),
-  ('t1000000-0000-0000-0000-000000000001', 'checklist', 'Compilare report e chiudere consuntivo', 'segreteria_org', 7, false, false, 7);
+  ('10000000-0000-0000-0000-000000000001', 'checklist', 'Preparare locandina', 'marketing', -21, true, true, 1),
+  ('10000000-0000-0000-0000-000000000001', 'checklist', 'Ordinare materiale mancante', 'logistica_ordini', -14, true, false, 2),
+  ('10000000-0000-0000-0000-000000000001', 'checklist', 'Preparare e spedire kit demo', 'logistica_spedizioni', -7, true, false, 3),
+  ('10000000-0000-0000-0000-000000000001', 'checklist', 'Confermare iscrizioni e inviare promemoria', 'segreteria_org', -3, true, false, 4),
+  ('10000000-0000-0000-0000-000000000001', 'checklist', 'Verifica finale', 'segreteria_org', -1, true, false, 5),
+  ('10000000-0000-0000-0000-000000000001', 'checklist', 'Verificare rientro materiale demo', 'logistica_spedizioni', 3, true, false, 6),
+  ('10000000-0000-0000-0000-000000000001', 'checklist', 'Compilare report e chiudere consuntivo', 'segreteria_org', 7, false, false, 7);
 
 -- Template items for "Congresso esterno standard"
 INSERT INTO template_items (template_id, tipo, descrizione, assegnazione_ruolo_operativo, giorni_prima_evento, obbligatorio, pre_approvazione, ordine) VALUES
-  ('t1000000-0000-0000-0000-000000000002', 'checklist', 'Preparare materiale marketing', 'marketing', -21, true, true, 1),
-  ('t1000000-0000-0000-0000-000000000002', 'checklist', 'Preparare e spedire kit demo + gadget', 'logistica_spedizioni', -10, true, false, 2),
-  ('t1000000-0000-0000-0000-000000000002', 'checklist', 'Prenotare hotel e trasporti staff', 'segreteria_org', -14, true, false, 3),
-  ('t1000000-0000-0000-0000-000000000002', 'checklist', 'Verificare rientro materiale', 'logistica_spedizioni', 3, true, false, 4);
+  ('10000000-0000-0000-0000-000000000002', 'checklist', 'Preparare materiale marketing', 'marketing', -21, true, true, 1),
+  ('10000000-0000-0000-0000-000000000002', 'checklist', 'Preparare e spedire kit demo + gadget', 'logistica_spedizioni', -10, true, false, 2),
+  ('10000000-0000-0000-0000-000000000002', 'checklist', 'Prenotare hotel e trasporti staff', 'segreteria_org', -14, true, false, 3),
+  ('10000000-0000-0000-0000-000000000002', 'checklist', 'Verificare rientro materiale', 'logistica_spedizioni', 3, true, false, 4);
 
 -- Approval thresholds
 INSERT INTO approval_thresholds (tipo_evento, soglia_importo, area_manager_can_approve) VALUES
