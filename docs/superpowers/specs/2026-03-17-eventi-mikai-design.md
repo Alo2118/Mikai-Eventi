@@ -870,7 +870,107 @@ Tutta l'app in italiano, con linguaggio naturale e colloquiale — non "enterpri
                           [ Si', annulla ]  [ No, torna indietro ]
 ```
 
-### 10.4 Navigazione semplificata
+### 10.4 Orientamento: dove sono, cosa sto facendo, come torno indietro
+
+L'utente non deve MAI sentirsi perso. In ogni momento deve poter rispondere a 3 domande:
+1. **Dove sono?**
+2. **Cosa sto facendo?**
+3. **Come torno indietro?**
+
+#### Breadcrumb sempre visibile (desktop)
+
+Barra di contesto in cima a ogni pagina, con percorso cliccabile:
+
+```
+Desktop:
+┌──────────────────────────────────────────────────────────────┐
+│  Eventi  ›  Workshop Poloso 17-18 mar  ›  Materiale & Gadget │
+│                                                              │
+│  [ ← Torna all'evento ]                                     │
+│                                                              │
+│  Materiale & Gadget                                          │
+│  Workshop Fissatore Poloso — 17-18 marzo 2026, Verona       │
+│  ...                                                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- Ogni livello del breadcrumb e' cliccabile: click su "Eventi" torna alla lista, click su "Workshop Poloso" torna alla scheda evento
+- Sotto il breadcrumb: titolo della sezione grande + nome evento + date come sottotitolo. Sempre. L'utente sa sempre A QUALE evento si riferisce quello che sta guardando.
+
+#### Header contestuale (mobile)
+
+Su mobile non c'e' spazio per un breadcrumb testuale. Si usa un header fisso con:
+
+```
+Mobile:
+┌─────────────────────────────────┐
+│  ← Indietro    WS Poloso       │
+│                17-18 mar        │
+├─────────────────────────────────┤
+│  [Info] [Materiale] [Attivita'] │
+│         ^^^^^^^^                │
+│         tab attivo evidenziato  │
+├─────────────────────────────────┤
+│                                 │
+│  (contenuto del tab)            │
+│                                 │
+└─────────────────────────────────┘
+```
+
+- **Freccia "← Indietro"** sempre in alto a sinistra — torna alla schermata precedente. Grande, facile da toccare. Mai nascosta.
+- **Nome evento + date** sempre visibili nell'header — l'utente sa sempre di quale evento sta parlando
+- **Tab** orizzontali scrollabili per le sezioni dell'evento — il tab attivo e' visivamente diverso (sottolineato, colore pieno)
+
+#### Regole di orientamento
+
+| Principio | Implementazione |
+|-----------|----------------|
+| **Titolo pagina sempre visibile** | Ogni pagina ha un titolo grande (h1) che dice cosa stai guardando: "I tuoi eventi", "Dettaglio evento", "Nuova proposta — passo 2 di 4" |
+| **Contesto dell'evento** | Quando sei dentro un evento, nome + date sempre visibili in alto. Mai solo un ID o un titolo troncato. |
+| **Freccia indietro ovunque** | Su mobile: freccia ← nell'header. Su desktop: link "← Torna a [nome pagina precedente]" sotto il breadcrumb. Il browser back funziona SEMPRE correttamente (SPA con history push). |
+| **Tab attivo evidenziato** | Nella scheda evento, il tab corrente ha colore pieno + sottolineatura. Gli altri sono grigi. L'utente vede subito in quale sezione si trova. |
+| **Wizard: indicatore di progresso** | Nel wizard di creazione evento, barra di progresso con step numerati: `① Tipo  ② Dove e quando  ③ Modalita'  ④ Riepilogo`. Lo step corrente e' evidenziato. Gli step completati hanno segno di spunta. |
+| **Nessuna pagina senza via d'uscita** | Ogni schermata ha almeno un'azione per uscire: "Torna indietro", "Annulla", "Chiudi". Mai una modale senza X o bottone di chiusura. |
+| **URL leggibili** | URL che riflettono la posizione: `/eventi`, `/eventi/abc123`, `/eventi/abc123/materiale`. Se l'utente condivide un link, chi lo apre arriva esattamente li'. |
+| **Stato salvato nella navigazione** | Se l'utente sta filtrando la lista eventi (es. "solo workshop di marzo"), torna indietro, e poi rientra nella lista, i filtri sono ancora li'. Non si perdono. |
+| **Conferma uscita da form non salvato** | Se l'utente sta compilando un form e clicca "Indietro", popup: "Hai modifiche non salvate. Vuoi uscire?" con [ Esci senza salvare ] e [ Resta qui ]. |
+
+#### Wizard: indicatore di progresso
+
+```
+┌─────────────────────────────────────────────┐
+│  Nuova proposta evento                      │
+│                                             │
+│  ✅ ① Tipo  ——  ● ② Dove e quando  ——  ○ ③ Modalita'  ——  ○ ④ Riepilogo │
+│                                             │
+│  Dove e quando?                             │
+│                                             │
+│  Titolo *                                   │
+│  ┌─────────────────────────────────────┐    │
+│  │ Workshop Fissatore Poloso           │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  Date *                                     │
+│  ┌──────────────┐  ┌──────────────┐         │
+│  │ 17/03/2026   │  │ 18/03/2026   │         │
+│  └──────────────┘  └──────────────┘         │
+│                                             │
+│  Luogo *                                    │
+│  ┌─────────────────────────────────────┐    │
+│  │ Sede Mikai, Verona                  │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  [ ← Indietro ]              [ Avanti → ]  │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+- Barra di progresso in alto: step completati (✅), step corrente (●), step futuri (○)
+- Bottoni "Indietro" e "Avanti" sempre visibili in fondo
+- "Indietro" non cancella i dati gia' inseriti — l'utente puo' tornare e correggere
+- Ultimo step: riepilogo di tutto + bottone "Invia proposta" (non "Avanti")
+
+### 10.5 Navigazione semplificata
 
 **Mobile (commerciali, area manager):**
 ```
@@ -921,7 +1021,7 @@ Tutta l'app in italiano, con linguaggio naturale e colloquiale — non "enterpri
 - Filtri visibili, non nascosti in dropdown
 - Azioni principali come bottoni, non come voci di menu
 
-### 10.5 Form di inserimento
+### 10.6 Form di inserimento
 
 **Regole per i form:**
 - Un campo per riga (mai 3 campi affiancati su mobile)
@@ -953,7 +1053,7 @@ Step 4: Riepilogo + Invia
 
 Massimo 4 step, nessuno con piu' di 3-4 campi.
 
-### 10.6 Notifiche comprensibili
+### 10.7 Notifiche comprensibili
 
 Le notifiche usano linguaggio naturale, non codici:
 
@@ -968,7 +1068,7 @@ Invece di:  "Material conflict detected for material_id 456"
 Scrivere:   "Attenzione: il Kit Stylo #3 e' gia' prenotato per il Congresso SIOT (12-15 ottobre). Vuoi un kit alternativo?"
 ```
 
-### 10.7 Accessibilita'
+### 10.8 Accessibilita'
 
 | Aspetto | Implementazione |
 |---------|----------------|
