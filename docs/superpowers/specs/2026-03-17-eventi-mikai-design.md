@@ -101,7 +101,7 @@ Chi e' `event_staff` per un evento puo' modificare `stato_iscrizione` dei partec
 
 ---
 
-## 4. Schema database (21 tabelle)
+## 4. Schema database (23 tabelle)
 
 ### 4.1 CORE
 
