@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 
 export const useMaterialsStore = create((set, get) => ({
   materials: [],
+  logisticsTimeline: [],
+  overdueReturns: [],
   loading: false,
   error: null,
   filters: { search: '', tipo: '', posizione: '', brand: '', section: '' },
@@ -294,5 +296,41 @@ export const useMaterialsStore = create((set, get) => ({
       .eq('product_id', productId)
       .order('piece_name')
     return { data: data || [], error: error?.message || null }
+  },
+
+  fetchLogisticsTimeline: async () => {
+    set({ loading: true, error: null })
+    const { data, error } = await supabase
+      .from('event_materials')
+      .select(`
+        *,
+        evento:events!event_materials_event_id_fkey(id, titolo, data_inizio, data_fine, stato, indirizzo_spedizione),
+        materiale:materials!event_materials_material_id_fkey(id, nome, codice_inventario)
+      `)
+      .in('stato', ['approvato', 'in_preparazione'])
+      .order('created_at', { ascending: true })
+    set({ logisticsTimeline: data || [], loading: false, error: error?.message || null })
+    return { data: data || [], error }
+  },
+
+  fetchOverdueReturns: async () => {
+    set({ loading: true, error: null })
+    const { data, error } = await supabase
+      .from('material_movements')
+      .select(`
+        *,
+        materiale:materials!material_movements_material_id_fkey(id, nome, codice_inventario, posizione_attuale),
+        evento:events!material_movements_event_id_fkey(id, titolo, data_fine),
+        responsabile:users!material_movements_responsabile_id_fkey(id, nome, cognome)
+      `)
+      .eq('tipo', 'uscita')
+      .not('data_rientro_prevista', 'is', null)
+      .lt('data_rientro_prevista', new Date().toISOString())
+      .order('data_rientro_prevista', { ascending: true })
+    const overdue = (data || []).filter(m =>
+      m.materiale && m.materiale.posizione_attuale !== 'in_magazzino'
+    )
+    set({ overdueReturns: overdue, loading: false, error: error?.message || null })
+    return { data: overdue, error }
   },
 }))

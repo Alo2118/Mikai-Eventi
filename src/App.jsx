@@ -20,6 +20,7 @@ import { AdminZone } from './pages/admin/AdminZone'
 import { AdminUtenti } from './pages/admin/AdminUtenti'
 import { DashboardRouter } from './pages/dashboard/DashboardRouter'
 import { MieAttivitaPage } from './pages/attivita/MieAttivitaPage'
+import { LogisticaPage } from './pages/logistica/LogisticaPage'
 
 function ProtectedRoute({ children }) {
   const session = useAuthStore(s => s.session)
@@ -49,6 +50,7 @@ function App() {
           <Route path="/" element={<DashboardRouter />} />
           <Route path="/dashboard" element={<DashboardRouter />} />
           <Route path="/mie-attivita" element={<MieAttivitaPage />} />
+          <Route path="/logistica" element={<LogisticaPage />} />
           <Route path="/eventi" element={<EventiList />} />
           <Route path="/eventi/nuovo" element={<EventiWizard />} />
           <Route path="/eventi/calendario" element={<EventiCalendar />} />
