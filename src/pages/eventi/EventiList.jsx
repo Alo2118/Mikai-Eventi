@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { NAV_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
+import { AlertBanner } from '../../components/dashboard/AlertBanner'
 
 export function EventiList() {
   const events = useEventsStore(s => s.events)
@@ -18,6 +19,7 @@ export function EventiList() {
   const error = useEventsStore(s => s.error)
   const fetchEvents = useEventsStore(s => s.fetchEvents)
   const profile = useAuthStore(s => s.profile)
+  const ruolo = useAuthStore(s => s.profile?.ruolo)
 
   useEffect(() => { fetchEvents() }, [])
 
@@ -46,6 +48,7 @@ export function EventiList() {
           </div>
         }
       />
+      {(ruolo === 'commerciale' || ruolo === 'area_manager') && <AlertBanner />}
       <EventFilters />
       <div className="px-6 md:px-8 py-4">
         {loading ? (

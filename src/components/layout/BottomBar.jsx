@@ -7,7 +7,7 @@ const items = [
   { to: '/eventi', label: 'Eventi', icon: NAV_ICONS.eventi },
   { to: '/eventi/nuovo', label: 'Nuovo evento', icon: NAV_ICONS.nuovo },
   { to: '/notifiche', label: 'Notifiche', icon: NAV_ICONS.notifiche },
-  { to: '/profilo', label: 'Profilo', icon: NAV_ICONS.profilo },
+  { to: '/dashboard', label: 'Dashboard', icon: NAV_ICONS.riepilogo },
 ]
 
 export function BottomBar() {

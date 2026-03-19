@@ -18,6 +18,8 @@ import { AdminGadget } from './pages/admin/AdminGadget'
 import { AdminSedi } from './pages/admin/AdminSedi'
 import { AdminZone } from './pages/admin/AdminZone'
 import { AdminUtenti } from './pages/admin/AdminUtenti'
+import { DashboardRouter } from './pages/dashboard/DashboardRouter'
+import { MieAttivitaPage } from './pages/attivita/MieAttivitaPage'
 
 function ProtectedRoute({ children }) {
   const session = useAuthStore(s => s.session)
@@ -44,7 +46,9 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<div className="p-8 text-lg">Riepilogo — In costruzione</div>} />
+          <Route path="/" element={<DashboardRouter />} />
+          <Route path="/dashboard" element={<DashboardRouter />} />
+          <Route path="/mie-attivita" element={<MieAttivitaPage />} />
           <Route path="/eventi" element={<EventiList />} />
           <Route path="/eventi/nuovo" element={<EventiWizard />} />
           <Route path="/eventi/calendario" element={<EventiCalendar />} />

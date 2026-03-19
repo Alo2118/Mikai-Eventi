@@ -8,6 +8,7 @@ const navItems = [
   { to: '/eventi', label: 'Eventi', icon: NAV_ICONS.eventi },
   { to: '/eventi/calendario', label: 'Calendario', icon: NAV_ICONS.calendario },
   { to: '/materiale', label: 'Magazzino', icon: NAV_ICONS.materiale, permissions: ['gestione_magazzino', 'gestione_spedizioni'] },
+  { to: '/logistica', label: 'Logistica', icon: NAV_ICONS.logistica, permissions: ['gestione_spedizioni', 'gestione_magazzino'] },
   { to: '/contatti', label: 'Contatti', icon: NAV_ICONS.contatti, roles: ['admin', 'direzione', 'ufficio'] },
   { to: '/documenti', label: 'Documenti', icon: NAV_ICONS.documenti, roles: ['admin', 'direzione', 'ufficio'] },
   { to: '/notifiche', label: 'Notifiche', icon: NAV_ICONS.notifiche },
