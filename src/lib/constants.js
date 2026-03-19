@@ -172,6 +172,7 @@ export const STATO_GADGET_RICHIESTA = {
 export const TIPO_BRAND = {
   produttore: 'Produttore',
   distributore: 'Distributore',
+  fornitore: 'Fornitore',
 }
 
 // Material list row statuses — keyed by DB enum values (richiesto/approvato/rifiutato)
@@ -196,6 +197,7 @@ export const TIPO_PRODOTTO = {
   strumentario: 'Strumentario',
   montaggio: 'Montaggio',
   pezzo_sfuso: 'Pezzo sfuso',
+  gadget: 'Gadget',
 }
 
 // Role permission presets (assigned at user creation)
