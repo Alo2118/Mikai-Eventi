@@ -31,9 +31,10 @@ export function EventApprovalBar({ event, onUpdate }) {
   }, [event.id, event.stato])
 
   const canApprove = hasPermission('approva_eventi') && event.stato === 'proposto' && canApproveThreshold
+  const budgetBlocked = hasPermission('approva_eventi') && event.stato === 'proposto' && hasRole('area_manager') && !canApproveThreshold
   const canCancel = hasPermission('approva_eventi') && !['concluso', 'cancellato'].includes(event.stato)
 
-  if (!canApprove && !canCancel) return null
+  if (!canApprove && !canCancel && !budgetBlocked) return null
 
   const handleApprove = async () => {
     setLoading(true)
@@ -65,38 +66,48 @@ export function EventApprovalBar({ event, onUpdate }) {
 
   return (
     <>
-      <div className="flex flex-col gap-3 p-5 bg-yellow-50 border-2 border-yellow-300 rounded-xl" role="alert">
-        {/* Messaggio esplicito */}
-        <div className="flex items-center gap-3">
-          <Icon icon={FEEDBACK_ICONS.warning} size={24} className="text-yellow-600 flex-shrink-0" />
-          <p className="text-base font-semibold text-yellow-800">
-            {canApprove
-              ? 'Questo evento richiede la tua approvazione'
-              : 'Puoi annullare questo evento se necessario'}
+      {budgetBlocked && (
+        <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-300 rounded-xl" role="status">
+          <Icon icon={FEEDBACK_ICONS.info} size={20} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+          <p className="text-base text-yellow-800">
+            Il budget di questo evento supera la soglia per l&apos;approvazione del tuo ruolo. Richiede approvazione della Direzione.
           </p>
         </div>
+      )}
+      {(canApprove || canCancel) && (
+        <div className="flex flex-col gap-3 p-5 bg-yellow-50 border-2 border-yellow-300 rounded-xl" role="alert">
+          {/* Messaggio esplicito */}
+          <div className="flex items-center gap-3">
+            <Icon icon={FEEDBACK_ICONS.warning} size={24} className="text-yellow-600 flex-shrink-0" />
+            <p className="text-base font-semibold text-yellow-800">
+              {canApprove
+                ? 'Questo evento richiede la tua approvazione'
+                : 'Puoi annullare questo evento se necessario'}
+            </p>
+          </div>
 
-        {/* Bottoni azione */}
-        <div className="flex flex-wrap gap-3">
-          {canApprove && (
-            <>
-              <Button onClick={handleApprove} loading={loading} size="lg">
-                <Icon icon={ACTION_ICONS.approve} size={18} className="mr-2" />
-                Approva evento
-              </Button>
+          {/* Bottoni azione */}
+          <div className="flex flex-wrap gap-3">
+            {canApprove && (
+              <>
+                <Button onClick={handleApprove} loading={loading} size="lg">
+                  <Icon icon={ACTION_ICONS.approve} size={18} className="mr-2" />
+                  Approva evento
+                </Button>
+                <Button variant="danger" onClick={() => setShowReject(true)} size="lg">
+                  <Icon icon={ACTION_ICONS.reject} size={18} className="mr-2" />
+                  Rifiuta
+                </Button>
+              </>
+            )}
+            {canCancel && event.stato !== 'proposto' && (
               <Button variant="danger" onClick={() => setShowReject(true)} size="lg">
-                <Icon icon={ACTION_ICONS.reject} size={18} className="mr-2" />
-                Rifiuta
+                Annulla evento
               </Button>
-            </>
-          )}
-          {canCancel && event.stato !== 'proposto' && (
-            <Button variant="danger" onClick={() => setShowReject(true)} size="lg">
-              Annulla evento
-            </Button>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <ConfirmDialog
         open={showReject}

@@ -24,6 +24,7 @@ export function EventiWizard() {
     luogo: '',
     sede_dettaglio: '',
     modalita: '',
+    budget_previsto: '',
   })
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -97,7 +98,7 @@ export function EventiWizard() {
             onChange={(v) => setData({ ...data, modalita: v })}
           />
         )}
-        {step === 3 && <WizardStepRiepilogo data={data} />}
+        {step === 3 && <WizardStepRiepilogo data={data} onChange={(d) => setData({ ...data, ...d })} />}
       </div>
 
       <div className="px-4 md:px-8 py-4 flex justify-between max-w-2xl">

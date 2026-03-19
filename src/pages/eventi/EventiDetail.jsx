@@ -8,7 +8,7 @@ import { Tabs } from '../../components/ui/Tabs'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { EventInfoTab } from '../../components/eventi/EventInfoTab'
-import { EventMaterialList } from '../../components/eventi/EventMaterialList'
+import { EventMaterialsTab } from '../../components/eventi/EventMaterialsTab'
 import { EventPreparazioneTab } from '../../components/eventi/EventPreparazioneTab'
 import { TIPO_EVENTO } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
@@ -107,7 +107,7 @@ export function EventiDetail() {
         {activeTab === 'info' && <EventInfoTab event={event} onUpdate={refreshEvent} />}
         {activeTab === 'staff' && <PlaceholderTab name="Staff" />}
         {activeTab === 'partecipanti' && <PlaceholderTab name="Partecipanti" />}
-        {activeTab === 'materiale' && <EventMaterialList event={event} />}
+        {activeTab === 'materiale' && <EventMaterialsTab event={event} />}
         {activeTab === 'subattivita' && <PlaceholderTab name="Sotto-attivita'" />}
         {activeTab === 'logistica' && <PlaceholderTab name="Logistica" />}
         {activeTab === 'costi' && <PlaceholderTab name="Costi" />}

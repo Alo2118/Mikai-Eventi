@@ -18,10 +18,21 @@ export function EventiList() {
   const loading = useEventsStore(s => s.loading)
   const error = useEventsStore(s => s.error)
   const fetchEvents = useEventsStore(s => s.fetchEvents)
+  const setRoleFilter = useEventsStore(s => s.setRoleFilter)
+  const setShowAll = useEventsStore(s => s.setShowAll)
+  const showAll = useEventsStore(s => s.roleFilter.showAll)
   const profile = useAuthStore(s => s.profile)
+  const user = useAuthStore(s => s.user)
+  const hasPermission = useAuthStore(s => s.hasPermission)
   const ruolo = useAuthStore(s => s.profile?.ruolo)
 
-  useEffect(() => { fetchEvents() }, [])
+  useEffect(() => {
+    if (user && ruolo) {
+      setRoleFilter(user.id, ruolo)
+    } else {
+      fetchEvents()
+    }
+  }, [user?.id, ruolo])
 
   return (
     <div>
@@ -30,9 +41,25 @@ export function EventiList() {
       </div>
       <PageHeader
         title="Eventi"
-        subtitle={profile?.ruolo === 'commerciale' ? 'I tuoi eventi' : 'Tutti gli eventi'}
+        subtitle={
+          showAll
+            ? 'Tutti gli eventi'
+            : ruolo === 'commerciale'
+              ? 'I tuoi eventi'
+              : ruolo === 'area_manager'
+                ? 'I tuoi eventi'
+                : 'Tutti gli eventi'
+        }
         actions={
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            {hasPermission('approva_eventi') && (ruolo === 'commerciale' || ruolo === 'area_manager') && (
+              <Button
+                variant="secondary"
+                onClick={() => setShowAll(!showAll)}
+              >
+                {showAll ? 'I miei eventi' : 'Mostra tutti gli eventi'}
+              </Button>
+            )}
             <Link to="/eventi/calendario">
               <Button variant="secondary">
                 <Icon icon={NAV_ICONS.calendario} size={18} className="mr-2" />

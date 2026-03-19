@@ -49,6 +49,7 @@ import {
   Search,
   Filter,
   CirclePlus,
+  Pencil,
 
   // Status/feedback
   AlertTriangle,
@@ -175,6 +176,7 @@ export const ACTION_ICONS = {
   chevron_left: ChevronLeft,
   chevron_right: ChevronRight,
   clearFilter: FilterX,
+  edit: Pencil,
 }
 
 // ═══════════════════════════════════════════

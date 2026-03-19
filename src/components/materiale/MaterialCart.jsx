@@ -65,7 +65,7 @@ export function MaterialCart({ eventId, event, cart, onRemove, onDone }) {
   }
 
   return (
-    <div className="mt-6 bg-gray-50 rounded-xl p-5 space-y-4">
+    <div className="mt-6 sticky bottom-0 z-10 bg-white border-t border-gray-200 p-4 md:static md:border-t-0 md:border-0 md:p-5 md:bg-gray-50 md:rounded-xl space-y-4">
       <h4 className="text-base font-semibold text-gray-900 flex items-center gap-2">
         <Icon icon={MATERIALE_ICONS.package_open} size={20} />
         Carrello ({cart.length} {cart.length === 1 ? 'articolo' : 'articoli'})

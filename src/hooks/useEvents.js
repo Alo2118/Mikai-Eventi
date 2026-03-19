@@ -22,6 +22,18 @@ export const useEventsStore = create((set, get) => ({
     get().fetchEvents()
   },
 
+  roleFilter: { userId: null, ruolo: null, showAll: false },
+
+  setRoleFilter: (userId, ruolo) => {
+    set((s) => ({ roleFilter: { ...s.roleFilter, userId, ruolo } }))
+    get().fetchEvents()
+  },
+
+  setShowAll: (showAll) => {
+    set((s) => ({ roleFilter: { ...s.roleFilter, showAll } }))
+    get().fetchEvents()
+  },
+
   fetchEvents: async () => {
     set({ loading: true, error: null })
     let query = supabase
@@ -30,6 +42,11 @@ export const useEventsStore = create((set, get) => ({
       .order('data_inizio', { ascending: false })
 
     const { search, stato, tipo, mese } = get().filters
+    const { userId, ruolo, showAll } = get().roleFilter
+
+    if (!showAll && userId && ruolo === 'commerciale') query = query.eq('promotore_id', userId)
+    if (!showAll && userId && ruolo === 'area_manager') query = query.eq('manager_user_id', userId)
+
     if (stato) query = query.eq('stato', stato)
     if (tipo) query = query.eq('tipo_evento', tipo)
     if (search) query = query.ilike('titolo', `%${search}%`)

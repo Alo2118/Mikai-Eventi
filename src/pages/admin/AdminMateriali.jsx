@@ -32,8 +32,8 @@ export function AdminMateriali() {
   }, [fetchSpecimens, fetchProducts])
 
   const columns = [
-    { key: 'codice_inventario', label: 'Codice inventario', render: (r) => r.codice_inventario || r.nome || '-' },
-    { key: 'product_nome', label: 'Prodotto', render: (r) => r.product?.nome || '-' },
+    { key: 'nome', label: 'Nome', render: (r) => r.nome || '-' },
+    { key: 'codice_inventario', label: 'Codice', render: (r) => r.codice_inventario || '-' },
     { key: 'posizione_attuale', label: 'Posizione', render: (r) => POSIZIONE_MATERIALE[r.posizione_attuale] || r.posizione_attuale || '-' },
     { key: 'attivo', label: 'Attivo', render: (r) => (
       <span className={`px-2 py-1 rounded-full text-sm font-medium ${r.attivo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -52,7 +52,7 @@ export function AdminMateriali() {
   const handleSave = async () => {
     setSaving(true)
     const payload = {
-      nome: editing.codice_inventario || editing.nome || '',
+      nome: editing.nome || '',
       codice_inventario: editing.codice_inventario || null,
       product_id: editing.product_id || null,
       posizione_attuale: editing.posizione_attuale || 'in_magazzino',
@@ -88,8 +88,12 @@ export function AdminMateriali() {
           <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 max-w-lg space-y-4">
             <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica materiale' : 'Nuovo materiale'}</h2>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Codice inventario <span className="text-red-500">*</span></label>
-              <input className={INPUT} value={editing.codice_inventario || ''} onChange={e => setEditing({ ...editing, codice_inventario: e.target.value })} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
+              <input className={INPUT} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} placeholder="Es. Chiodo Gamma 3 Demo" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Codice inventario</label>
+              <input className={INPUT} value={editing.codice_inventario || ''} onChange={e => setEditing({ ...editing, codice_inventario: e.target.value })} placeholder="Es. GAM3-001" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prodotto</label>
@@ -113,7 +117,7 @@ export function AdminMateriali() {
               <label htmlFor="attivo" className="text-base text-gray-700">Attivo</label>
             </div>
             <div className="flex gap-3 pt-2">
-              <Button onClick={handleSave} loading={saving} disabled={!editing.codice_inventario?.trim()}>Salva</Button>
+              <Button onClick={handleSave} loading={saving} disabled={!editing.nome?.trim()}>Salva</Button>
               <Button variant="secondary" onClick={() => setEditing(null)}>Annulla</Button>
             </div>
           </div>
@@ -122,7 +126,7 @@ export function AdminMateriali() {
             columns={columns}
             rows={specimens}
             searchField="codice_inventario"
-            onAdd={() => setEditing({ codice_inventario: '', product_id: '', posizione_attuale: 'in_magazzino', note: '', attivo: true })}
+            onAdd={() => setEditing({ nome: '', codice_inventario: '', product_id: '', posizione_attuale: 'in_magazzino', note: '', attivo: true })}
             onEdit={handleEdit}
             onDelete={(row) => setDeleting(row)}
             addLabel="Nuovo materiale"
@@ -133,7 +137,7 @@ export function AdminMateriali() {
       <ConfirmDialog
         open={!!deleting}
         title="Elimina materiale"
-        message={`Sei sicuro di voler eliminare "${deleting?.codice_inventario || deleting?.nome}"?`}
+        message={`Sei sicuro di voler eliminare "${deleting?.nome || deleting?.codice_inventario}"?`}
         confirmLabel="Elimina"
         onConfirm={handleDelete}
         onCancel={() => setDeleting(null)}

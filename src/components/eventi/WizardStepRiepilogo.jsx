@@ -1,13 +1,13 @@
 import { TIPO_EVENTO, MODALITA_EVENTO } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
 
-export function WizardStepRiepilogo({ data }) {
+export function WizardStepRiepilogo({ data, onChange }) {
   return (
     <div>
       <h2 className="text-xl font-semibold text-gray-900 mb-2">Riepilogo</h2>
       <p className="text-base text-gray-500 mb-6">Controlla i dati prima di inviare la proposta.</p>
 
-      <div className="bg-gray-50 rounded-xl p-5 space-y-3">
+      <div className="bg-gray-50 rounded-xl p-5 space-y-3 mb-6">
         <div>
           <span className="text-sm text-gray-500">Tipo evento</span>
           <p className="text-base font-medium text-gray-900">{TIPO_EVENTO[data.tipo_evento]}</p>
@@ -33,6 +33,21 @@ export function WizardStepRiepilogo({ data }) {
           <span className="text-sm text-gray-500">Modalita'</span>
           <p className="text-base font-medium text-gray-900">{MODALITA_EVENTO[data.modalita]}</p>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Budget previsto (&euro;) <span className="text-gray-400 text-xs">opzionale</span>
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="100"
+          value={data.budget_previsto || ''}
+          onChange={e => onChange({ budget_previsto: e.target.value ? Number(e.target.value) : null })}
+          placeholder="Es. 5000"
+          className="w-full min-h-[48px] text-base border border-gray-300 rounded-lg px-3 focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400"
+        />
       </div>
     </div>
   )
