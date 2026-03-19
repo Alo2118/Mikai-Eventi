@@ -34,6 +34,18 @@ export function CatalogProductCard({ product, cartQuantity = 0, onAdd, onUpdateQ
                 )}
               </div>
             )}
+            {product.quantita_disponibile != null && (
+              <p className={`text-xs font-medium mt-0.5 ${
+                product.soglia_minima != null && product.quantita_disponibile <= product.soglia_minima
+                  ? 'text-red-600'
+                  : 'text-gray-400'
+              }`}>
+                {product.soglia_minima != null && product.quantita_disponibile <= product.soglia_minima
+                  ? `Scorte basse: ${product.quantita_disponibile}`
+                  : `Disp: ${product.quantita_disponibile}`
+                }
+              </p>
+            )}
           </div>
 
           {/* Actions column */}

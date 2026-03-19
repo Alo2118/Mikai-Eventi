@@ -191,20 +191,41 @@ export function CatalogProductModal({ product, cartQuantity, onAdd, onClose }) {
             )}
           </div>
 
-          {/* Physical availability */}
+          {/* Availability — stock for gadgets, physical units for demo kits */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Disponibilità fisica
-              {!loading && availability.length > 0 && (
-                <span className="ml-2 normal-case font-normal text-gray-400">
-                  ({availability.length} {availability.length === 1 ? 'esemplare' : 'esemplari'})
-                </span>
-              )}
-            </p>
-            {loading ? (
-              <LoadingSkeleton lines={3} />
+            {product.tipo === 'gadget' ? (
+              <>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Giacenza
+                </p>
+                <div className="space-y-2">
+                  <p className="text-base font-medium text-gray-900">
+                    {product.quantita_disponibile ?? 0} disponibili
+                  </p>
+                  {product.soglia_minima != null && product.quantita_disponibile != null &&
+                   product.quantita_disponibile <= product.soglia_minima && (
+                    <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                      Sotto la soglia minima ({product.soglia_minima})
+                    </p>
+                  )}
+                </div>
+              </>
             ) : (
-              <AvailabilityList items={availability} />
+              <>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Disponibilita fisica
+                  {!loading && availability.length > 0 && (
+                    <span className="ml-2 normal-case font-normal text-gray-400">
+                      ({availability.length} {availability.length === 1 ? 'esemplare' : 'esemplari'})
+                    </span>
+                  )}
+                </p>
+                {loading ? (
+                  <LoadingSkeleton lines={3} />
+                ) : (
+                  <AvailabilityList items={availability} />
+                )}
+              </>
             )}
           </div>
         </div>
