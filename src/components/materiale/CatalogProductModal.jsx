@@ -76,11 +76,16 @@ export function CatalogProductModal({ product, cartQuantity, onAdd, onClose }) {
     Promise.all([
       fetchKitContents(product.id),
       fetchProductAvailability(product.id),
-    ]).then(([kitsResult, availResult]) => {
-      setKitContents(kitsResult.data ?? [])
-      setAvailability(availResult.data ?? [])
-      setLoading(false)
-    })
+    ])
+      .then(([kitsResult, availResult]) => {
+        setKitContents(kitsResult.data ?? [])
+        setAvailability(availResult.data ?? [])
+      })
+      .catch(() => {
+        setKitContents([])
+        setAvailability([])
+      })
+      .finally(() => { setLoading(false) })
   }, [product?.id])
 
   if (!product) return null

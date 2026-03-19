@@ -49,19 +49,24 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
 
   // On mount: fetch brands + sections in parallel
   useEffect(() => {
-    Promise.all([fetchBrands(), fetchAllBodySections()]).then(([brandsRes, secsRes]) => {
-      setBrands(brandsRes.data || [])
-      setSections(secsRes.data || [])
-    })
+    Promise.all([fetchBrands(), fetchAllBodySections()])
+      .then(([brandsRes, secsRes]) => {
+        setBrands(brandsRes.data || [])
+        setSections(secsRes.data || [])
+      })
+      .catch(() => {
+        setBrands([])
+        setSections([])
+      })
   }, [])
 
   // On filter/search change: fetch products
   useEffect(() => {
     setLoading(true)
-    fetchCatalogProducts({ brandIds, sectionIds, tipi, search }).then(({ data }) => {
-      setProducts(data || [])
-      setLoading(false)
-    })
+    fetchCatalogProducts({ brandIds, sectionIds, tipi, search })
+      .then(({ data }) => { setProducts(data || []) })
+      .catch(() => { setProducts([]) })
+      .finally(() => { setLoading(false) })
   }, [brandIds, sectionIds, tipi, search])
 
   // ── Cart operations ──────────────────────────────────────────────────────────

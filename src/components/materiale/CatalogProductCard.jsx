@@ -41,7 +41,7 @@ export function CatalogProductCard({ product, cartQuantity = 0, onAdd, onUpdateQ
             {/* Dettagli button */}
             <button
               onClick={() => onShowDetails(product)}
-              className="text-sm text-mikai-600 hover:text-mikai-700 font-medium min-h-[36px] px-2"
+              className="text-sm text-mikai-600 hover:text-mikai-700 font-medium min-h-[48px] px-2"
               aria-label={`Dettagli ${product.nome}`}
             >
               Dettagli
@@ -52,7 +52,7 @@ export function CatalogProductCard({ product, cartQuantity = 0, onAdd, onUpdateQ
               {inCart && (
                 <button
                   onClick={() => onUpdateQuantity(product.id, cartQuantity - 1)}
-                  className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center text-lg font-bold text-gray-600 hover:text-red-600 transition-colors"
+                  className="w-12 h-12 rounded-lg bg-gray-100 hover:bg-red-100 flex items-center justify-center text-lg font-bold text-gray-600 hover:text-red-600 transition-colors"
                   aria-label="Diminuisci quantita"
                 >
                   −
@@ -63,7 +63,7 @@ export function CatalogProductCard({ product, cartQuantity = 0, onAdd, onUpdateQ
               )}
               <button
                 onClick={() => inCart ? onUpdateQuantity(product.id, cartQuantity + 1) : onAdd(product)}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold transition-colors ${
+                className={`w-12 h-12 rounded-lg flex items-center justify-center text-lg font-bold transition-colors ${
                   inCart
                     ? 'bg-mikai-100 hover:bg-mikai-200 text-mikai-600'
                     : 'bg-mikai-500 hover:bg-mikai-600 text-white'

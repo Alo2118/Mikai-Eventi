@@ -19,7 +19,7 @@ function CartItem({ item, onUpdateQuantity, onUpdateNote }) {
             type="button"
             aria-label="Diminuisci quantità"
             onClick={() => onUpdateQuantity(product.id, Math.max(0, quantity - 1))}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors font-medium text-lg"
+            className="w-12 h-12 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors font-medium text-lg"
           >
             −
           </button>
@@ -28,7 +28,7 @@ function CartItem({ item, onUpdateQuantity, onUpdateNote }) {
             type="button"
             aria-label="Aumenta quantità"
             onClick={() => onUpdateQuantity(product.id, quantity + 1)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors font-medium text-lg"
+            className="w-12 h-12 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors font-medium text-lg"
           >
             +
           </button>
@@ -102,7 +102,7 @@ export function CatalogCartFloating({
                 type="button"
                 aria-label="Chiudi carrello"
                 onClick={onToggle}
-                className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                className="w-12 h-12 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 <Icon icon={ACTION_ICONS.close} size={20} />
               </button>

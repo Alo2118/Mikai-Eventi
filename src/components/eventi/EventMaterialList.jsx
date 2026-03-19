@@ -70,10 +70,15 @@ export function EventMaterialList({ event }) {
         if (error) errors++
         else changes++
       } else if (item.dbRowId && existingRow) {
-        if (item.quantity !== (existingRow.quantita || 1)) {
-          // Quantity changed on existing row — update and reset to pending
-          const updates = { quantita: item.quantity }
-          if (existingRow.stato === 'approvato') updates.stato = 'richiesto'
+        const qtyChanged = item.quantity !== (existingRow.quantita || 1)
+        const noteChanged = (item.note || '') !== (existingRow.note_commerciale || '')
+        if (qtyChanged || noteChanged) {
+          const updates = {}
+          if (qtyChanged) {
+            updates.quantita = item.quantity
+            if (existingRow.stato === 'approvato') updates.stato = 'richiesto'
+          }
+          if (noteChanged) updates.note_commerciale = item.note
           const { error } = await updateMaterialListRow(item.dbRowId, updates)
           if (error) errors++
           else changes++
@@ -89,7 +94,7 @@ export function EventMaterialList({ event }) {
     }
 
     if (errors > 0) addToast(`${errors} errori durante il salvataggio`, 'error')
-    if (changes > 0) addToast('Lista aggiornata!', 'success')
+    if (changes > 0) addToast('Lista materiale aggiornata', 'success')
     setShowCatalog(false)
     loadData()
   }
