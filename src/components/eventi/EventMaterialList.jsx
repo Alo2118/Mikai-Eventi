@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
-import { useGadgetsStore } from '../../hooks/useGadgets'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
@@ -9,8 +8,6 @@ import { ACTION_ICONS } from '../../lib/icons'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { CatalogBrowser } from '../materiale/CatalogBrowser'
-import { GadgetRequestForm } from '../materiale/GadgetRequestForm'
-import { GadgetCard } from '../materiale/GadgetCard'
 import { MovementHistory } from '../materiale/MovementHistory'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
@@ -20,11 +17,8 @@ export function EventMaterialList({ event }) {
   const [loading, setLoading] = useState(true)
   const [showCatalog, setShowCatalog] = useState(false)
   const [rejectTarget, setRejectTarget] = useState(null)
-  const [gadgets, setGadgets] = useState([])
   const [movements, setMovements] = useState([])
-  const [showGadgetForm, setShowGadgetForm] = useState(false)
 
-  const fetchEventGadgets = useGadgetsStore(s => s.fetchEventGadgets)
   const fetchEventMovements = useMaterialsStore(s => s.fetchEventMovements)
 
   const addToMaterialList = useMaterialsStore(s => s.addToMaterialList)
@@ -33,6 +27,7 @@ export function EventMaterialList({ event }) {
   const removeMaterialListRow = useMaterialsStore(s => s.removeMaterialListRow)
   const confirmMaterialRow = useMaterialsStore(s => s.confirmMaterialRow)
   const rejectMaterialRow = useMaterialsStore(s => s.rejectMaterialRow)
+  const restoreGadgetStock = useMaterialsStore(s => s.restoreGadgetStock)
 
   const user = useAuthStore(s => s.user)
   const hasPermission = useAuthStore(s => s.hasPermission)
@@ -44,13 +39,11 @@ export function EventMaterialList({ event }) {
 
   const loadData = async () => {
     setLoading(true)
-    const [matRes, gadRes, movRes] = await Promise.all([
+    const [matRes, movRes] = await Promise.all([
       fetchEventMaterialList(event.id),
-      fetchEventGadgets(event.id),
       fetchEventMovements(event.id),
     ])
     setRows(matRes.data)
-    setGadgets(gadRes.data)
     setMovements(movRes.data)
     setLoading(false)
   }
@@ -66,6 +59,8 @@ export function EventMaterialList({ event }) {
       const existingRow = rows.find(r => r.product_id === productId)
 
       if (item.quantity === 0 && item.dbRowId) {
+        const removedRow = rows.find(r => r.id === item.dbRowId)
+        if (removedRow) await restoreGadgetStock(removedRow)
         const { error } = await removeMaterialListRow(item.dbRowId)
         if (error) errors++
         else changes++
@@ -73,6 +68,9 @@ export function EventMaterialList({ event }) {
         const qtyChanged = item.quantity !== (existingRow.quantita || 1)
         const noteChanged = (item.note || '') !== (existingRow.note_commerciale || '')
         if (qtyChanged || noteChanged) {
+          if (existingRow.stato === 'approvato' && existingRow.quantita_approvata && existingRow.product?.tipo === 'gadget') {
+            await restoreGadgetStock(existingRow)
+          }
           const updates = {}
           if (qtyChanged) {
             updates.quantita = item.quantity
@@ -103,7 +101,9 @@ export function EventMaterialList({ event }) {
   const handleUpdate = async (id, updates) => {
     const row = rows.find(r => r.id === id)
     if (row?.stato === 'approvato' && updates.quantita) {
+      await restoreGadgetStock(row)
       updates.stato = 'richiesto'
+      updates.quantita_approvata = null
     }
     const { error } = await updateMaterialListRow(id, updates)
     if (error) addToast(error, 'error')
@@ -111,13 +111,15 @@ export function EventMaterialList({ event }) {
   }
 
   const handleRemove = async (id) => {
+    const row = rows.find(r => r.id === id)
+    if (row) await restoreGadgetStock(row)
     const { error } = await removeMaterialListRow(id)
     if (error) addToast(error, 'error')
     else { addToast('Rimosso dalla lista', 'success'); loadData() }
   }
 
-  const handleConfirm = async (id) => {
-    const { error } = await confirmMaterialRow(id)
+  const handleConfirm = async (id, quantitaApprovata, noteUfficio) => {
+    const { error } = await confirmMaterialRow(id, quantitaApprovata, noteUfficio)
     if (error) addToast(error, 'error')
     else { addToast('Confermato!', 'success'); loadData() }
   }
@@ -157,7 +159,7 @@ export function EventMaterialList({ event }) {
         <button
           onClick={async () => {
             const pending = rows.filter(r => r.stato === 'richiesto')
-            for (const r of pending) await confirmMaterialRow(r.id)
+            for (const r of pending) await confirmMaterialRow(r.id, r.quantita || 1)
             addToast(`${pending.length} materiali confermati!`, 'success')
             loadData()
           }}
@@ -207,33 +209,6 @@ export function EventMaterialList({ event }) {
         onConfirm={handleReject}
         onCancel={() => setRejectTarget(null)}
       />
-
-      {/* Gadgets */}
-      <section className="pt-6 border-t border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Gadget</h2>
-          {canEdit && !showGadgetForm && (
-            <Button variant="secondary" onClick={() => setShowGadgetForm(true)}>
-              <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
-              Richiedi
-            </Button>
-          )}
-        </div>
-
-        {showGadgetForm && (
-          <GadgetRequestForm eventId={event.id} onDone={() => { setShowGadgetForm(false); loadData() }} />
-        )}
-
-        {gadgets.length === 0 ? (
-          <EmptyState title="Nessun gadget richiesto" />
-        ) : (
-          <div className="space-y-2">
-            {gadgets.map(eg => (
-              <GadgetCard key={eg.id} gadget={eg.gadget} eventGadget={eg} />
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* Movements */}
       {movements.length > 0 && (
