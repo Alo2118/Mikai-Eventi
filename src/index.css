@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mikai-50: #eef7fd;
+  --color-mikai-100: #d4ecfb;
+  --color-mikai-200: #a9d8f7;
+  --color-mikai-300: #6fbdef;
+  --color-mikai-400: #3296dc;
+  --color-mikai-500: #2a7dba;
+  --color-mikai-600: #226497;
+  --color-mikai-700: #1b4e77;
+  --color-mikai-800: #143a59;
+  --color-mikai-900: #0e2840;
+  --color-mikai-950: #091a2b;
+}

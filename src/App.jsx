@@ -1,0 +1,69 @@
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from './hooks/useAuth'
+import { AppShell } from './components/layout/AppShell'
+import { Login } from './pages/auth/Login'
+import { LoadingSkeleton } from './components/ui/LoadingSkeleton'
+import { EventiList } from './pages/eventi/EventiList'
+import { EventiDetail } from './pages/eventi/EventiDetail'
+import { EventiWizard } from './pages/eventi/EventiWizard'
+import { EventiCalendar } from './pages/eventi/EventiCalendar'
+import { MaterialeList } from './pages/materiale/MaterialeList'
+import { MaterialeDetail } from './pages/materiale/MaterialeDetail'
+import { AdminBrand } from './pages/admin/AdminBrand'
+import { AdminDistretti } from './pages/admin/AdminDistretti'
+import { AdminProdotti } from './pages/admin/AdminProdotti'
+import { AdminMateriali } from './pages/admin/AdminMateriali'
+import { AdminGadget } from './pages/admin/AdminGadget'
+import { AdminSedi } from './pages/admin/AdminSedi'
+import { AdminZone } from './pages/admin/AdminZone'
+import { AdminUtenti } from './pages/admin/AdminUtenti'
+
+function ProtectedRoute({ children }) {
+  const session = useAuthStore(s => s.session)
+  const loading = useAuthStore(s => s.loading)
+
+  if (loading) return <LoadingSkeleton lines={5} />
+  if (!session) return <Navigate to="/login" replace />
+  return children
+}
+
+function App() {
+  const initialize = useAuthStore(s => s.initialize)
+
+  useEffect(() => { initialize() }, [initialize])
+
+  return (
+    <BrowserRouter basename="/Eventi">
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppShell />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/" element={<div className="p-8 text-lg">Riepilogo — In costruzione</div>} />
+          <Route path="/eventi" element={<EventiList />} />
+          <Route path="/eventi/nuovo" element={<EventiWizard />} />
+          <Route path="/eventi/calendario" element={<EventiCalendar />} />
+          <Route path="/eventi/:id" element={<EventiDetail />} />
+          <Route path="/notifiche" element={<div className="p-8 text-lg">Notifiche — In costruzione</div>} />
+          <Route path="/materiale" element={<MaterialeList />} />
+          <Route path="/materiale/:id" element={<MaterialeDetail />} />
+          <Route path="/admin/brand" element={<AdminBrand />} />
+          <Route path="/admin/distretti" element={<AdminDistretti />} />
+          <Route path="/admin/prodotti" element={<AdminProdotti />} />
+          <Route path="/admin/materiali" element={<AdminMateriali />} />
+          <Route path="/admin/gadget" element={<AdminGadget />} />
+          <Route path="/admin/sedi" element={<AdminSedi />} />
+          <Route path="/admin/zone" element={<AdminZone />} />
+          <Route path="/admin/utenti" element={<AdminUtenti />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App
