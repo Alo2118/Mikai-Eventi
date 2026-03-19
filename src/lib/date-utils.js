@@ -42,3 +42,10 @@ export function formatDateTime(dateStr) {
   if (!isValid(d)) return ''
   return format(d, "d MMM yyyy 'alle' HH:mm", { locale: it })
 }
+
+export function calculateDeadline(eventDate, giorniPrima) {
+  if (!giorniPrima && giorniPrima !== 0) return null
+  const d = new Date(eventDate)
+  d.setDate(d.getDate() + giorniPrima)
+  return d.toISOString().split('T')[0]
+}

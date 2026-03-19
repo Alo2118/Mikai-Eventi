@@ -32,6 +32,7 @@ export const STATO_EVENTO = {
   in_corso: 'In corso',
   concluso: 'Concluso',
   cancellato: 'Annullato',
+  rifiutato: 'Rifiutato',
 }
 
 export const STATO_EVENTO_COLORE = {
@@ -42,6 +43,37 @@ export const STATO_EVENTO_COLORE = {
   in_corso: 'emerald',
   concluso: 'gray',
   cancellato: 'red',
+  rifiutato: 'red',
+}
+
+export const STATO_ATTIVITA = {
+  da_fare: 'Da fare',
+  in_corso: 'In corso',
+  completata: 'Completata',
+  disattivata: 'Disattivata',
+}
+
+export const STATO_ATTIVITA_COLORE = {
+  da_fare: 'gray',
+  in_corso: 'mikai',
+  completata: 'green',
+  disattivata: 'gray',
+}
+
+export const CATEGORIA_ATTIVITA = {
+  logistica: 'Logistica',
+  marketing: 'Marketing',
+  materiale: 'Materiale',
+  organizzazione: 'Organizzazione',
+  amministrazione: 'Amministrazione',
+}
+
+export const CATEGORIA_ATTIVITA_COLORE = {
+  logistica: 'blue',
+  marketing: 'purple',
+  materiale: 'emerald',
+  organizzazione: 'yellow',
+  amministrazione: 'gray',
 }
 
 export const STATO_MATERIALE_RICHIESTA = {
@@ -76,6 +108,8 @@ export const PERMESSI = {
   gestione_gadget: 'Gestione gadget',
   gestione_sedi: 'Gestione sedi',
   gestione_catalogo: 'Gestione catalogo',
+  gestione_marketing: 'Gestione marketing',
+  gestione_organizzazione: 'Gestione organizzazione',
 }
 
 export const RUOLI_OPERATIVI = {
@@ -95,18 +129,18 @@ export const TIPO_MATERIALE = {
 }
 
 export const POSIZIONE_MATERIALE = {
-  magazzino: 'In magazzino',
-  evento: 'All\'evento',
-  agente: 'Presso agente',
-  spedito: 'In spedizione',
+  in_magazzino: 'In magazzino',
+  presso_evento: 'Presso evento',
+  magazzino_agente: 'Presso agente',
+  in_transito: 'In transito',
   manutenzione: 'In manutenzione',
 }
 
 export const POSIZIONE_MATERIALE_COLORE = {
-  magazzino: 'green',
-  evento: 'blue',
-  agente: 'yellow',
-  spedito: 'mikai',
+  in_magazzino: 'green',
+  presso_evento: 'blue',
+  magazzino_agente: 'yellow',
+  in_transito: 'mikai',
   manutenzione: 'red',
 }
 

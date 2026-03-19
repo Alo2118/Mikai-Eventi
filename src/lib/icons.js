@@ -83,6 +83,12 @@ import {
   Map,
   Lock,
   FilterX,
+
+  // Attività
+  Calculator,
+  ClipboardList,
+  ListTodo,
+  Timer,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -117,6 +123,7 @@ export const STATO_EVENTO_ICONS = {
   in_corso: Play,
   concluso: Flag,
   cancellato: XCircle,
+  rifiutato: XCircle,
 }
 
 // ═══════════════════════════════════════════
@@ -147,6 +154,9 @@ export const NAV_ICONS = {
   nuovo: CirclePlus,
   profilo: User,
   logout: LogOut,
+  logistica: Truck,
+  dashboard: LayoutDashboard,
+  attivita: ListTodo,
 }
 
 // ═══════════════════════════════════════════
@@ -210,10 +220,10 @@ export const TOAST_ICONS = {
 // Posizione materiale
 // ═══════════════════════════════════════════
 export const POSIZIONE_ICONS = {
-  magazzino: Package,
-  evento: Calendar,
-  agente: User,
-  spedito: Truck,
+  in_magazzino: Package,
+  presso_evento: Calendar,
+  magazzino_agente: User,
+  in_transito: Truck,
   manutenzione: Wrench,
 }
 
@@ -240,4 +250,24 @@ export const FEEDBACK_ICONS = {
   info: Info,
   success: CheckCircle,
   error: XCircle,
+}
+
+// ═══════════════════════════════════════════
+// Attività (Readiness Engine)
+// ═══════════════════════════════════════════
+export const ATTIVITA_STATO_ICONS = {
+  da_fare: Circle,
+  in_corso: CircleDot,
+  completata: CheckCircle,
+  in_ritardo: Timer,
+  bloccata: Lock,
+  disattivata: XCircle,
+}
+
+export const CATEGORIA_ICONS = {
+  logistica: Truck,
+  marketing: FileText,
+  materiale: Package,
+  organizzazione: ClipboardList,
+  amministrazione: Calculator,
 }
