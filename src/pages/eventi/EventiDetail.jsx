@@ -9,6 +9,7 @@ import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { EventInfoTab } from '../../components/eventi/EventInfoTab'
 import { EventMaterialList } from '../../components/eventi/EventMaterialList'
+import { EventPreparazioneTab } from '../../components/eventi/EventPreparazioneTab'
 import { TIPO_EVENTO } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
 
@@ -36,7 +37,7 @@ function getVisibleTabs(event, profile, permissions) {
     tabs.push({ id: 'costi', label: 'Costi' })
   }
   tabs.push({ id: 'documenti', label: 'Documenti' })
-  tabs.push({ id: 'checklist', label: 'Lista attivita\'' })
+  tabs.push({ id: 'preparazione', label: 'Preparazione' })
   if (isUfficio) {
     tabs.push({ id: 'report', label: 'Report' })
   }
@@ -111,7 +112,7 @@ export function EventiDetail() {
         {activeTab === 'logistica' && <PlaceholderTab name="Logistica" />}
         {activeTab === 'costi' && <PlaceholderTab name="Costi" />}
         {activeTab === 'documenti' && <PlaceholderTab name="Documenti" />}
-        {activeTab === 'checklist' && <PlaceholderTab name="Lista attivita'" />}
+        {activeTab === 'preparazione' && <EventPreparazioneTab event={event} />}
         {activeTab === 'report' && <PlaceholderTab name="Report post-evento" />}
       </div>
     </div>
