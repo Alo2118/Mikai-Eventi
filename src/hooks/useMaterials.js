@@ -184,7 +184,7 @@ export const useMaterialsStore = create((set, get) => ({
   fetchEventMaterialList: async (eventId) => {
     const { data, error } = await supabase
       .from('event_materials')
-      .select('*, product:products(id, nome, codice, descrizione, foto_url, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome)')
+      .select('*, product:products(id, nome, codice, descrizione, foto_url, tipo, quantita_disponibile, soglia_minima, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome)')
       .eq('event_id', eventId)
       .order('data_richiesta', { ascending: true })
     return { data: data || [], error: error?.message || null }
@@ -224,16 +224,26 @@ export const useMaterialsStore = create((set, get) => ({
     return { data, error: error?.message || null }
   },
 
-  confirmMaterialRow: async (id, noteUfficio) => {
+  confirmMaterialRow: async (id, quantitaApprovata, noteUfficio) => {
     const { data, error } = await supabase
       .from('event_materials')
       .update({
         stato: 'approvato',
+        quantita_approvata: quantitaApprovata,
         note_ufficio: noteUfficio || null,
       })
       .eq('id', id)
-      .select()
+      .select('*, product:products(id, tipo, quantita_disponibile)')
       .single()
+
+    // Atomic stock decrement for gadgets
+    if (!error && data?.product?.tipo === 'gadget' && data.product.quantita_disponibile != null) {
+      await supabase.rpc('adjust_product_stock', {
+        p_product_id: data.product_id,
+        p_delta: -quantitaApprovata,
+      })
+    }
+
     return { data, error: error?.message || null }
   },
 
@@ -248,6 +258,15 @@ export const useMaterialsStore = create((set, get) => ({
       .select()
       .single()
     return { data, error: error?.message || null }
+  },
+
+  restoreGadgetStock: async (row) => {
+    if (row.stato === 'approvato' && row.quantita_approvata && row.product?.tipo === 'gadget') {
+      await supabase.rpc('adjust_product_stock', {
+        p_product_id: row.product_id,
+        p_delta: row.quantita_approvata,
+      })
+    }
   },
 
   // === Catalog Browsing (replaces 3-step wizard) ===
