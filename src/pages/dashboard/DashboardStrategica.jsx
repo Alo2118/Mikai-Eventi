@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
+import { useActivitiesStore } from '../../hooks/useActivities'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -10,7 +11,6 @@ import { MobileHeader } from '../../components/layout/MobileHeader'
 import { STATO_EVENTO, STATO_EVENTO_COLORE } from '../../lib/constants'
 import { FEEDBACK_ICONS } from '../../lib/icons'
 import { formatDate, formatDateRange } from '../../lib/date-utils'
-import { supabase } from '../../lib/supabase'
 
 function budgetFormatted(val) {
   if (!val) return '—'
@@ -60,6 +60,7 @@ export function DashboardStrategica() {
   const events = useEventsStore(s => s.events)
   const loading = useEventsStore(s => s.loading)
   const fetchEvents = useEventsStore(s => s.fetchEvents)
+  const fetchEventSemaphores = useActivitiesStore(s => s.fetchEventSemaphores)
   const [semaphores, setSemaphores] = useState({})
 
   useEffect(() => { fetchEvents() }, [])
@@ -75,32 +76,7 @@ export function DashboardStrategica() {
     if (!upcoming.length) return
     const ids = upcoming.map(e => e.id)
 
-    supabase
-      .from('event_activities')
-      .select('event_id, stato, obbligatoria, deadline')
-      .in('event_id', ids)
-      .then(({ data }) => {
-        if (!data) return
-        const map = {}
-        const today2 = new Date()
-        for (const act of data) {
-          if (!map[act.event_id]) map[act.event_id] = { hasOverdue: false, allDone: true }
-          if (act.stato === 'completata') continue
-          map[act.event_id].allDone = false
-          if (act.obbligatoria && act.deadline && new Date(act.deadline) < today2) {
-            map[act.event_id].hasOverdue = true
-          }
-        }
-        const result = {}
-        for (const id of ids) {
-          const s = map[id]
-          if (!s) { result[id] = 'green'; continue }
-          if (s.hasOverdue) result[id] = 'red'
-          else if (s.allDone) result[id] = 'green'
-          else result[id] = 'yellow'
-        }
-        setSemaphores(result)
-      })
+    fetchEventSemaphores(ids).then(result => setSemaphores(result))
   }, [events])
 
   const proposti = events.filter(e => e.stato === 'proposto')

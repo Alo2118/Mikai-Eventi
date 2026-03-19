@@ -78,6 +78,9 @@ export function LogisticaMatrice() {
               <tr
                 key={evento.id}
                 onClick={() => navigate(`/eventi/${evento.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/eventi/${evento.id}`) }}
+                tabIndex={0}
+                role="button"
                 className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
               >
                 <td className="py-3 pr-4">

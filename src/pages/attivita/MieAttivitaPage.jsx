@@ -65,7 +65,7 @@ function ActivityCard({ act }) {
 
 export function MieAttivitaPage() {
   const myActivities = useActivitiesStore(s => s.myActivities)
-  const loading = useActivitiesStore(s => s.loading)
+  const loading = useActivitiesStore(s => s.myLoading)
   const fetchMyActivities = useActivitiesStore(s => s.fetchMyActivities)
   const user = useAuthStore(s => s.user)
 

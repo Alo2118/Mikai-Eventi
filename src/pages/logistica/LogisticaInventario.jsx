@@ -57,40 +57,36 @@ function InventarioCard({ material, onNavigate }) {
 }
 
 export function LogisticaInventario() {
-  const materials = useMaterialsStore(s => s.materials)
+  const allMaterials = useMaterialsStore(s => s.materials)
   const loading = useMaterialsStore(s => s.loading)
   const fetchMaterials = useMaterialsStore(s => s.fetchMaterials)
-  const setFilter = useMaterialsStore(s => s.setFilter)
-  const filters = useMaterialsStore(s => s.filters)
   const navigate = useNavigate()
-  const [localSearch, setLocalSearch] = useState(filters.search || '')
+  const [search, setSearch] = useState('')
+  const [posizione, setPosizione] = useState('')
 
   useEffect(() => { fetchMaterials() }, [])
 
-  function handleSearch(value) {
-    setLocalSearch(value)
-    setFilter('search', value)
-  }
+  const filtered = allMaterials.filter(m => {
+    const matchSearch = !search || m.nome?.toLowerCase().includes(search.toLowerCase())
+    const matchPosizione = !posizione || m.posizione_attuale === posizione
+    return matchSearch && matchPosizione
+  })
 
-  function handlePosizione(value) {
-    setFilter('posizione', value)
-  }
-
-  const fuori = materials.filter(m => m.posizione_attuale !== 'in_magazzino').length
+  const fuori = allMaterials.filter(m => m.posizione_attuale !== 'in_magazzino').length
 
   return (
     <div className="px-4 md:px-8 py-4">
       <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="flex-1">
           <SearchInput
-            value={localSearch}
-            onChange={handleSearch}
+            value={search}
+            onChange={setSearch}
             placeholder="Cerca materiale..."
           />
         </div>
         <select
-          value={filters.posizione}
-          onChange={e => handlePosizione(e.target.value)}
+          value={posizione}
+          onChange={e => setPosizione(e.target.value)}
           className="min-h-[48px] rounded-lg border border-gray-300 px-3 text-base focus:ring-2 focus:ring-mikai-400 focus:outline-none bg-white"
           aria-label="Filtra per posizione"
         >
@@ -108,14 +104,14 @@ export function LogisticaInventario() {
 
       {loading ? (
         <LoadingSkeleton lines={5} />
-      ) : materials.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           title="Nessun materiale trovato"
           description="Prova a cambiare i filtri di ricerca."
         />
       ) : (
         <div className="space-y-3">
-          {materials.map(m => (
+          {filtered.map(m => (
             <InventarioCard key={m.id} material={m} onNavigate={navigate} />
           ))}
         </div>

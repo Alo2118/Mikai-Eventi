@@ -38,7 +38,7 @@ function TrafficLight({ total, completed, overdue }) {
 
 export function EventPreparazioneTab({ event }) {
   const eventActivities = useActivitiesStore(s => s.eventActivities)
-  const loading = useActivitiesStore(s => s.loading)
+  const loading = useActivitiesStore(s => s.eventLoading)
   const fetchEventActivities = useActivitiesStore(s => s.fetchEventActivities)
   const startActivity = useActivitiesStore(s => s.startActivity)
   const completeActivity = useActivitiesStore(s => s.completeActivity)

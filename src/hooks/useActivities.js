@@ -7,11 +7,16 @@ export const useActivitiesStore = create((set, get) => ({
   eventActivities: [],     // activities for a single event (convergence dashboard)
   myActivities: [],        // activities assigned to current user (banner + "le mie attività")
   dashboardActivities: [], // cross-event activities by permission (dashboard operativa)
-  loading: false,
-  error: null,
+  // Fix 6: scoped loading/error per fetch type
+  eventLoading: false,
+  myLoading: false,
+  dashboardLoading: false,
+  eventError: null,
+  myError: null,
+  dashboardError: null,
 
   fetchEventActivities: async (eventId) => {
-    set({ loading: true, error: null })
+    set({ eventLoading: true, eventError: null })
     const { data, error } = await supabase
       .from('event_activities')
       .select(`
@@ -21,12 +26,12 @@ export const useActivitiesStore = create((set, get) => ({
       `)
       .eq('event_id', eventId)
       .order('deadline', { ascending: true, nullsFirst: false })
-    set({ eventActivities: data || [], loading: false, error: error?.message })
+    set({ eventActivities: data || [], eventLoading: false, eventError: error?.message })
     return { data, error }
   },
 
   fetchMyActivities: async (userId) => {
-    set({ loading: true, error: null })
+    set({ myLoading: true, myError: null })
     const { data, error } = await supabase
       .from('event_activities')
       .select(`
@@ -36,12 +41,12 @@ export const useActivitiesStore = create((set, get) => ({
       .eq('assegnato_a', userId)
       .in('stato', ['da_fare', 'in_corso'])
       .order('deadline', { ascending: true, nullsFirst: false })
-    set({ myActivities: data || [], loading: false, error: error?.message })
+    set({ myActivities: data || [], myLoading: false, myError: error?.message })
     return { data, error }
   },
 
   fetchDashboardActivities: async (permissions) => {
-    set({ loading: true, error: null })
+    set({ dashboardLoading: true, dashboardError: null })
     let query = supabase
       .from('event_activities')
       .select(`
@@ -57,8 +62,30 @@ export const useActivitiesStore = create((set, get) => ({
     }
 
     const { data, error } = await query
-    set({ dashboardActivities: data || [], loading: false, error: error?.message })
+    set({ dashboardActivities: data || [], dashboardLoading: false, dashboardError: error?.message })
     return { data, error }
+  },
+
+  // Fix 1: fetchEventSemaphores action — no direct supabase calls in components
+  fetchEventSemaphores: async (eventIds) => {
+    const semaphores = {}
+    for (const eid of eventIds) {
+      const { data } = await supabase
+        .from('event_activities')
+        .select('stato, obbligatoria, deadline')
+        .eq('event_id', eid)
+        .neq('stato', 'disattivata')
+      if (data) {
+        const mandatory = data.filter(a => a.obbligatoria)
+        const overdue = mandatory.filter(a =>
+          (a.stato === 'da_fare' || a.stato === 'in_corso') &&
+          a.deadline && new Date(a.deadline) < new Date()
+        )
+        const allDone = mandatory.every(a => a.stato === 'completata')
+        semaphores[eid] = overdue.length > 0 ? 'red' : allDone ? 'green' : 'yellow'
+      }
+    }
+    return semaphores
   },
 
   instantiateTemplate: async (eventId, tipoEvento, modalita, dataInizio) => {
@@ -107,14 +134,18 @@ export const useActivitiesStore = create((set, get) => ({
       for (const act of inserted) {
         if (act.template_item_id) templateIdMap[act.template_item_id] = act.id
       }
+      // Fix 3: add error checking in dependency-wiring loop
       for (const item of items) {
         if (item.dipende_da && templateIdMap[item.dipende_da]) {
           const activityId = templateIdMap[item.id]
           if (activityId) {
-            await supabase
+            const { error: depError } = await supabase
               .from('event_activities')
               .update({ dipende_da: templateIdMap[item.dipende_da] })
               .eq('id', activityId)
+            if (depError) {
+              console.warn('Errore nel collegamento dipendenza:', depError.message)
+            }
           }
         }
       }
@@ -124,6 +155,7 @@ export const useActivitiesStore = create((set, get) => ({
     return { data: inserted, error: null }
   },
 
+  // Fix 5: updateActivity refreshes local state
   updateActivity: async (id, updates) => {
     const { data, error } = await supabase
       .from('event_activities')
@@ -131,6 +163,12 @@ export const useActivitiesStore = create((set, get) => ({
       .eq('id', id)
       .select()
       .single()
+    if (data && !error) {
+      set(state => ({
+        eventActivities: state.eventActivities.map(a => a.id === id ? { ...a, ...data } : a),
+        myActivities: state.myActivities.map(a => a.id === id ? { ...a, ...data } : a),
+      }))
+    }
     return { data, error }
   },
 

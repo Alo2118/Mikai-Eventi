@@ -17,16 +17,17 @@ function urgencyGroup(activities) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const in3 = new Date(today); in3.setDate(today.getDate() + 3)
   const in7 = new Date(today); in7.setDate(today.getDate() + 7)
+  const todayStr = today.toDateString()
 
   const groups = { overdue: [], today: [], in3days: [], in7days: [], noDeadline: [] }
   for (const act of activities) {
     if (!act.deadline) { groups.noDeadline.push(act); continue }
     const d = new Date(act.deadline)
-    if (d < today) groups.overdue.push(act)
-    else if (d <= today) groups.today.push(act)
-    else if (d.toDateString() === today.toDateString()) groups.today.push(act)
-    else if (d <= in3) groups.in3days.push(act)
-    else if (d <= in7) groups.in7days.push(act)
+    const dStr = d.toDateString()
+    if (dStr === todayStr) groups.today.push(act)
+    else if (d < today) groups.overdue.push(act)
+    else if (d < in3) groups.in3days.push(act)
+    else if (d < in7) groups.in7days.push(act)
     else groups.noDeadline.push(act)
   }
   return groups
@@ -68,7 +69,7 @@ function ActivityGroup({ title, activities, colorClass, iconClass }) {
 
 export function DashboardOperativa({ warehouseOnly = false }) {
   const dashboardActivities = useActivitiesStore(s => s.dashboardActivities)
-  const loading = useActivitiesStore(s => s.loading)
+  const loading = useActivitiesStore(s => s.dashboardLoading)
   const fetchDashboardActivities = useActivitiesStore(s => s.fetchDashboardActivities)
   const permissions = useAuthStore(s => s.permissions)
 
