@@ -90,6 +90,10 @@ import {
   ClipboardList,
   ListTodo,
   Timer,
+
+  // Catalogo
+  ShoppingCart,
+  SlidersHorizontal,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -196,6 +200,14 @@ export const MATERIALE_ICONS = {
   confermato: CheckCircle,
   rifiutato: XCircle,
   listLocked: Lock,
+}
+
+// ═══════════════════════════════════════════
+// Catalogo e-commerce
+// ═══════════════════════════════════════════
+export const CATALOGO_ICONS = {
+  cart: ShoppingCart,
+  filters: SlidersHorizontal,
 }
 
 // ═══════════════════════════════════════════
