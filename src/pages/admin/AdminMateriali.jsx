@@ -55,7 +55,7 @@ export function AdminMateriali() {
       nome: editing.codice_inventario || editing.nome || '',
       codice_inventario: editing.codice_inventario || null,
       product_id: editing.product_id || null,
-      posizione_attuale: editing.posizione_attuale || 'magazzino',
+      posizione_attuale: editing.posizione_attuale || 'in_magazzino',
       note: editing.note || null,
       attivo: editing.attivo !== false,
     }
@@ -100,7 +100,7 @@ export function AdminMateriali() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Posizione</label>
-              <select className={INPUT} value={editing.posizione_attuale || 'magazzino'} onChange={e => setEditing({ ...editing, posizione_attuale: e.target.value })}>
+              <select className={INPUT} value={editing.posizione_attuale || 'in_magazzino'} onChange={e => setEditing({ ...editing, posizione_attuale: e.target.value })}>
                 {Object.entries(POSIZIONE_MATERIALE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
@@ -122,7 +122,7 @@ export function AdminMateriali() {
             columns={columns}
             rows={specimens}
             searchField="codice_inventario"
-            onAdd={() => setEditing({ codice_inventario: '', product_id: '', posizione_attuale: 'magazzino', note: '', attivo: true })}
+            onAdd={() => setEditing({ codice_inventario: '', product_id: '', posizione_attuale: 'in_magazzino', note: '', attivo: true })}
             onEdit={handleEdit}
             onDelete={(row) => setDeleting(row)}
             addLabel="Nuovo materiale"

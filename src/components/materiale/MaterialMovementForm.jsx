@@ -8,7 +8,7 @@ import { MODALITA_MOVIMENTO } from '../../lib/constants'
 
 export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', allMaterialIds, onDone }) {
   const [modalita, setModalita] = useState('')
-  const [aPos, setAPos] = useState(tipo === 'rientro' ? 'magazzino' : 'evento')
+  const [aPos, setAPos] = useState(tipo === 'rientro' ? 'in_magazzino' : 'presso_evento')
   const [tracking, setTracking] = useState('')
   const [rientro, setRientro] = useState('')
   const [statoRientro, setStatoRientro] = useState('')
@@ -29,7 +29,7 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
       tipo,
       modalita,
       a_posizione: aPos,
-      da_posizione: tipo === 'rientro' ? 'evento' : 'magazzino',
+      da_posizione: tipo === 'rientro' ? 'presso_evento' : 'in_magazzino',
       data_movimento: new Date().toISOString(),
       data_rientro_prevista: rientro || null,
       responsabile_id: user.id,

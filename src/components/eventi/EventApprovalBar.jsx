@@ -103,7 +103,7 @@ export function EventApprovalBar({ event, onUpdate }) {
         title={event.stato === 'proposto' ? 'Rifiuta evento' : 'Annulla evento'}
         message={
           <div className="space-y-3">
-            <p>Inserisci il motivo:</p>
+            <p>{event.stato === 'proposto' ? 'Inserisci il motivo del rifiuto' : "Inserisci il motivo dell'annullamento"}</p>
             <textarea
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}

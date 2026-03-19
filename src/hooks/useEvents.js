@@ -94,10 +94,43 @@ export const useEventsStore = create((set, get) => ({
   },
 
   rejectEvent: async (id, motivo) => {
-    return get().updateEvent(id, { stato: 'cancellato', motivo_cancellazione: motivo })
+    return get().updateEvent(id, { stato: 'rifiutato', motivo_cancellazione: motivo })
   },
 
   cancelEvent: async (id, motivo) => {
     return get().updateEvent(id, { stato: 'cancellato', motivo_cancellazione: motivo })
+  },
+
+  checkGatePronto: async (eventId) => {
+    const { data } = await supabase
+      .from('event_activities')
+      .select('id, descrizione, stato, obbligatoria')
+      .eq('event_id', eventId)
+      .eq('obbligatoria', true)
+      .neq('stato', 'disattivata')
+      .neq('stato', 'completata')
+    const blocking = data || []
+    return { canAdvance: blocking.length === 0, blocking }
+  },
+
+  checkGateConcluded: async (eventId) => {
+    const { data } = await supabase
+      .from('event_materials')
+      .select('id, stato')
+      .eq('event_id', eventId)
+      .in('stato', ['approvato', 'in_preparazione'])
+    const unreturned = data || []
+    return { canAdvance: unreturned.length === 0, unreturned }
+  },
+
+  advanceEventState: async (eventId, newStato) => {
+    const { data, error } = await supabase
+      .from('events')
+      .update({ stato: newStato })
+      .eq('id', eventId)
+      .select()
+      .single()
+    if (!error) await get().fetchEvents()
+    return { data, error }
   },
 }))

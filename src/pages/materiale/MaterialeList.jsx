@@ -14,8 +14,8 @@ export function MaterialeList() {
 
   useEffect(() => { fetchMaterials() }, [])
 
-  const inMagazzino = materials.filter(m => m.posizione_attuale === 'magazzino').length
-  const fuori = materials.filter(m => m.posizione_attuale !== 'magazzino').length
+  const inMagazzino = materials.filter(m => m.posizione_attuale === 'in_magazzino').length
+  const fuori = materials.filter(m => m.posizione_attuale !== 'in_magazzino').length
 
   return (
     <div>
