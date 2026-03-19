@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
+import { useGadgetsStore } from '../../hooks/useGadgets'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
@@ -8,6 +9,9 @@ import { ACTION_ICONS } from '../../lib/icons'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { CatalogBrowser } from '../materiale/CatalogBrowser'
+import { GadgetRequestForm } from '../materiale/GadgetRequestForm'
+import { GadgetCard } from '../materiale/GadgetCard'
+import { MovementHistory } from '../materiale/MovementHistory'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
 
@@ -16,6 +20,12 @@ export function EventMaterialList({ event }) {
   const [loading, setLoading] = useState(true)
   const [showCatalog, setShowCatalog] = useState(false)
   const [rejectTarget, setRejectTarget] = useState(null)
+  const [gadgets, setGadgets] = useState([])
+  const [movements, setMovements] = useState([])
+  const [showGadgetForm, setShowGadgetForm] = useState(false)
+
+  const fetchEventGadgets = useGadgetsStore(s => s.fetchEventGadgets)
+  const fetchEventMovements = useMaterialsStore(s => s.fetchEventMovements)
 
   const addToMaterialList = useMaterialsStore(s => s.addToMaterialList)
   const fetchEventMaterialList = useMaterialsStore(s => s.fetchEventMaterialList)
@@ -28,13 +38,20 @@ export function EventMaterialList({ event }) {
   const hasPermission = useAuthStore(s => s.hasPermission)
   const addToast = useToastStore(s => s.add)
 
-  const canEdit = hasPermission('richiedi_materiale')
+  const closedStates = ['concluso', 'cancellato', 'rifiutato']
+  const canEdit = hasPermission('richiedi_materiale') && !closedStates.includes(event.stato)
   const canApprove = hasPermission('approva_materiale')
 
   const loadData = async () => {
     setLoading(true)
-    const { data } = await fetchEventMaterialList(event.id)
-    setRows(data)
+    const [matRes, gadRes, movRes] = await Promise.all([
+      fetchEventMaterialList(event.id),
+      fetchEventGadgets(event.id),
+      fetchEventMovements(event.id),
+    ])
+    setRows(matRes.data)
+    setGadgets(gadRes.data)
+    setMovements(movRes.data)
     setLoading(false)
   }
 
@@ -185,6 +202,41 @@ export function EventMaterialList({ event }) {
         onConfirm={handleReject}
         onCancel={() => setRejectTarget(null)}
       />
+
+      {/* Gadgets */}
+      <section className="pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Gadget</h2>
+          {canEdit && !showGadgetForm && (
+            <Button variant="secondary" onClick={() => setShowGadgetForm(true)}>
+              <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
+              Richiedi
+            </Button>
+          )}
+        </div>
+
+        {showGadgetForm && (
+          <GadgetRequestForm eventId={event.id} onDone={() => { setShowGadgetForm(false); loadData() }} />
+        )}
+
+        {gadgets.length === 0 ? (
+          <EmptyState title="Nessun gadget richiesto" />
+        ) : (
+          <div className="space-y-2">
+            {gadgets.map(eg => (
+              <GadgetCard key={eg.id} gadget={eg.gadget} eventGadget={eg} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Movements */}
+      {movements.length > 0 && (
+        <section className="pt-6 border-t border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Movimenti</h2>
+          <MovementHistory movements={movements} />
+        </section>
+      )}
     </div>
   )
 }
