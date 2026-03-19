@@ -184,7 +184,7 @@ export const useMaterialsStore = create((set, get) => ({
   fetchEventMaterialList: async (eventId) => {
     const { data, error } = await supabase
       .from('event_materials')
-      .select('*, product:products(id, nome, codice, descrizione, foto_url, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome)')
+      .select('*, product:products(id, nome, codice, descrizione, foto_url, tipo, quantita_disponibile, soglia_minima, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome)')
       .eq('event_id', eventId)
       .order('data_richiesta', { ascending: true })
     return { data: data || [], error: error?.message || null }
@@ -224,16 +224,26 @@ export const useMaterialsStore = create((set, get) => ({
     return { data, error: error?.message || null }
   },
 
-  confirmMaterialRow: async (id, noteUfficio) => {
+  confirmMaterialRow: async (id, quantitaApprovata, noteUfficio) => {
     const { data, error } = await supabase
       .from('event_materials')
       .update({
         stato: 'approvato',
+        quantita_approvata: quantitaApprovata,
         note_ufficio: noteUfficio || null,
       })
       .eq('id', id)
-      .select()
+      .select('*, product:products(id, tipo, quantita_disponibile)')
       .single()
+
+    // Atomic stock decrement for gadgets
+    if (!error && data?.product?.tipo === 'gadget' && data.product.quantita_disponibile != null) {
+      await supabase.rpc('adjust_product_stock', {
+        p_product_id: data.product_id,
+        p_delta: -quantitaApprovata,
+      })
+    }
+
     return { data, error: error?.message || null }
   },
 
@@ -250,6 +260,15 @@ export const useMaterialsStore = create((set, get) => ({
     return { data, error: error?.message || null }
   },
 
+  restoreGadgetStock: async (row) => {
+    if (row.stato === 'approvato' && row.quantita_approvata && row.product?.tipo === 'gadget') {
+      await supabase.rpc('adjust_product_stock', {
+        p_product_id: row.product_id,
+        p_delta: row.quantita_approvata,
+      })
+    }
+  },
+
   // === Catalog Browsing (replaces 3-step wizard) ===
 
   fetchCatalogProducts: async (filters) => {
@@ -259,21 +278,31 @@ export const useMaterialsStore = create((set, get) => ({
       .eq('attivo', true)
       .order('nome')
 
-    if (filters.brandId) query = query.eq('brand_id', filters.brandId)
+    // Multi-select brand filter
+    if (filters.brandIds?.length > 0) query = query.in('brand_id', filters.brandIds)
+    // Legacy single-select fallback
+    else if (filters.brandId) query = query.eq('brand_id', filters.brandId)
+
     if (filters.search) query = query.ilike('nome', `%${filters.search}%`)
 
     const { data, error } = await query
     let products = data || []
 
-    // Client-side filter by body section (join-based filtering)
-    if (filters.sectionId) {
+    // Client-side: multi-select body section (OR within group)
+    if (filters.sectionIds?.length > 0) {
+      products = products.filter(p =>
+        p.body_sections?.some(bs => filters.sectionIds.includes(bs.body_section?.id))
+      )
+    } else if (filters.sectionId) {
       products = products.filter(p =>
         p.body_sections?.some(bs => bs.body_section?.id === filters.sectionId)
       )
     }
 
-    // Client-side filter by product type
-    if (filters.tipo) {
+    // Client-side: multi-select product type (OR within group)
+    if (filters.tipi?.length > 0) {
+      products = products.filter(p => filters.tipi.includes(p.tipo))
+    } else if (filters.tipo) {
       products = products.filter(p => p.tipo === filters.tipo)
     }
 
@@ -295,6 +324,15 @@ export const useMaterialsStore = create((set, get) => ({
       .select('*')
       .eq('product_id', productId)
       .order('piece_name')
+    return { data: data || [], error: error?.message || null }
+  },
+
+  fetchProductAvailability: async (productId) => {
+    const { data, error } = await supabase
+      .from('materials')
+      .select('id, nome, codice_inventario, posizione_attuale, magazzino_id')
+      .eq('product_id', productId)
+      .eq('attivo', true)
     return { data: data || [], error: error?.message || null }
   },
 

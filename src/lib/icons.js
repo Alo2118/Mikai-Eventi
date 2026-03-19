@@ -90,6 +90,10 @@ import {
   ClipboardList,
   ListTodo,
   Timer,
+
+  // Catalogo
+  ShoppingCart,
+  SlidersHorizontal,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -199,6 +203,14 @@ export const MATERIALE_ICONS = {
 }
 
 // ═══════════════════════════════════════════
+// Catalogo e-commerce
+// ═══════════════════════════════════════════
+export const CATALOGO_ICONS = {
+  cart: ShoppingCart,
+  filters: SlidersHorizontal,
+}
+
+// ═══════════════════════════════════════════
 // Wizard steps
 // ═══════════════════════════════════════════
 export const WIZARD_STEP_ICONS = {
@@ -237,7 +249,6 @@ export const ADMIN_ICONS = {
   distretti: Bone,
   prodotti: Package,
   materiali: Boxes,
-  gadget: Gift,
   sedi: MapPin,
   zone: Map,
   utenti: Users,

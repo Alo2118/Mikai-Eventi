@@ -11,6 +11,9 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
   const isRejected = row.stato === 'rifiutato'
   const isInPrep = row.stato === 'in_preparazione'
   const product = row.product
+  const [showConfirmForm, setShowConfirmForm] = useState(false)
+  const [confirmQty, setConfirmQty] = useState(row.quantita || 1)
+  const [confirmNote, setConfirmNote] = useState('')
 
   // Per-row editability: editable if pending or confirmed (not in_preparazione)
   const rowEditable = canEdit && (isPending || isConfirmed) && !isInPrep
@@ -50,7 +53,7 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); onUpdate(row.id, { quantita: Math.max(1, (row.quantita || 1) - 1) }) }}
-                className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
+                className="w-12 h-12 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
                 aria-label="Diminuisci"
               >
                 −
@@ -58,23 +61,38 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
               <span className="w-8 text-center text-base font-bold text-gray-900">{row.quantita || 1}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onUpdate(row.id, { quantita: (row.quantita || 1) + 1 }) }}
-                className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
+                className="w-12 h-12 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
                 aria-label="Aumenta"
               >
                 +
               </button>
             </>
           ) : (
-            <span className="text-base text-gray-600 font-medium">×{row.quantita || 1}</span>
+            <div className="text-right">
+              {isConfirmed && row.quantita_approvata != null && row.quantita_approvata < (row.quantita || 1) ? (
+                <div>
+                  <span className="text-sm text-gray-400 line-through">{row.quantita}</span>
+                  <span className="text-base font-bold text-yellow-700 ml-1">{row.quantita_approvata}</span>
+                </div>
+              ) : (
+                <span className="text-base text-gray-600 font-medium">×{row.quantita_approvata || row.quantita || 1}</span>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Status badge */}
-        <StatusBadge
-          stato={row.stato}
-          labels={STATO_MATERIALE_LISTA}
-          colors={STATO_MATERIALE_LISTA_COLORE}
-        />
+        {/* Status badge — override for partial approval */}
+        {isConfirmed && row.quantita_approvata != null && row.quantita_approvata < (row.quantita || 1) ? (
+          <span className="px-3 py-1 text-sm font-medium text-yellow-700 bg-yellow-100 rounded-full whitespace-nowrap">
+            Approvato parziale
+          </span>
+        ) : (
+          <StatusBadge
+            stato={row.stato}
+            labels={STATO_MATERIALE_LISTA}
+            colors={STATO_MATERIALE_LISTA_COLORE}
+          />
+        )}
 
         {/* Remove button — only pending rows */}
         {rowRemovable && (
@@ -141,10 +159,10 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
           )}
 
           {/* Approval actions for ufficio */}
-          {canApprove && isPending && (
+          {canApprove && isPending && !showConfirmForm && (
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => onConfirm(row.id)}
+                onClick={() => { setConfirmQty(row.quantita || 1); setConfirmNote(''); setShowConfirmForm(true) }}
                 className="flex items-center gap-2 px-5 py-3 bg-green-100 hover:bg-green-200 rounded-xl text-base font-medium text-green-800 min-h-[48px] transition-colors"
                 aria-label="Conferma"
               >
@@ -157,6 +175,63 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
               >
                 <Icon icon={ACTION_ICONS.reject} size={18} /> Rifiuta
               </button>
+            </div>
+          )}
+
+          {canApprove && isPending && showConfirmForm && (
+            <div className="bg-green-50 rounded-xl p-4 space-y-3">
+              <p className="text-sm font-medium text-green-800">Conferma materiale</p>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="text-sm text-gray-600">Quantita approvata</label>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setConfirmQty(q => Math.max(1, q - 1))}
+                    className="w-12 h-12 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
+                    aria-label="Diminuisci approvati"
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center text-lg font-bold text-gray-900">{confirmQty}</span>
+                  <button
+                    onClick={() => setConfirmQty(q => Math.min(row.quantita || 1, q + 1))}
+                    className="w-12 h-12 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
+                    aria-label="Aumenta approvati"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="text-sm text-gray-400">/ {row.quantita || 1} richiesti</span>
+              </div>
+
+              {confirmQty < (row.quantita || 1) && (
+                <p className="text-sm text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2">
+                  Approvazione parziale: {confirmQty} su {row.quantita || 1}
+                </p>
+              )}
+
+              <input
+                type="text"
+                value={confirmNote}
+                onChange={(e) => setConfirmNote(e.target.value)}
+                placeholder="Nota ufficio (opzionale)"
+                className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { onConfirm(row.id, confirmQty, confirmNote); setShowConfirmForm(false) }}
+                  className="flex items-center gap-2 px-5 py-3 bg-green-600 hover:bg-green-700 rounded-xl text-base font-medium text-white min-h-[48px] transition-colors"
+                >
+                  <Icon icon={ACTION_ICONS.approve} size={18} /> Conferma {confirmQty}
+                </button>
+                <button
+                  onClick={() => setShowConfirmForm(false)}
+                  className="px-5 py-3 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-base font-medium text-gray-600 min-h-[48px] transition-colors"
+                >
+                  Annulla
+                </button>
+              </div>
             </div>
           )}
 

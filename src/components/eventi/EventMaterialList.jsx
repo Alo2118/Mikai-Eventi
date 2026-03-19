@@ -8,6 +8,7 @@ import { ACTION_ICONS } from '../../lib/icons'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { CatalogBrowser } from '../materiale/CatalogBrowser'
+import { MovementHistory } from '../materiale/MovementHistory'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
 
@@ -16,6 +17,9 @@ export function EventMaterialList({ event }) {
   const [loading, setLoading] = useState(true)
   const [showCatalog, setShowCatalog] = useState(false)
   const [rejectTarget, setRejectTarget] = useState(null)
+  const [movements, setMovements] = useState([])
+
+  const fetchEventMovements = useMaterialsStore(s => s.fetchEventMovements)
 
   const addToMaterialList = useMaterialsStore(s => s.addToMaterialList)
   const fetchEventMaterialList = useMaterialsStore(s => s.fetchEventMaterialList)
@@ -23,18 +27,24 @@ export function EventMaterialList({ event }) {
   const removeMaterialListRow = useMaterialsStore(s => s.removeMaterialListRow)
   const confirmMaterialRow = useMaterialsStore(s => s.confirmMaterialRow)
   const rejectMaterialRow = useMaterialsStore(s => s.rejectMaterialRow)
+  const restoreGadgetStock = useMaterialsStore(s => s.restoreGadgetStock)
 
   const user = useAuthStore(s => s.user)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const addToast = useToastStore(s => s.add)
 
-  const canEdit = hasPermission('richiedi_materiale')
+  const closedStates = ['concluso', 'cancellato', 'rifiutato']
+  const canEdit = hasPermission('richiedi_materiale') && !closedStates.includes(event.stato)
   const canApprove = hasPermission('approva_materiale')
 
   const loadData = async () => {
     setLoading(true)
-    const { data } = await fetchEventMaterialList(event.id)
-    setRows(data)
+    const [matRes, movRes] = await Promise.all([
+      fetchEventMaterialList(event.id),
+      fetchEventMovements(event.id),
+    ])
+    setRows(matRes.data)
+    setMovements(movRes.data)
     setLoading(false)
   }
 
@@ -49,14 +59,24 @@ export function EventMaterialList({ event }) {
       const existingRow = rows.find(r => r.product_id === productId)
 
       if (item.quantity === 0 && item.dbRowId) {
+        const removedRow = rows.find(r => r.id === item.dbRowId)
+        if (removedRow) await restoreGadgetStock(removedRow)
         const { error } = await removeMaterialListRow(item.dbRowId)
         if (error) errors++
         else changes++
       } else if (item.dbRowId && existingRow) {
-        if (item.quantity !== (existingRow.quantita || 1)) {
-          // Quantity changed on existing row — update and reset to pending
-          const updates = { quantita: item.quantity }
-          if (existingRow.stato === 'approvato') updates.stato = 'richiesto'
+        const qtyChanged = item.quantity !== (existingRow.quantita || 1)
+        const noteChanged = (item.note || '') !== (existingRow.note_commerciale || '')
+        if (qtyChanged || noteChanged) {
+          if (existingRow.stato === 'approvato' && existingRow.quantita_approvata && existingRow.product?.tipo === 'gadget') {
+            await restoreGadgetStock(existingRow)
+          }
+          const updates = {}
+          if (qtyChanged) {
+            updates.quantita = item.quantity
+            if (existingRow.stato === 'approvato') updates.stato = 'richiesto'
+          }
+          if (noteChanged) updates.note_commerciale = item.note
           const { error } = await updateMaterialListRow(item.dbRowId, updates)
           if (error) errors++
           else changes++
@@ -72,7 +92,7 @@ export function EventMaterialList({ event }) {
     }
 
     if (errors > 0) addToast(`${errors} errori durante il salvataggio`, 'error')
-    if (changes > 0) addToast('Lista aggiornata!', 'success')
+    if (changes > 0) addToast('Lista materiale aggiornata', 'success')
     setShowCatalog(false)
     loadData()
   }
@@ -81,7 +101,9 @@ export function EventMaterialList({ event }) {
   const handleUpdate = async (id, updates) => {
     const row = rows.find(r => r.id === id)
     if (row?.stato === 'approvato' && updates.quantita) {
+      await restoreGadgetStock(row)
       updates.stato = 'richiesto'
+      updates.quantita_approvata = null
     }
     const { error } = await updateMaterialListRow(id, updates)
     if (error) addToast(error, 'error')
@@ -89,13 +111,15 @@ export function EventMaterialList({ event }) {
   }
 
   const handleRemove = async (id) => {
+    const row = rows.find(r => r.id === id)
+    if (row) await restoreGadgetStock(row)
     const { error } = await removeMaterialListRow(id)
     if (error) addToast(error, 'error')
     else { addToast('Rimosso dalla lista', 'success'); loadData() }
   }
 
-  const handleConfirm = async (id) => {
-    const { error } = await confirmMaterialRow(id)
+  const handleConfirm = async (id, quantitaApprovata, noteUfficio) => {
+    const { error } = await confirmMaterialRow(id, quantitaApprovata, noteUfficio)
     if (error) addToast(error, 'error')
     else { addToast('Confermato!', 'success'); loadData() }
   }
@@ -135,7 +159,7 @@ export function EventMaterialList({ event }) {
         <button
           onClick={async () => {
             const pending = rows.filter(r => r.stato === 'richiesto')
-            for (const r of pending) await confirmMaterialRow(r.id)
+            for (const r of pending) await confirmMaterialRow(r.id, r.quantita || 1)
             addToast(`${pending.length} materiali confermati!`, 'success')
             loadData()
           }}
@@ -185,6 +209,14 @@ export function EventMaterialList({ event }) {
         onConfirm={handleReject}
         onCancel={() => setRejectTarget(null)}
       />
+
+      {/* Movements */}
+      {movements.length > 0 && (
+        <section className="pt-6 border-t border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Movimenti</h2>
+          <MovementHistory movements={movements} />
+        </section>
+      )}
     </div>
   )
 }

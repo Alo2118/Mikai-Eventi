@@ -156,35 +156,6 @@ export const useAdminStore = create((set, get) => ({
     return { error: error?.message || null }
   },
 
-  // === Gadgets (Master) ===
-  gadgetsMaster: [],
-  gadgetsMasterLoading: false,
-
-  fetchGadgetsMaster: async () => {
-    set({ gadgetsMasterLoading: true })
-    const { data, error } = await supabase.from('gadgets').select('*').order('nome')
-    set({ gadgetsMaster: data || [], gadgetsMasterLoading: false })
-    return { data: data || [], error: error?.message || null }
-  },
-
-  createGadgetMaster: async (gadget) => {
-    const { data, error } = await supabase.from('gadgets').insert(gadget).select().single()
-    if (!error) get().fetchGadgetsMaster()
-    return { data, error: error?.message || null }
-  },
-
-  updateGadgetMaster: async (id, updates) => {
-    const { data, error } = await supabase.from('gadgets').update(updates).eq('id', id).select().single()
-    if (!error) get().fetchGadgetsMaster()
-    return { data, error: error?.message || null }
-  },
-
-  deleteGadgetMaster: async (id) => {
-    const { error } = await supabase.from('gadgets').delete().eq('id', id)
-    if (!error) get().fetchGadgetsMaster()
-    return { error: error?.message || null }
-  },
-
   // === Venues ===
   venues: [],
   venuesLoading: false,

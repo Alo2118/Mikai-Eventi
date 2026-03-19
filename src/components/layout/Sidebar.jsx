@@ -20,7 +20,6 @@ const adminItems = [
   { to: '/admin/distretti', label: 'Distretti', icon: ADMIN_ICONS.distretti },
   { to: '/admin/prodotti', label: 'Prodotti & Kit', icon: ADMIN_ICONS.prodotti },
   { to: '/admin/materiali', label: 'Materiali', icon: ADMIN_ICONS.materiali },
-  { to: '/admin/gadget', label: 'Gadget', icon: ADMIN_ICONS.gadget },
   { to: '/admin/sedi', label: 'Sedi & Corrieri', icon: ADMIN_ICONS.sedi },
   { to: '/admin/zone', label: 'Zone', icon: ADMIN_ICONS.zone },
   { to: '/admin/utenti', label: 'Utenti', icon: ADMIN_ICONS.utenti, permissions: ['gestione_utenti'] },
