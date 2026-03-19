@@ -249,7 +249,6 @@ export const ADMIN_ICONS = {
   distretti: Bone,
   prodotti: Package,
   materiali: Boxes,
-  gadget: Gift,
   sedi: MapPin,
   zone: Map,
   utenti: Users,

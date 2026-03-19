@@ -163,12 +163,6 @@ export const STATO_RIENTRO = {
   danneggiato: 'Danneggiato',
 }
 
-export const STATO_GADGET_RICHIESTA = {
-  richiesto: 'Richiesto',
-  pronto: 'Pronto',
-  consegnato: 'Consegnato',
-}
-
 export const TIPO_BRAND = {
   produttore: 'Produttore',
   distributore: 'Distributore',

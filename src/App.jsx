@@ -14,7 +14,6 @@ import { AdminBrand } from './pages/admin/AdminBrand'
 import { AdminDistretti } from './pages/admin/AdminDistretti'
 import { AdminProdotti } from './pages/admin/AdminProdotti'
 import { AdminMateriali } from './pages/admin/AdminMateriali'
-import { AdminGadget } from './pages/admin/AdminGadget'
 import { AdminSedi } from './pages/admin/AdminSedi'
 import { AdminZone } from './pages/admin/AdminZone'
 import { AdminUtenti } from './pages/admin/AdminUtenti'
@@ -62,7 +61,6 @@ function App() {
           <Route path="/admin/distretti" element={<AdminDistretti />} />
           <Route path="/admin/prodotti" element={<AdminProdotti />} />
           <Route path="/admin/materiali" element={<AdminMateriali />} />
-          <Route path="/admin/gadget" element={<AdminGadget />} />
           <Route path="/admin/sedi" element={<AdminSedi />} />
           <Route path="/admin/zone" element={<AdminZone />} />
           <Route path="/admin/utenti" element={<AdminUtenti />} />
