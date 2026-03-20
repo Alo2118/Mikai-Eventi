@@ -1,0 +1,177 @@
+import { useEffect, useState } from 'react'
+import { useSubActivitiesStore } from '../../hooks/useSubActivities'
+import { Button } from '../ui/Button'
+import { Icon } from '../ui/Icon'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { useToastStore } from '../ui/Toast'
+import { ACTION_ICONS } from '../../lib/icons'
+import { formatDateTime } from '../../lib/date-utils'
+
+const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+
+const EMPTY_FORM = { tipo_id: '', data_ora: '', durata_minuti: '', luogo: '', fornitore: '', fornitore_id: null, note: '' }
+
+export function EventProgrammaTab({ event }) {
+  const subActivities = useSubActivitiesStore(s => s.subActivities)
+  const types = useSubActivitiesStore(s => s.types)
+  const loading = useSubActivitiesStore(s => s.loading)
+  const fetchEventSubActivities = useSubActivitiesStore(s => s.fetchEventSubActivities)
+  const fetchTypes = useSubActivitiesStore(s => s.fetchTypes)
+  const createSubActivity = useSubActivitiesStore(s => s.createSubActivity)
+  const updateSubActivity = useSubActivitiesStore(s => s.updateSubActivity)
+  const removeSubActivity = useSubActivitiesStore(s => s.removeSubActivity)
+
+  const addToast = useToastStore(s => s.add)
+
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [deleting, setDeleting] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetchEventSubActivities(event.id)
+    fetchTypes()
+  }, [event.id])
+
+  const setField = (key, value) => setForm(f => ({ ...f, [key]: value }))
+
+  const handleSave = async () => {
+    if (!form.tipo_id) return
+    setSaving(true)
+    const payload = {
+      event_id: event.id,
+      tipo_id: form.tipo_id,
+      data_ora: form.data_ora || null,
+      durata_minuti: form.durata_minuti ? parseInt(form.durata_minuti) : null,
+      luogo: form.luogo || null,
+      fornitore: form.fornitore || null,
+      fornitore_id: form.fornitore_id || null,
+      note: form.note || null,
+    }
+    const { error } = await createSubActivity(payload)
+    setSaving(false)
+    if (error) { addToast('Errore nel salvataggio', 'error'); return }
+    addToast('Attività aggiunta', 'success')
+    setShowForm(false)
+    setForm(EMPTY_FORM)
+  }
+
+  const toggleConfirm = async (sa) => {
+    const { error } = await updateSubActivity(sa.id, { confermata: !sa.confermata })
+    if (error) addToast('Errore', 'error')
+  }
+
+  const handleDelete = async () => {
+    const { error } = await removeSubActivity(deleting.id)
+    setDeleting(null)
+    if (error) { addToast('Errore', 'error'); return }
+    addToast('Attività rimossa', 'success')
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-lg">Programma</h3>
+        {!showForm && (
+          <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+            <Icon icon={ACTION_ICONS.add} size={16} />
+            <span className="ml-1">Aggiungi</span>
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo <span className="text-red-500">*</span></label>
+              <select className={INPUT} value={form.tipo_id} onChange={e => setField('tipo_id', e.target.value)}>
+                <option value="">Seleziona...</option>
+                {types.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data e ora</label>
+              <input type="datetime-local" className={INPUT} value={form.data_ora} onChange={e => setField('data_ora', e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Durata (minuti)</label>
+              <input type="number" min="1" className={INPUT} value={form.durata_minuti} onChange={e => setField('durata_minuti', e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Luogo</label>
+              <input className={INPUT} value={form.luogo} onChange={e => setField('luogo', e.target.value)} placeholder="es. Sala conferenze" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fornitore</label>
+            <input className={INPUT} value={form.fornitore} onChange={e => setField('fornitore', e.target.value)} placeholder="Nome fornitore" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+            <textarea className={INPUT + ' min-h-[80px]'} value={form.note} onChange={e => setField('note', e.target.value)} />
+          </div>
+          <div className="flex gap-3">
+            <Button size="sm" onClick={handleSave} loading={saving} disabled={!form.tipo_id}>Aggiungi</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }}>Annulla</Button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {subActivities.map(sa => (
+          <div key={sa.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium">{sa.tipo_ref?.nome || '—'}</span>
+                {sa.confermata && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Confermata</span>
+                )}
+              </div>
+              <div className="text-sm text-gray-500 mt-0.5">
+                {sa.data_ora && <span>{formatDateTime(sa.data_ora)}</span>}
+                {sa.durata_minuti && <span> · {sa.durata_minuti} min</span>}
+                {sa.luogo && <span> · {sa.luogo}</span>}
+              </div>
+              {sa.fornitore && <p className="text-sm text-gray-500 mt-0.5">Fornitore: {sa.fornitore}</p>}
+              {sa.note && <p className="text-sm text-gray-400 mt-1">{sa.note}</p>}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => toggleConfirm(sa)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[36px] transition-colors ${sa.confermata ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
+              >
+                {sa.confermata ? 'Confermata' : 'Da confermare'}
+              </button>
+              <button
+                onClick={() => setDeleting(sa)}
+                className="text-red-400 hover:text-red-600 p-2 min-h-[36px] transition-colors"
+                aria-label="Rimuovi attività"
+              >
+                <Icon icon={ACTION_ICONS.close} size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+        {subActivities.length === 0 && !loading && (
+          <p className="text-gray-400 text-center py-8">Nessuna attività in programma</p>
+        )}
+        {loading && (
+          <p className="text-gray-400 text-center py-8">Caricamento...</p>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={!!deleting}
+        title="Rimuovi attività"
+        message={`Rimuovere "${deleting?.tipo_ref?.nome}" dal programma?`}
+        confirmLabel="Rimuovi"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setDeleting(null)}
+      />
+    </div>
+  )
+}
