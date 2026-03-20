@@ -375,7 +375,7 @@ Nessun campo aggiuntivo su `event_participants`. Nessuna gestione emissione nell
 ### Commerciali — regole specifiche
 
 - Creare nuovi contatti (proprietario = sé stessi)
-- Proporre partecipanti (aggiungere con stato `invitato`) — richiede update RLS policy `event_participants_write`
+- Proporre partecipanti (aggiungere con stato `invitato`) — gestito da nuova policy INSERT-only `event_participants_commerciale_insert` (vedi sezione 3)
 - Vedere staff/partecipanti/logistica dei propri eventi in sola lettura
 - **Non** vedere dati completi dei contatti altrui (RLS su `proprietario_id`)
 
