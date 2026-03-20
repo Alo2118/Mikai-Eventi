@@ -9,7 +9,8 @@ const navItems = [
   { to: '/eventi/calendario', label: 'Calendario', icon: NAV_ICONS.calendario },
   { to: '/materiale', label: 'Magazzino', icon: NAV_ICONS.materiale, permissions: ['gestione_magazzino', 'gestione_spedizioni'] },
   { to: '/logistica', label: 'Logistica', icon: NAV_ICONS.logistica, permissions: ['gestione_spedizioni', 'gestione_magazzino'] },
-  { to: '/contatti', label: 'Contatti', icon: NAV_ICONS.contatti, roles: ['admin', 'direzione', 'ufficio'] },
+  { to: '/contatti', label: 'Contatti', icon: NAV_ICONS.contatti },
+  { to: '/costi', label: 'Costi', icon: NAV_ICONS.costi, permissions: ['gestione_costi', 'approva_preventivi'] },
   { to: '/documenti', label: 'Documenti', icon: NAV_ICONS.documenti, roles: ['admin', 'direzione', 'ufficio'] },
   { to: '/notifiche', label: 'Notifiche', icon: NAV_ICONS.notifiche },
   { to: '/impostazioni', label: 'Impostazioni', icon: NAV_ICONS.impostazioni, roles: ['admin'] },
@@ -22,6 +23,7 @@ const adminItems = [
   { to: '/admin/materiali', label: 'Materiali', icon: ADMIN_ICONS.materiali },
   { to: '/admin/sedi', label: 'Sedi & Corrieri', icon: ADMIN_ICONS.sedi },
   { to: '/admin/zone', label: 'Zone', icon: ADMIN_ICONS.zone },
+  { to: '/admin/sotto-attivita', label: 'Sotto-attività', icon: ADMIN_ICONS.sottoattivita },
   { to: '/admin/utenti', label: 'Utenti', icon: ADMIN_ICONS.utenti, permissions: ['gestione_utenti'] },
 ]
 

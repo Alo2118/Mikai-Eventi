@@ -10,6 +10,11 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { EventInfoTab } from '../../components/eventi/EventInfoTab'
 import { EventMaterialList } from '../../components/eventi/EventMaterialList'
 import { EventPreparazioneTab } from '../../components/eventi/EventPreparazioneTab'
+import { EventPersoneTab } from '../../components/eventi/EventPersoneTab'
+import { EventProgrammaTab } from '../../components/eventi/EventProgrammaTab'
+import { EventLogisticaTab } from '../../components/eventi/EventLogisticaTab'
+import { EventCostiTab } from '../../components/eventi/EventCostiTab'
+import { useAdminStore } from '../../hooks/useAdmin'
 import { TIPO_EVENTO } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
 
@@ -20,20 +25,13 @@ function getVisibleTabs(event, profile, permissions) {
 
   const tabs = [{ id: 'info', label: 'Info' }]
 
-  if (isUfficio && modalita !== 'contributo') {
-    tabs.push({ id: 'staff', label: 'Staff' })
-  }
-  if (isUfficio && modalita === 'interno') {
-    tabs.push({ id: 'partecipanti', label: 'Partecipanti' })
-  }
+  tabs.push({ id: 'persone', label: 'Persone' })
+  tabs.push({ id: 'programma', label: 'Programma' })
   if (modalita !== 'contributo') {
     tabs.push({ id: 'materiale', label: 'Materiale & Gadget' })
   }
-  if (isUfficio && (modalita === 'interno' || modalita === 'esterno')) {
-    tabs.push({ id: 'subattivita', label: 'Sotto-attivita\'' })
-    tabs.push({ id: 'logistica', label: 'Logistica' })
-  }
-  if (permissions.includes('gestione_costi')) {
+  tabs.push({ id: 'logistica', label: 'Logistica' })
+  if (permissions.includes('gestione_costi') || permissions.includes('approva_preventivi')) {
     tabs.push({ id: 'costi', label: 'Costi' })
   }
   tabs.push({ id: 'documenti', label: 'Documenti' })
@@ -58,6 +56,8 @@ export function EventiDetail() {
   const fetchEvent = useEventsStore(s => s.fetchEvent)
   const profile = useAuthStore(s => s.profile)
   const permissions = useAuthStore(s => s.permissions)
+  const users = useAdminStore(s => s.users)
+  const fetchUsers = useAdminStore(s => s.fetchUsers)
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -71,6 +71,8 @@ export function EventiDetail() {
       setLoading(false)
     })
   }, [id])
+
+  useEffect(() => { fetchUsers() }, [])
 
   if (loading) return <LoadingSkeleton lines={8} />
   if (error || !event) {
@@ -97,6 +99,11 @@ export function EventiDetail() {
       <div className="hidden md:block px-8 pt-5">
         <h1 className="text-2xl font-bold text-gray-900">{event.titolo}</h1>
         <p className="mt-1 text-base text-gray-500">{subtitle}</p>
+        {event.certificato_previsto && (
+          <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg mt-2 w-fit">
+            Evento con certificato previsto
+          </div>
+        )}
       </div>
 
       <div className="mt-4 px-4 md:px-8">
@@ -105,12 +112,11 @@ export function EventiDetail() {
 
       <div className="px-4 md:px-8 py-5">
         {activeTab === 'info' && <EventInfoTab event={event} onUpdate={refreshEvent} />}
-        {activeTab === 'staff' && <PlaceholderTab name="Staff" />}
-        {activeTab === 'partecipanti' && <PlaceholderTab name="Partecipanti" />}
+        {activeTab === 'persone' && <EventPersoneTab event={event} users={users} />}
+        {activeTab === 'programma' && <EventProgrammaTab event={event} />}
         {activeTab === 'materiale' && <EventMaterialList event={event} />}
-        {activeTab === 'subattivita' && <PlaceholderTab name="Sotto-attivita'" />}
-        {activeTab === 'logistica' && <PlaceholderTab name="Logistica" />}
-        {activeTab === 'costi' && <PlaceholderTab name="Costi" />}
+        {activeTab === 'logistica' && <EventLogisticaTab event={event} />}
+        {activeTab === 'costi' && <EventCostiTab event={event} />}
         {activeTab === 'documenti' && <PlaceholderTab name="Documenti" />}
         {activeTab === 'preparazione' && <EventPreparazioneTab event={event} />}
         {activeTab === 'report' && <PlaceholderTab name="Report post-evento" />}
