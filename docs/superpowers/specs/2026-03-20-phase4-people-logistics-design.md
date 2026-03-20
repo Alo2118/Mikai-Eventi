@@ -26,7 +26,7 @@ Rubrica centralizzata di contatti esterni riusabile tra eventi. Oggi ogni evento
 
 Campi esistenti che restano: nome, cognome, email, telefono, ruolo_medico, specializzazione, note, attivo.
 
-**Migrazione `ente_ospedaliero` → `azienda`:** il campo `ente_ospedaliero` viene rinominato in `azienda` via `ALTER TABLE contacts RENAME COLUMN ente_ospedaliero TO azienda`. L'indice `idx_contacts_ente` viene ricreato su `azienda`. Unica source of truth — nessun alias, nessuna duplicazione.
+**Migrazione `ente_ospedaliero` → `azienda`:** il campo `ente_ospedaliero` viene rinominato in `azienda` via `ALTER TABLE contacts RENAME COLUMN ente_ospedaliero TO azienda`. L'indice `idx_contacts_ente` si aggiorna automaticamente alla nuova colonna (PostgreSQL propagates column renames to indexes). Per chiarezza, rinominarlo con `ALTER INDEX idx_contacts_ente RENAME TO idx_contacts_azienda`. Unica source of truth — nessun alias, nessuna duplicazione.
 
 **Estensione tabella `users`:**
 
@@ -68,9 +68,11 @@ Assegnare utenti interni Mikai a un evento con un ruolo specifico. Oggi gestito 
 
 ### Schema
 
-Tabella `event_staff` già esiste: event_id, user_id, ruolo_evento, confermato.
+Tabella `event_staff` già esiste: event_id, user_id, ruolo_evento, confermato, created_at.
 
 Ruoli evento (enum `ruolo_evento`): formatore, responsabile, staff, commerciale, relatore, ospite.
+
+**Colonna `updated_at` da aggiungere** a `event_staff` (manca nell'attuale schema) + trigger `update_updated_at()`. Necessario perché il flag `confermato` è mutabile.
 
 ### Flusso
 
@@ -94,10 +96,12 @@ Collegare contatti dalla rubrica a un evento con tipo e stato di partecipazione.
 
 ### Schema
 
-Tabella `event_participants` già esiste: event_id, contact_id, tipo, stato_iscrizione, note.
+Tabella `event_participants` già esiste: event_id, contact_id, tipo, stato_iscrizione, note, created_at.
 
 - **Tipi** (enum `participant_tipo`): discente, relatore_esterno, ospite, accompagnatore
 - **Stati** (enum `iscrizione_stato`): invitato → confermato → presente / assente
+
+**Colonna `updated_at` da aggiungere** a `event_participants` (manca nell'attuale schema) + trigger `update_updated_at()`. Necessario perché `stato_iscrizione` attraversa transizioni di stato.
 
 Nessuna differenza operativa tra tipi — sono tutti "partecipanti esterni", la differenza è solo il ruolo nell'evento. Qualsiasi partecipante può avere logistica (hotel/trasporto).
 
@@ -114,7 +118,15 @@ Nessuna differenza operativa tra tipi — sono tutti "partecipanti esterni", la 
 
 Stessi del tab Persone. Commerciali possono proporre partecipanti (aggiungere con stato `invitato`) ma la conferma/presenza la gestisce chi organizza.
 
-**Nota RLS:** la policy `event_participants_write` esistente (migration 010) va estesa per consentire INSERT ai commerciali che sono `promotore_id` dell'evento, con vincolo `stato_iscrizione = 'invitato'`.
+**Nota RLS:** la policy `event_participants_write` esistente (migration 010) è `FOR ALL USING(...)` senza `WITH CHECK`. Per aggiungere il path commerciali con vincolo su `stato_iscrizione`, serve creare una **nuova policy INSERT-only** separata:
+```sql
+CREATE POLICY "event_participants_commerciale_insert" ON event_participants
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM events WHERE id = event_participants.event_id AND promotore_id = auth.uid())
+    AND stato_iscrizione = 'invitato'
+  );
+```
+La policy esistente `event_participants_write` resta invariata per admin/direzione/ufficio/staff.
 
 ### Contatore
 
@@ -141,7 +153,9 @@ Gestire il programma dell'evento: sessioni, pranzi, coffee break, trasferimenti.
 
 RLS: read per tutti gli utenti autenticati, write per admin/direzione/ufficio. Trigger `update_updated_at()` su updated_at. Index su `attivo`.
 
-Valori seed: pranzo, cena, coffee_break, transfer, sessione_pratica, sessione_teorica, visita, riunione, altro.
+Valori seed (devono coprire TUTTI i valori dell'enum `sub_activity_tipo` esistente + nuovi):
+- **Da enum esistente** (obbligatori per data migration): `pranzo`, `cena`, `aperitivo`, `coffee_break`, `meeting`, `altro`
+- **Nuovi**: `transfer`, `sessione_pratica`, `sessione_teorica`, `visita`, `riunione`
 
 **Tabella `event_sub_activities` — evoluzione colonna `tipo`:**
 
@@ -173,6 +187,8 @@ Pagina `/admin/sotto-attivita` — CRUD sulla tabella `sub_activity_types` (aggi
 
 Chi può modificare l'evento può gestire le sotto-attività.
 
+**Nota RLS:** la policy `sub_activities_write` (migration 010) attualmente include solo `admin/direzione/ufficio`. Va estesa per includere `area_manager`, coerentemente col fatto che gli AM possono modificare eventi.
+
 ### Collegamento costi
 
 Una sotto-attività può generare un preventivo/costo (es. pranzo → preventivo catering). Il legame è tramite FK `sub_activity_id` nella tabella preventivi.
@@ -186,7 +202,11 @@ Tracciare stato prenotazioni hotel e trasporti per staff e partecipanti. Gestion
 
 ### Schema
 
-**La tabella `event_logistics` (migration 005) viene deprecata e sostituita** da due tabelle più snelle. La vecchia tabella non contiene dati di produzione (l'app non ha mai avuto UI per popolarla). La migrazione la rinomina in `event_logistics_legacy` e rimuove le relative RLS policy. Verrà droppata in una migrazione futura dopo verifica.
+**La tabella `event_logistics` (migration 005) viene deprecata e sostituita** da due tabelle più snelle. La vecchia tabella non contiene dati di produzione (l'app non ha mai avuto UI per popolarla). Sequenza nella migrazione:
+1. `DROP POLICY "logistics_read" ON event_logistics` + `DROP POLICY "logistics_write" ON event_logistics`
+2. `ALTER TABLE event_logistics RENAME TO event_logistics_legacy`
+3. `ALTER TABLE event_logistics_legacy DISABLE ROW LEVEL SECURITY`
+4. Drop in una migrazione futura dopo verifica che nessun codice la referenzi
 
 **Nuova tabella `event_hotel`:**
 
@@ -219,7 +239,7 @@ Constraint: `CHECK (num_nonnulls(user_id, contact_id) = 1)` — esattamente uno 
 
 Constraint: `CHECK (num_nonnulls(user_id, contact_id) = 1)`.
 
-**Pattern due FK nullable** (anziché polymorphic `persona_tipo`/`persona_id`): segue il precedente di `event_logistics` originale e garantisce referential integrity + RLS funzionante. L'enum `persona_logistica_tipo` non è più necessario.
+**Pattern due FK nullable con CHECK constraint:** garantisce referential integrity a livello DB + RLS funzionante. La tabella `event_logistics` originale usava lo stesso pattern di due FK nullable ma senza il CHECK constraint — qui lo aggiungiamo come miglioramento. L'enum `persona_logistica_tipo` non è più necessario.
 
 **Indexes:** `idx_hotel_event ON event_hotel(event_id)`, `idx_trasporti_event ON event_trasporti(event_id)`.
 
@@ -418,6 +438,8 @@ Nessun campo aggiuntivo su `event_participants`. Nessuna gestione emissione nell
 | `contacts` | `tipo_contatto`, `azienda` (rinomina `ente_ospedaliero`), `tipo_servizio`, `proprietario_id`, `zone_id`, `created_by` |
 | `users` | `zone_id` (FK zones — zona di competenza per RLS Area Manager) |
 | `events` | `certificato_previsto` (boolean) |
+| `event_staff` | `updated_at` (timestamptz) + trigger `update_updated_at()` |
+| `event_participants` | `updated_at` (timestamptz) + trigger `update_updated_at()` |
 | `event_sub_activities` | `tipo_id` (FK sub_activity_types — affianca `tipo` enum, che resta deprecato), `fornitore_id` (FK contacts) |
 
 ### Nuovi permessi (enum `permission_type`)
@@ -425,16 +447,18 @@ Nessun campo aggiuntivo su `event_participants`. Nessuna gestione emissione nell
 `gestione_contatti`, `gestione_staff_evento`, `gestione_logistica`, `approva_preventivi` (4 nuovi — `gestione_costi` esiste già).
 
 **Ordine migrazioni** (vincolo PostgreSQL enum):
-1. Migrazione A: `ALTER TYPE permission_type ADD VALUE` per i 4 nuovi permessi (`gestione_contatti`, `gestione_staff_evento`, `gestione_logistica`, `approva_preventivi`) + nuovi enum types (`contact_tipo`, `prenotazione_stato`, `trasporto_direzione`, `preventivo_stato`)
-2. Migrazione B: DDL tabelle, ALTER TABLE, indexes, triggers, RLS policies, seed data
+1. Migrazione A: `ALTER TYPE permission_type ADD VALUE IF NOT EXISTS` per i 4 nuovi permessi (`gestione_contatti`, `gestione_staff_evento`, `gestione_logistica`, `approva_preventivi`) + `CREATE TYPE` per nuovi enum (`contact_tipo`, `prenotazione_stato`, `trasporto_direzione`, `preventivo_stato`). Usare `IF NOT EXISTS` come guardia contro re-run (PostgreSQL 14+ lo supporta, Supabase usa PG 15).
+2. Migrazione B: DDL tabelle, ALTER TABLE, indexes, triggers, RLS policies, seed data, aggiornamento `user_permissions` per assegnare `gestione_costi` + nuovi permessi agli utenti `ufficio` (attualmente `gestione_costi` esiste nell'enum ma non è nel preset `ufficio` in `constants.js` — la migrazione deve inserire le righe in `user_permissions` e `constants.js` va aggiornato)
 
 ### RLS policies da aggiornare
 
 | Policy | Modifica |
 |--------|----------|
-| `contacts_write` (migration 010) | Aggiungere path per commerciali: INSERT consentito quando `proprietario_id = auth.uid()` |
-| `event_participants_write` (migration 010) | Aggiungere path per `promotore_id = auth.uid()` con vincolo `stato_iscrizione = 'invitato'` |
-| `logistics_read`, `logistics_write` (migration 010) | Rimuovere (tabella deprecata) |
+| `contacts_write` (migration 010, INSERT) | Aggiungere path per commerciali: INSERT consentito quando `proprietario_id = auth.uid()` |
+| `contacts_update` (migration 010, UPDATE) | Aggiungere path per commerciali: UPDATE consentito quando `proprietario_id = auth.uid()` (possono modificare i propri contatti) |
+| `event_participants_write` (migration 010) | Resta invariata. Aggiungere nuova policy INSERT-only `event_participants_commerciale_insert` (vedi sezione 3) |
+| `sub_activities_write` (migration 010) | Aggiungere `area_manager` ai ruoli autorizzati |
+| `logistics_read`, `logistics_write` (migration 010) | DROP prima del rename di `event_logistics` (vedi sezione 5) |
 
 ---
 
