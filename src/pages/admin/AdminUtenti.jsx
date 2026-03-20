@@ -19,9 +19,13 @@ export function AdminUtenti() {
   const setUserPermissions = useAdminStore(s => s.setUserPermissions)
   const addToast = useToastStore(s => s.add)
 
+  const createUser = useAdminStore(s => s.createUser)
+
   const [editing, setEditing] = useState(null)
+  const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedPermissions, setSelectedPermissions] = useState([])
+  const [newUser, setNewUser] = useState({ email: '', password: '', nome: '', cognome: '', ruolo: 'commerciale' })
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
@@ -79,7 +83,57 @@ export function AdminUtenti() {
       <PageHeader title="Utenti & Permessi" subtitle="Gestisci utenti e permessi" />
 
       <div className="px-4 md:px-8 pb-8">
-        {editing ? (
+        {creating ? (
+          <div className="space-y-4 max-w-lg">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900">Nuovo utente</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
+                  <input className={INPUT} value={newUser.nome} onChange={e => setNewUser(u => ({ ...u, nome: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cognome <span className="text-red-500">*</span></label>
+                  <input className={INPUT} value={newUser.cognome} onChange={e => setNewUser(u => ({ ...u, cognome: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                <input type="email" className={INPUT} value={newUser.email} onChange={e => setNewUser(u => ({ ...u, email: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password iniziale <span className="text-red-500">*</span></label>
+                <input type="text" className={INPUT} value={newUser.password} onChange={e => setNewUser(u => ({ ...u, password: e.target.value }))} placeholder="Minimo 6 caratteri" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
+                <select className={INPUT} value={newUser.ruolo} onChange={e => setNewUser(u => ({ ...u, ruolo: e.target.value }))}>
+                  {Object.entries(RUOLI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button onClick={async () => {
+                  if (!newUser.email || !newUser.password || !newUser.nome || !newUser.cognome) {
+                    addToast('Compila tutti i campi obbligatori', 'warning')
+                    return
+                  }
+                  if (newUser.password.length < 6) {
+                    addToast('La password deve essere almeno 6 caratteri', 'warning')
+                    return
+                  }
+                  setSaving(true)
+                  const { error } = await createUser(newUser)
+                  setSaving(false)
+                  if (error) { addToast(error, 'error'); return }
+                  addToast('Utente creato', 'success')
+                  setCreating(false)
+                  setNewUser({ email: '', password: '', nome: '', cognome: '', ruolo: 'commerciale' })
+                }} loading={saving}>Crea utente</Button>
+                <Button variant="secondary" onClick={() => setCreating(false)}>Annulla</Button>
+              </div>
+            </div>
+          </div>
+        ) : editing ? (
           <div className="space-y-6 max-w-2xl">
             <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Modifica utente</h2>
@@ -134,7 +188,9 @@ export function AdminUtenti() {
             columns={columns}
             rows={users}
             searchField="cognome"
+            onAdd={() => setCreating(true)}
             onEdit={handleEdit}
+            addLabel="Nuovo utente"
           />
         )}
       </div>

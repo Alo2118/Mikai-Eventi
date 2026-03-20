@@ -301,4 +301,16 @@ export const useAdminStore = create((set, get) => ({
       )
     }
   },
+
+  createUser: async ({ email, password, nome, cognome, ruolo }) => {
+    const { data, error } = await supabase.rpc('create_app_user', {
+      p_email: email,
+      p_password: password,
+      p_nome: nome,
+      p_cognome: cognome,
+      p_ruolo: ruolo,
+    })
+    if (!error) get().fetchUsers()
+    return { data, error: error?.message || null }
+  },
 }))
