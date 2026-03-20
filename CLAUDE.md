@@ -8,8 +8,12 @@
 - **Event lifecycle:** Propose → Approve → Prepare → Execute → Close
 - **Material logistics:** Demo kit tracking, warehouse management, shipping, conflict detection
 - **Approval workflows:** 2-level (Area Manager for small budgets, Direzione for larger ones)
-- **Gadget management:** Request and track promotional materials per event
-- **MedTech compliance:** Track interactions with healthcare professionals (regulatory requirement)
+- **Contacts directory:** Centralized rubrica with ownership (proprietario), zone-based visibility (RLS), type-based forms
+- **People management:** Staff assignment + participant tracking per event, with confirmation states
+- **Event program:** Configurable sub-activities (pranzo, sessioni, ecc.) with fornitore and confirmation
+- **Logistics:** Hotel + transport tracking per person (staff & participants), with booking states
+- **Costs & Quotes:** Preventivi with approval flow (in_attesa → approvato/rifiutato/in_revisione), budget comparison
+- **MedTech compliance:** Track interactions with healthcare professionals (regulatory requirement, future phase)
 
 ### Company hierarchy (maps to app roles)
 - **Direzione:** CEO (Giovanni), Direttore Commerciale (Enrica) — final approval on events
@@ -31,12 +35,12 @@ Sales reps, area managers, back-office staff with **highly variable digital lite
 | **Phase 3** | Done | Material: inventory, requests, conflict detection, movements, gadgets, catalog picker |
 | **Catalogo** | Done | 3-step e-commerce selection (Brand → Body Section → Product), 4 new DB tables |
 | **Materiale Redesign** | Done | Granular permissions, editable material list, visual catalog, venue directory, admin CRUD |
-| **Phase 4** | Next | People & Logistics (contacts, staff, participants, sub-activities, costs) |
-| **Phase 5** | Planned | Workflow (tasks, autopilot, notifications, documents) |
+| **Phase 4** | Done | People & Logistics: contacts directory, event staff/participants, sub-activities, hotel/transport, quotes with approval, costs |
+| **Phase 5** | Next | Workflow (tasks, autopilot, notifications, documents) |
 | **Phase 6** | Planned | Polish (dashboards per role, packing list, compliance, PWA offline, cron) |
 
-### Readiness Engine (cross-phase, in design)
-The Event Readiness Engine is a cross-cutting system being designed to solve coordination failures. Spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md` (sections 1-4 approved, 5-8 pending).
+### Readiness Engine (cross-phase, implemented)
+The Event Readiness Engine is a cross-cutting system that solves coordination failures. Spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md` (all sections approved and implemented).
 
 Core concepts:
 - **Template checklist** per tipo evento — activities with configurable deadlines (-Xgg) and dependencies
@@ -60,7 +64,7 @@ Key business rules:
 - **Project ID:** `ncjpbbvlucquopyihios`
 - **URL:** `https://ncjpbbvlucquopyihios.supabase.co`
 - **Auth:** Email/password. Admin user: `nicola@mikai.it`
-- **Database:** PostgreSQL with 29 tables, RLS on every table, 17 migrations
+- **Database:** PostgreSQL with 35+ tables, RLS on every table, 31 migrations
 - **Environment vars:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` (never committed)
 - **CLI vars:** `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` in `.env` (for `supabase db push`)
 - **Supabase CLI:** installed via npx (`npx supabase`), project linked. Use `SUPABASE_ACCESS_TOKEN` env var.
@@ -123,13 +127,18 @@ src/
 ├── components/
 │   ├── ui/           # Reusable primitives (Button, Icon, Tabs, Toast, etc.)
 │   ├── layout/       # App shell, Sidebar, BottomBar, MobileHeader, Breadcrumb
-│   ├── eventi/       # Event domain components
-│   └── materiale/    # Material domain components
+│   ├── eventi/       # Event domain components (tabs: Info, Preparazione, Materiale, Persone, Programma, Logistica, Costi)
+│   ├── materiale/    # Material domain components
+│   └── contatti/     # Contact components (ContactPicker, ContactForm)
 ├── pages/
 │   ├── auth/         # Login
 │   ├── eventi/       # EventiList, EventiDetail, EventiWizard, EventiCalendar
-│   └── materiale/    # MaterialeList, MaterialeDetail
-├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useGadgets)
+│   ├── materiale/    # MaterialeList, MaterialeDetail
+│   ├── contatti/     # ContattiList, ContattiDetail
+│   ├── costi/        # CostiPage (cross-event quotes)
+│   ├── logistica/    # LogisticaPage (cross-event logistics)
+│   └── admin/        # AdminBrand, AdminProdotti, AdminSedi, AdminUtenti, AdminSottoAttivita, etc.
+├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useContacts, useStaff, useParticipants, useSubActivities, useLogistics, useCosts, useAdmin)
 ├── lib/              # Utilities (constants, date-utils, icons, supabase client)
 └── main.jsx          # Entry point
 public/
@@ -138,7 +147,7 @@ docs/superpowers/
 ├── specs/            # Design specs (brainstorming output): YYYY-MM-DD-<topic>-design.md
 └── plans/            # Implementation plans (writing-plans output): YYYY-MM-DD-<topic>-plan.md
 supabase/
-└── migrations/       # SQL migrations (001-015), sequential and idempotent
+└── migrations/       # SQL migrations (timestamp format), sequential and idempotent
 ```
 
 ### File ownership rules
