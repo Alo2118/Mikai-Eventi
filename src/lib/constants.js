@@ -96,6 +96,74 @@ export const STATO_ISCRIZIONE = {
   assente: 'Assente',
 }
 
+export const STATO_ISCRIZIONE_COLORE = {
+  invitato: 'yellow',
+  confermato: 'blue',
+  presente: 'green',
+  assente: 'red',
+}
+
+// Tipo contatto
+export const TIPO_CONTATTO = {
+  medico: 'Medico',
+  fornitore: 'Fornitore',
+  tecnico: 'Tecnico',
+  istituzionale: 'Istituzionale',
+  altro: 'Altro',
+}
+
+// Stato prenotazione (hotel + trasporti)
+export const STATO_PRENOTAZIONE = {
+  da_prenotare: 'Da prenotare',
+  prenotato: 'Prenotato',
+  confermato: 'Confermato',
+}
+
+export const STATO_PRENOTAZIONE_COLORE = {
+  da_prenotare: 'yellow',
+  prenotato: 'blue',
+  confermato: 'green',
+}
+
+// Direzione trasporto
+export const DIREZIONE_TRASPORTO = {
+  andata: 'Andata',
+  ritorno: 'Ritorno',
+}
+
+// Stato preventivo
+export const STATO_PREVENTIVO = {
+  in_attesa: 'In attesa',
+  approvato: 'Approvato',
+  rifiutato: 'Rifiutato',
+  in_revisione: 'In revisione',
+}
+
+export const STATO_PREVENTIVO_COLORE = {
+  in_attesa: 'yellow',
+  approvato: 'green',
+  rifiutato: 'red',
+  in_revisione: 'blue',
+}
+
+// Tipo partecipante
+export const TIPO_PARTECIPANTE = {
+  discente: 'Discente',
+  relatore_esterno: 'Relatore esterno',
+  ospite: 'Ospite',
+  accompagnatore: 'Accompagnatore',
+}
+
+// Ruolo evento (staff interno)
+export const RUOLO_EVENTO = {
+  formatore: 'Formatore',
+  responsabile: 'Responsabile',
+  staff: 'Staff',
+  commerciale: 'Commerciale',
+  relatore: 'Relatore',
+  ospite: 'Ospite',
+}
+
 export const PERMESSI = {
   approva_eventi: 'Approvazione eventi',
   gestione_costi: 'Gestione costi',
@@ -110,6 +178,10 @@ export const PERMESSI = {
   gestione_catalogo: 'Gestione catalogo',
   gestione_marketing: 'Gestione marketing',
   gestione_organizzazione: 'Gestione organizzazione',
+  gestione_contatti: 'Gestione contatti',
+  gestione_staff_evento: 'Gestione staff evento',
+  gestione_logistica: 'Gestione logistica',
+  approva_preventivi: 'Approva preventivi',
 }
 
 export const RUOLI_OPERATIVI = {
@@ -197,8 +269,8 @@ export const TIPO_PRODOTTO = {
 // Role permission presets (assigned at user creation)
 export const ROLE_PERMISSION_PRESETS = {
   commerciale: ['richiedi_materiale'],
-  area_manager: ['richiedi_materiale', 'approva_eventi'],
-  direzione: ['approva_eventi', 'approva_materiale', 'gestione_costi', 'compliance'],
-  ufficio: ['approva_materiale', 'gestione_magazzino', 'gestione_spedizioni', 'gestione_gadget', 'gestione_sedi'],
+  area_manager: ['richiedi_materiale', 'approva_eventi', 'gestione_contatti', 'gestione_staff_evento'],
+  direzione: ['approva_eventi', 'approva_materiale', 'gestione_costi', 'compliance', 'gestione_contatti', 'gestione_staff_evento', 'approva_preventivi'],
+  ufficio: ['approva_materiale', 'gestione_magazzino', 'gestione_spedizioni', 'gestione_gadget', 'gestione_sedi', 'gestione_costi', 'gestione_contatti', 'gestione_staff_evento', 'gestione_logistica', 'approva_preventivi'],
   admin: ['gestione_utenti', 'gestione_catalogo', 'approva_eventi', 'gestione_costi', 'compliance'],
 }

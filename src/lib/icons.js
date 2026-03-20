@@ -94,6 +94,17 @@ import {
   // Catalogo
   ShoppingCart,
   SlidersHorizontal,
+
+  // Phase 4 — persone e logistica
+  Bed,
+  Bus,
+  Clipboard,
+  Euro,
+  Hotel,
+  Plane,
+  Receipt,
+  UserCheck,
+  UserPlus,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -162,6 +173,7 @@ export const NAV_ICONS = {
   logistica: Truck,
   dashboard: LayoutDashboard,
   attivita: ListTodo,
+  costi: Euro,
 }
 
 // ═══════════════════════════════════════════
@@ -253,6 +265,7 @@ export const ADMIN_ICONS = {
   zone: Map,
   utenti: Users,
   corrieri: Truck,
+  sottoattivita: ListChecks,
 }
 
 // ═══════════════════════════════════════════
@@ -283,4 +296,40 @@ export const CATEGORIA_ICONS = {
   materiale: Package,
   organizzazione: ClipboardList,
   amministrazione: Calculator,
+}
+
+// ═══════════════════════════════════════════
+// Contatti
+// ═══════════════════════════════════════════
+export const CONTATTI_ICONS = {
+  contatti: Contact,
+  medico: UserCheck,
+  fornitore: Receipt,
+  aggiungi: UserPlus,
+}
+
+// ═══════════════════════════════════════════
+// Logistica persone
+// ═══════════════════════════════════════════
+export const LOGISTICA_PERSONE_ICONS = {
+  hotel: Hotel,
+  trasporto: Plane,
+  bus: Bus,
+  bed: Bed,
+}
+
+// ═══════════════════════════════════════════
+// Costi
+// ═══════════════════════════════════════════
+export const COSTI_ICONS = {
+  preventivo: FileText,
+  costo: Euro,
+  clipboard: Clipboard,
+}
+
+// ═══════════════════════════════════════════
+// Sotto-attività
+// ═══════════════════════════════════════════
+export const SOTTO_ATTIVITA_ICONS = {
+  programma: ListChecks,
 }
