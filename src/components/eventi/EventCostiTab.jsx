@@ -1,0 +1,185 @@
+import { useEffect, useState } from 'react'
+import { useCostsStore } from '../../hooks/useCosts'
+import { useAuthStore } from '../../hooks/useAuth'
+import { Button } from '../ui/Button'
+import { Icon } from '../ui/Icon'
+import { StatusBadge } from '../ui/StatusBadge'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { useToastStore } from '../ui/Toast'
+import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE } from '../../lib/constants'
+import { formatDate } from '../../lib/date-utils'
+
+const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+
+export function EventCostiTab({ event }) {
+  const preventivi = useCostsStore(s => s.preventivi)
+  const costs = useCostsStore(s => s.costs)
+  const loading = useCostsStore(s => s.loading)
+  const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
+  const fetchEventCosts = useCostsStore(s => s.fetchEventCosts)
+  const createPreventivo = useCostsStore(s => s.createPreventivo)
+  const approvePreventivo = useCostsStore(s => s.approvePreventivo)
+  const rejectPreventivo = useCostsStore(s => s.rejectPreventivo)
+  const requestRevision = useCostsStore(s => s.requestRevision)
+
+  const profile = useAuthStore(s => s.profile)
+  const hasPermission = useAuthStore(s => s.hasPermission)
+  const addToast = useToastStore(s => s.add)
+
+  const canManage = hasPermission('gestione_costi')
+  const canApprove = hasPermission('approva_preventivi')
+
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ descrizione: '', importo: '', fornitore_nome: '' })
+  const [actionDialog, setActionDialog] = useState(null) // { type, preventivo, nota }
+
+  useEffect(() => {
+    fetchEventPreventivi(event.id)
+    fetchEventCosts(event.id)
+  }, [event.id])
+
+  const setField = (key, value) => setForm(f => ({ ...f, [key]: value }))
+
+  const handleCreate = async () => {
+    if (!form.descrizione) return
+    const { error } = await createPreventivo({
+      event_id: event.id,
+      descrizione: form.descrizione,
+      importo: form.importo ? parseFloat(form.importo) : null,
+      fornitore_nome: form.fornitore_nome || null,
+      created_by: profile.id,
+    })
+    if (error) { addToast('Errore', 'error'); return }
+    addToast('Preventivo aggiunto', 'success')
+    setShowForm(false)
+    setForm({ descrizione: '', importo: '', fornitore_nome: '' })
+  }
+
+  const handleAction = async () => {
+    const { type, preventivo, nota } = actionDialog
+    let result
+    if (type === 'approve') result = await approvePreventivo(preventivo.id, profile.id, nota)
+    else if (type === 'reject') result = await rejectPreventivo(preventivo.id, profile.id, nota)
+    else if (type === 'revision') result = await requestRevision(preventivo.id, nota)
+    if (result?.error) { addToast('Errore', 'error'); return }
+    addToast(type === 'approve' ? 'Approvato' : type === 'reject' ? 'Rifiutato' : 'In revisione', 'success')
+    setActionDialog(null)
+  }
+
+  // Budget summary
+  const budgetPrevisto = event.budget_previsto || 0
+  const costiApprovati = preventivi.filter(p => p.stato === 'approvato').reduce((sum, p) => sum + (p.importo || 0), 0)
+  const costiEffettivi = costs.reduce((sum, c) => sum + (c.importo_effettivo || 0), 0)
+  const maxBudget = Math.max(budgetPrevisto, costiApprovati, costiEffettivi, 1)
+
+  return (
+    <div className="space-y-6">
+      {/* Budget bar */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <h3 className="font-semibold text-lg mb-3">Budget</h3>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Previsto</span>
+            <span className="font-medium">{budgetPrevisto.toLocaleString('it-IT')} €</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-mikai-400 rounded-full" style={{ width: `${Math.min((budgetPrevisto / maxBudget) * 100, 100)}%` }} />
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Approvato</span>
+            <span className={`font-medium ${costiApprovati > budgetPrevisto ? 'text-red-600' : 'text-green-600'}`}>{costiApprovati.toLocaleString('it-IT')} €</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${costiApprovati > budgetPrevisto ? 'bg-red-400' : 'bg-green-400'}`} style={{ width: `${Math.min((costiApprovati / maxBudget) * 100, 100)}%` }} />
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Effettivo</span>
+            <span className="font-medium">{costiEffettivi.toLocaleString('it-IT')} €</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-400 rounded-full" style={{ width: `${Math.min((costiEffettivi / maxBudget) * 100, 100)}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Preventivi */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-lg">Preventivi</h3>
+          {canManage && !showForm && (
+            <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+              <Icon icon={ACTION_ICONS.add} size={16} />
+              <span className="ml-1">Aggiungi</span>
+            </Button>
+          )}
+        </div>
+
+        {showForm && (
+          <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-lg">
+            <input className={INPUT} value={form.descrizione} onChange={e => setField('descrizione', e.target.value)} placeholder="Descrizione (es. Catering pranzo 20 pax)" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input type="number" step="0.01" className={INPUT} value={form.importo} onChange={e => setField('importo', e.target.value)} placeholder="Importo €" />
+              <input className={INPUT} value={form.fornitore_nome} onChange={e => setField('fornitore_nome', e.target.value)} placeholder="Fornitore" />
+            </div>
+            <div className="flex gap-3">
+              <Button size="sm" onClick={handleCreate}>Aggiungi</Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Annulla</Button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {preventivi.map(p => (
+            <div key={p.id} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-medium">{p.descrizione}</span>
+                  {p.fornitore_nome && <span className="text-gray-500 ml-2">— {p.fornitore_nome}</span>}
+                </div>
+                <div className="flex items-center gap-3">
+                  {p.importo != null && <span className="font-semibold">{p.importo.toLocaleString('it-IT')} €</span>}
+                  <StatusBadge stato={p.stato} labels={STATO_PREVENTIVO} colors={STATO_PREVENTIVO_COLORE} />
+                </div>
+              </div>
+              {p.nota_approvazione && <p className="text-sm text-gray-500 mt-1">{p.nota_approvazione}</p>}
+              {p.approvatore && <p className="text-xs text-gray-400 mt-1">{p.approvatore.cognome} {p.approvatore.nome} — {p.data_approvazione ? formatDate(p.data_approvazione) : ''}</p>}
+
+              {canApprove && p.stato === 'in_attesa' && (
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" onClick={() => setActionDialog({ type: 'approve', preventivo: p, nota: '' })}>Approva</Button>
+                  <Button variant="danger" size="sm" onClick={() => setActionDialog({ type: 'reject', preventivo: p, nota: '' })}>Rifiuta</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setActionDialog({ type: 'revision', preventivo: p, nota: '' })}>Revisione</Button>
+                </div>
+              )}
+            </div>
+          ))}
+          {preventivi.length === 0 && !loading && <p className="text-gray-400 text-center py-4">Nessun preventivo</p>}
+        </div>
+      </div>
+
+      {/* Action dialog */}
+      {actionDialog && (
+        <ConfirmDialog
+          open={!!actionDialog}
+          title={actionDialog.type === 'approve' ? 'Approva preventivo' : actionDialog.type === 'reject' ? 'Rifiuta preventivo' : 'Richiedi revisione'}
+          message={
+            <div className="space-y-2">
+              <p>{actionDialog.preventivo.descrizione} — {actionDialog.preventivo.importo?.toLocaleString('it-IT')} €</p>
+              <textarea
+                className={INPUT + ' min-h-[80px]'}
+                value={actionDialog.nota}
+                onChange={e => setActionDialog(d => ({ ...d, nota: e.target.value }))}
+                placeholder={actionDialog.type === 'reject' ? 'Motivo del rifiuto...' : 'Note (opzionale)...'}
+              />
+            </div>
+          }
+          confirmLabel={actionDialog.type === 'approve' ? 'Approva' : actionDialog.type === 'reject' ? 'Rifiuta' : 'Richiedi revisione'}
+          danger={actionDialog.type === 'reject'}
+          onConfirm={handleAction}
+          onCancel={() => setActionDialog(null)}
+        />
+      )}
+    </div>
+  )
+}
