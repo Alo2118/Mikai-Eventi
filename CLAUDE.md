@@ -36,6 +36,8 @@ Sales reps, area managers, back-office staff with **highly variable digital lite
 | **Catalogo** | Done | 3-step e-commerce selection (Brand → Body Section → Product), 4 new DB tables |
 | **Materiale Redesign** | Done | Granular permissions, editable material list, visual catalog, venue directory, admin CRUD |
 | **Phase 4** | Done | People & Logistics: contacts directory, event staff/participants, sub-activities, hotel/transport, quotes with approval, costs |
+| **Phase 4b** | Done | Bulk import (paste from spreadsheet), transport details (mezzo/codice/orario/autista), tavoli corso, logistics redesign (checkbox selection + bulk modals + grouping), hotel details, agente participant type |
+| **Design System** | Done | 20 UI components: Modal (unified, accessible), FormField, StatusPill, ProgressIndicator, ActionToolbar, FilterBar, FilterSelect, ChipFilter, EventChecklistView. Summary bars in tabs, tab status dots, INPUT_STYLE constants. Specs: `docs/superpowers/specs/2026-03-23-design-system-spec.md` |
 | **Phase 5** | Next | Workflow (tasks, autopilot, notifications, documents) |
 | **Phase 6** | Planned | Polish (dashboards per role, packing list, compliance, PWA offline, cron) |
 
@@ -64,7 +66,7 @@ Key business rules:
 - **Project ID:** `ncjpbbvlucquopyihios`
 - **URL:** `https://ncjpbbvlucquopyihios.supabase.co`
 - **Auth:** Email/password. Admin user: `nicola@mikai.it`
-- **Database:** PostgreSQL with 35+ tables, RLS on every table, 31 migrations
+- **Database:** PostgreSQL with 40+ tables, RLS on every table, 40 migrations
 - **Environment vars:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` (never committed)
 - **CLI vars:** `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` in `.env` (for `supabase db push`)
 - **Supabase CLI:** installed via npx (`npx supabase`), project linked. Use `SUPABASE_ACCESS_TOKEN` env var.
@@ -138,7 +140,7 @@ src/
 │   ├── costi/        # CostiPage (cross-event quotes)
 │   ├── logistica/    # LogisticaPage (cross-event logistics)
 │   └── admin/        # AdminBrand, AdminProdotti, AdminSedi, AdminUtenti, AdminSottoAttivita, etc.
-├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useContacts, useStaff, useParticipants, useSubActivities, useLogistics, useCosts, useAdmin)
+├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useContacts, useStaff, useParticipants, useSubActivities, useLogistics, useCosts, useAdmin, useTavoli)
 ├── lib/              # Utilities (constants, date-utils, icons, supabase client)
 └── main.jsx          # Entry point
 public/

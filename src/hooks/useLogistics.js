@@ -86,6 +86,38 @@ export const useLogisticsStore = create((set, get) => ({
     return { error }
   },
 
+  copyTrasportoToMany: async (sourceId, targetPersons, eventId) => {
+    // 1. Fetch source record from local state
+    const source = get().trasporti.find(t => t.id === sourceId)
+    if (!source) return { data: null, error: 'Record sorgente non trovato' }
+
+    // 2. Build fresh payloads — respects XOR constraint (num_nonnulls(user_id, contact_id) = 1)
+    const payloads = targetPersons.map(target => ({
+      event_id: eventId,
+      user_id: target.userId || null,
+      contact_id: target.contactId || null,
+      direzione: source.direzione,
+      stato: source.stato,
+      mezzo: source.mezzo,
+      codice: source.codice,
+      orario: source.orario,
+      autista: source.autista,
+      orario_pickup: source.orario_pickup,
+      note: source.note,
+    }))
+
+    // 3. Batch insert
+    const { data, error } = await supabase
+      .from('event_trasporti')
+      .insert(payloads)
+      .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
+    if (!error && data) {
+      // Append to local state — no refetch to avoid loading flash
+      set(s => ({ trasporti: [...s.trasporti, ...data] }))
+    }
+    return { data, error: error?.message || null }
+  },
+
   // Cross-event queries for /logistica page
   fetchAllPendingHotels: async () => {
     const { data, error } = await supabase

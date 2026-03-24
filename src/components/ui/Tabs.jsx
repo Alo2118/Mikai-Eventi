@@ -1,3 +1,9 @@
+const DOT_COLORS = {
+  complete:   'bg-green-500',
+  warning:    'bg-yellow-500',
+  incomplete: 'bg-red-500',
+}
+
 export function Tabs({ tabs, activeTab, onChange }) {
   return (
     <div className="border-b border-gray-200 overflow-x-auto">
@@ -13,7 +19,12 @@ export function Tabs({ tabs, activeTab, onChange }) {
             }`}
             aria-current={activeTab === tab.id ? 'page' : undefined}
           >
-            {tab.label}
+            <span className="flex items-center gap-2">
+              {tab.label}
+              {tab.status && (
+                <span className={`w-2 h-2 rounded-full ${DOT_COLORS[tab.status] || ''}`} aria-label={tab.status} />
+              )}
+            </span>
           </button>
         ))}
       </nav>

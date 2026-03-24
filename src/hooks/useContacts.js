@@ -83,4 +83,35 @@ export const useContactsStore = create((set, get) => ({
       .limit(10)
     return { data: data || [], error }
   },
+
+  findDuplicates: async (rows) => {
+    const pairs = rows.map(r => ({ nome: r.nome?.trim(), cognome: r.cognome?.trim() }))
+    const { data, error } = await supabase.rpc('find_contact_duplicates', { pairs })
+    if (error) return { data: null, error: error.message }
+    // Group matches by pair_index (1-based from SQL ORDINALITY)
+    const grouped = rows.map((row, i) => ({
+      row,
+      matches: (data || []).filter(m => m.pair_index === i + 1),
+    }))
+    return { data: grouped, error: null }
+  },
+
+  bulkCreateContacts: async (contacts) => {
+    const { data, error } = await supabase
+      .from('contacts')
+      .insert(contacts)
+      .select()
+    if (!error) get().fetchContacts()
+    return { data: data || [], error: error?.message || null }
+  },
+
+  reactivateContacts: async (ids) => {
+    const { data, error } = await supabase
+      .from('contacts')
+      .update({ attivo: true })
+      .in('id', ids)
+      .select()
+    if (!error) get().fetchContacts()
+    return { data, error: error?.message || null }
+  },
 }))
