@@ -21,13 +21,20 @@ export const useActivitiesStore = create((set, get) => ({
       .from('event_activities')
       .select(`
         *,
-        assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome),
-        dipendenza:event_activities!event_activities_dipende_da_fkey(id, descrizione, stato)
+        assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome)
       `)
       .eq('event_id', eventId)
       .order('deadline', { ascending: true, nullsFirst: false })
-    set({ eventActivities: data || [], eventLoading: false, eventError: error?.message })
-    return { data, error }
+    // Resolve self-referential dependencies in-memory (PostgREST can't self-join)
+    const activities = (data || []).map(a => {
+      if (a.dipende_da) {
+        const dep = (data || []).find(d => d.id === a.dipende_da)
+        return { ...a, dipendenza: dep ? { id: dep.id, descrizione: dep.descrizione, stato: dep.stato } : null }
+      }
+      return { ...a, dipendenza: null }
+    })
+    set({ eventActivities: activities, eventLoading: false, eventError: error?.message })
+    return { data: activities, error }
   },
 
   fetchMyActivities: async (userId) => {
