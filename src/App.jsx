@@ -44,7 +44,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-    <BrowserRouter basename="/Eventi">
+    <BrowserRouter basename="/Mikai-Eventi">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
