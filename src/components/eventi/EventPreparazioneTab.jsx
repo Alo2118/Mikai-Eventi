@@ -112,7 +112,7 @@ export function EventPreparazioneTab({ event }) {
         title="Nessuna attività"
         description="Non ci sono attività di preparazione per questo evento."
         action={
-          event.stato === 'confermato' ? (
+          ['confermato', 'in_preparazione'].includes(event.stato) ? (
             <Button variant="primary" onClick={handleInstantiateTemplate}>
               Crea attività dal template
             </Button>

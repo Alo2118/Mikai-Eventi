@@ -89,6 +89,13 @@ export const useActivitiesStore = create((set, get) => ({
   },
 
   instantiateTemplate: async (eventId, tipoEvento, modalita, dataInizio) => {
+    // Guard: prevent duplicate instantiation
+    const { count } = await supabase
+      .from('event_activities')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+    if (count > 0) return { data: null, error: 'Attività già create per questo evento' }
+
     const { data: templates } = await supabase
       .from('event_templates')
       .select('id')
@@ -220,13 +227,16 @@ export const useActivitiesStore = create((set, get) => ({
 
     const { data: materials } = await supabase
       .from('event_materials')
-      .select('id, stato')
+      .select('id, material_id, stato')
       .eq('event_id', eventId)
 
-    const { data: movements } = await supabase
-      .from('material_movements')
-      .select('id, material_id, tipo')
-      .in('material_id', (materials || []).map(m => m.id))
+    const matIds = (materials || []).filter(m => m.material_id).map(m => m.material_id)
+    const { data: movements } = matIds.length > 0
+      ? await supabase
+          .from('material_movements')
+          .select('id, material_id, tipo')
+          .in('material_id', matIds)
+      : { data: [] }
 
     const checks = {
       lista_materiale_compilata: () => (materials || []).length > 0,
@@ -242,11 +252,12 @@ export const useActivitiesStore = create((set, get) => ({
         (materials || []).every(m => !['richiesto', 'approvato'].includes(m.stato)),
       materiale_tutto_spedito: () => {
         if (!materials?.length) return false
-        const materialIds = new Set(materials.map(m => m.id))
+        const reqMaterialIds = new Set(materials.filter(m => m.material_id).map(m => m.material_id))
+        if (reqMaterialIds.size === 0) return false
         const shipped = new Set(
           (movements || []).filter(m => m.tipo === 'uscita').map(m => m.material_id)
         )
-        return [...materialIds].every(id => shipped.has(id))
+        return [...reqMaterialIds].every(id => shipped.has(id))
       },
     }
 
