@@ -6,8 +6,8 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS } from '../../lib/icons'
 import { formatDateTime } from '../../lib/date-utils'
-
-const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+import { INPUT_STYLE } from '../../lib/constants'
+import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 
 const EMPTY_FORM = { tipo_id: '', data_ora: '', durata_minuti: '', luogo: '', fornitore: '', fornitore_id: null, note: '' }
 
@@ -85,33 +85,33 @@ export function EventProgrammaTab({ event }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo <span className="text-red-500">*</span></label>
-              <select className={INPUT} value={form.tipo_id} onChange={e => setField('tipo_id', e.target.value)}>
+              <select className={INPUT_STYLE} value={form.tipo_id} onChange={e => setField('tipo_id', e.target.value)}>
                 <option value="">Seleziona...</option>
                 {types.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data e ora</label>
-              <input type="datetime-local" className={INPUT} value={form.data_ora} onChange={e => setField('data_ora', e.target.value)} />
+              <input type="datetime-local" className={INPUT_STYLE} value={form.data_ora} onChange={e => setField('data_ora', e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Durata (minuti)</label>
-              <input type="number" min="1" className={INPUT} value={form.durata_minuti} onChange={e => setField('durata_minuti', e.target.value)} />
+              <input type="number" min="1" className={INPUT_STYLE} value={form.durata_minuti} onChange={e => setField('durata_minuti', e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Luogo</label>
-              <input className={INPUT} value={form.luogo} onChange={e => setField('luogo', e.target.value)} placeholder="es. Sala conferenze" />
+              <input className={INPUT_STYLE} value={form.luogo} onChange={e => setField('luogo', e.target.value)} placeholder="es. Sala conferenze" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fornitore</label>
-            <input className={INPUT} value={form.fornitore} onChange={e => setField('fornitore', e.target.value)} placeholder="Nome fornitore" />
+            <input className={INPUT_STYLE} value={form.fornitore} onChange={e => setField('fornitore', e.target.value)} placeholder="Nome fornitore" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-            <textarea className={INPUT + ' min-h-[80px]'} value={form.note} onChange={e => setField('note', e.target.value)} />
+            <textarea className={INPUT_STYLE + ' min-h-[80px]'} value={form.note} onChange={e => setField('note', e.target.value)} />
           </div>
           <div className="flex gap-3">
             <Button size="sm" onClick={handleSave} loading={saving} disabled={!form.tipo_id}>Aggiungi</Button>
@@ -156,11 +156,17 @@ export function EventProgrammaTab({ event }) {
           </div>
         ))}
         {subActivities.length === 0 && !loading && (
-          <p className="text-gray-400 text-center py-8">Nessuna attività in programma</p>
+          <div className="text-center py-8">
+            <p className="text-gray-400 mb-3">Nessuna attività in programma</p>
+            {!showForm && (
+              <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+                <Icon icon={ACTION_ICONS.add} size={16} />
+                <span className="ml-1">Aggiungi la prima attività</span>
+              </Button>
+            )}
+          </div>
         )}
-        {loading && (
-          <p className="text-gray-400 text-center py-8">Caricamento...</p>
-        )}
+        {loading && <LoadingSkeleton lines={3} />}
       </div>
 
       <ConfirmDialog

@@ -7,7 +7,7 @@ import { SearchInput } from '../../components/ui/SearchInput'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Icon } from '../../components/ui/Icon'
 import { POSIZIONE_ICONS } from '../../lib/icons'
-import { POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE } from '../../lib/constants'
+import { POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, SELECT_STYLE } from '../../lib/constants'
 
 const POSIZIONE_OPTIONS = [
   { value: '', label: 'Tutte le posizioni' },
@@ -87,7 +87,7 @@ export function LogisticaInventario() {
         <select
           value={posizione}
           onChange={e => setPosizione(e.target.value)}
-          className="min-h-[48px] rounded-lg border border-gray-300 px-3 text-base focus:ring-2 focus:ring-mikai-400 focus:outline-none bg-white"
+          className={SELECT_STYLE}
           aria-label="Filtra per posizione"
         >
           {POSIZIONE_OPTIONS.map(opt => (

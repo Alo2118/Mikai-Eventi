@@ -88,6 +88,9 @@ export function DashboardOperativa({ warehouseOnly = false }) {
     : dashboardActivities.filter(a => a.categoria === activeCategory)
 
   const groups = urgencyGroup(filtered)
+  const overdueCount = groups.overdue.length
+  const todayCount = groups.today.length
+  const totalOpen = dashboardActivities.length
 
   const categories = Object.entries(CATEGORIA_ATTIVITA)
 
@@ -104,6 +107,22 @@ export function DashboardOperativa({ warehouseOnly = false }) {
       <PageHeader title={title} subtitle="Attività in corso su tutti gli eventi" />
 
       <div className="px-6 md:px-8">
+        {/* KPI Summary */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">Attività aperte</p>
+            <p className="text-3xl font-bold text-gray-900">{totalOpen}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">In ritardo</p>
+            <p className={`text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">Scadono oggi</p>
+            <p className={`text-3xl font-bold ${todayCount > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>{todayCount}</p>
+          </div>
+        </div>
+
         {/* Category filter */}
         <div className="flex gap-2 flex-wrap mb-6">
           <button

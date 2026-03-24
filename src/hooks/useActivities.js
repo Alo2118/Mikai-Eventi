@@ -201,4 +201,132 @@ export const useActivitiesStore = create((set, get) => ({
     if (!error) await get().fetchEventActivities(eventId)
     return { data, error }
   },
+
+  runAutoVerifications: async (eventId) => {
+    const { data: autoActivities } = await supabase
+      .from('event_activities')
+      .select('id, verifica_automatica, stato')
+      .eq('event_id', eventId)
+      .eq('tipo_verifica', 'automatica')
+      .in('stato', ['da_fare', 'in_corso'])
+
+    if (!autoActivities?.length) return { verified: 0 }
+
+    const { data: event } = await supabase
+      .from('events')
+      .select('titolo, data_inizio, data_fine, indirizzo_spedizione')
+      .eq('id', eventId)
+      .single()
+
+    const { data: materials } = await supabase
+      .from('event_materials')
+      .select('id, stato')
+      .eq('event_id', eventId)
+
+    const { data: movements } = await supabase
+      .from('material_movements')
+      .select('id, material_id, tipo')
+      .in('material_id', (materials || []).map(m => m.id))
+
+    const checks = {
+      lista_materiale_compilata: () => (materials || []).length > 0,
+      materiale_tutto_confermato: () =>
+        (materials || []).length > 0 &&
+        (materials || []).every(m => m.stato !== 'richiesto'),
+      indirizzo_spedizione_specificato: () =>
+        !!event?.indirizzo_spedizione?.trim(),
+      titolo_orario_definitivi: () =>
+        !!event?.titolo?.trim() && !!event?.data_inizio && !!event?.data_fine,
+      materiale_tutto_preparato: () =>
+        (materials || []).length > 0 &&
+        (materials || []).every(m => !['richiesto', 'approvato'].includes(m.stato)),
+      materiale_tutto_spedito: () => {
+        if (!materials?.length) return false
+        const materialIds = new Set(materials.map(m => m.id))
+        const shipped = new Set(
+          (movements || []).filter(m => m.tipo === 'uscita').map(m => m.material_id)
+        )
+        return [...materialIds].every(id => shipped.has(id))
+      },
+    }
+
+    let verified = 0
+    for (const activity of autoActivities) {
+      const checkFn = checks[activity.verifica_automatica]
+      if (checkFn && checkFn()) {
+        await supabase
+          .from('event_activities')
+          .update({
+            stato: 'completata',
+            completata_il: new Date().toISOString(),
+            note: 'Verificata automaticamente',
+          })
+          .eq('id', activity.id)
+        verified++
+      }
+    }
+
+    if (verified > 0) await get().fetchEventActivities(eventId)
+    return { verified }
+  },
+
+  // Template admin actions
+  fetchTemplates: async () => {
+    const { data, error } = await supabase
+      .from('event_templates')
+      .select(`
+        *,
+        items:template_items(*)
+      `)
+      .order('tipo_evento')
+    return { data: data || [], error }
+  },
+
+  fetchTemplateItems: async (templateId) => {
+    const { data, error } = await supabase
+      .from('template_items')
+      .select('*')
+      .eq('template_id', templateId)
+      .eq('tipo', 'checklist')
+      .order('ordine')
+    return { data: data || [], error }
+  },
+
+  createTemplateItem: async (templateId, item) => {
+    const { data, error } = await supabase
+      .from('template_items')
+      .insert({
+        template_id: templateId,
+        tipo: 'checklist',
+        ...item,
+      })
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  updateTemplateItem: async (id, updates) => {
+    const { data, error } = await supabase
+      .from('template_items')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  deleteTemplateItem: async (id) => {
+    const { data: deps } = await supabase
+      .from('template_items')
+      .select('id')
+      .eq('dipende_da', id)
+    if (deps?.length > 0) {
+      return { data: null, error: { message: 'Altre attività dipendono da questa. Rimuovi prima le dipendenze.' } }
+    }
+    const { error } = await supabase
+      .from('template_items')
+      .delete()
+      .eq('id', id)
+    return { data: null, error }
+  },
 }))

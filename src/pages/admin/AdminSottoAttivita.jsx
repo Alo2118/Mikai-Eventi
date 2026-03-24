@@ -7,8 +7,7 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { useToastStore } from '../../components/ui/Toast'
-
-const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+import { INPUT_STYLE } from '../../lib/constants'
 
 export function AdminSottoAttivita() {
   const types = useSubActivitiesStore(s => s.types)
@@ -64,7 +63,7 @@ export function AdminSottoAttivita() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
               <input
-                className={INPUT}
+                className={INPUT_STYLE}
                 value={nome}
                 onChange={e => setNome(e.target.value)}
                 placeholder="es. Pranzo, Coffee break..."

@@ -6,9 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { RUOLI, PERMESSI, RUOLI_OPERATIVI } from '../../lib/constants'
-
-const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+import { RUOLI, PERMESSI, RUOLI_OPERATIVI, INPUT_STYLE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminUtenti() {
@@ -90,24 +88,24 @@ export function AdminUtenti() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
-                  <input className={INPUT} value={newUser.nome} onChange={e => setNewUser(u => ({ ...u, nome: e.target.value }))} />
+                  <input className={INPUT_STYLE} value={newUser.nome} onChange={e => setNewUser(u => ({ ...u, nome: e.target.value }))} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Cognome <span className="text-red-500">*</span></label>
-                  <input className={INPUT} value={newUser.cognome} onChange={e => setNewUser(u => ({ ...u, cognome: e.target.value }))} />
+                  <input className={INPUT_STYLE} value={newUser.cognome} onChange={e => setNewUser(u => ({ ...u, cognome: e.target.value }))} />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
-                <input type="email" className={INPUT} value={newUser.email} onChange={e => setNewUser(u => ({ ...u, email: e.target.value }))} />
+                <input type="email" className={INPUT_STYLE} value={newUser.email} onChange={e => setNewUser(u => ({ ...u, email: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Password iniziale <span className="text-red-500">*</span></label>
-                <input type="text" className={INPUT} value={newUser.password} onChange={e => setNewUser(u => ({ ...u, password: e.target.value }))} placeholder="Minimo 6 caratteri" />
+                <input type="text" className={INPUT_STYLE} value={newUser.password} onChange={e => setNewUser(u => ({ ...u, password: e.target.value }))} placeholder="Minimo 6 caratteri" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
-                <select className={INPUT} value={newUser.ruolo} onChange={e => setNewUser(u => ({ ...u, ruolo: e.target.value }))}>
+                <select className={INPUT_STYLE} value={newUser.ruolo} onChange={e => setNewUser(u => ({ ...u, ruolo: e.target.value }))}>
                   {Object.entries(RUOLI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
@@ -143,7 +141,7 @@ export function AdminUtenti() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
-                <select className={INPUT} value={editing.ruolo || ''} onChange={e => setEditing({ ...editing, ruolo: e.target.value })}>
+                <select className={INPUT_STYLE} value={editing.ruolo || ''} onChange={e => setEditing({ ...editing, ruolo: e.target.value })}>
                   <option value="">-- Seleziona --</option>
                   {Object.entries(RUOLI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>

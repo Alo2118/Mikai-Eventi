@@ -15,8 +15,13 @@ import { EventProgrammaTab } from '../../components/eventi/EventProgrammaTab'
 import { EventLogisticaTab } from '../../components/eventi/EventLogisticaTab'
 import { EventCostiTab } from '../../components/eventi/EventCostiTab'
 import { useAdminStore } from '../../hooks/useAdmin'
-import { TIPO_EVENTO } from '../../lib/constants'
+import { useStaffStore } from '../../hooks/useStaff'
+import { useParticipantsStore } from '../../hooks/useParticipants'
+import { useLogisticsStore } from '../../hooks/useLogistics'
+import { EventTavoliTab } from '../../components/eventi/EventTavoliTab'
+import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
+import { ComingSoon } from '../../components/ui/ComingSoon'
 
 function getVisibleTabs(event, profile, permissions) {
   const ruolo = profile?.ruolo
@@ -26,6 +31,9 @@ function getVisibleTabs(event, profile, permissions) {
   const tabs = [{ id: 'info', label: 'Info' }]
 
   tabs.push({ id: 'persone', label: 'Persone' })
+  if (TIPI_EVENTO_CON_TAVOLI.includes(event.tipo_evento)) {
+    tabs.push({ id: 'tavoli', label: 'Tavoli' })
+  }
   tabs.push({ id: 'programma', label: 'Programma' })
   if (modalita !== 'contributo') {
     tabs.push({ id: 'materiale', label: 'Materiale & Gadget' })
@@ -43,13 +51,6 @@ function getVisibleTabs(event, profile, permissions) {
   return tabs
 }
 
-function PlaceholderTab({ name }) {
-  return (
-    <div className="py-12 text-center text-gray-400 text-base">
-      {name} — In costruzione (Phase 3-5)
-    </div>
-  )
-}
 
 export function EventiDetail() {
   const { id } = useParams()
@@ -58,6 +59,11 @@ export function EventiDetail() {
   const permissions = useAuthStore(s => s.permissions)
   const users = useAdminStore(s => s.users)
   const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const staff = useStaffStore(s => s.staff)
+  const participants = useParticipantsStore(s => s.participants)
+  const hotels = useLogisticsStore(s => s.hotels)
+  const trasporti = useLogisticsStore(s => s.trasporti)
+  const fetchEventLogistics = useLogisticsStore(s => s.fetchEventLogistics)
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -74,12 +80,45 @@ export function EventiDetail() {
 
   useEffect(() => { fetchUsers() }, [])
 
+  useEffect(() => {
+    if (event?.id) {
+      fetchEventLogistics(event.id)
+    }
+  }, [event?.id])
+
   if (loading) return <LoadingSkeleton lines={8} />
   if (error || !event) {
     return <EmptyState title="Evento non trovato" description={error || 'L\'evento richiesto non esiste o non hai accesso.'} />
   }
 
-  const tabs = getVisibleTabs(event, profile, permissions)
+  function computeTabStatus() {
+    const statuses = {}
+
+    // Persone
+    if (staff.length > 0 || participants.length > 0) {
+      const staffConfirmed = staff.every(s => s.confermato)
+      const partConfirmed = participants.every(p => p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente')
+      statuses.persone = (staffConfirmed && partConfirmed) ? 'complete' : 'warning'
+    }
+
+    // Logistica
+    const totalPeople = staff.length + participants.length
+    if (totalPeople > 0) {
+      const hotelCount = hotels.length
+      const andataCount = trasporti.filter(t => t.direzione === 'andata').length
+      const ritornoCount = trasporti.filter(t => t.direzione === 'ritorno').length
+      const allDone = hotelCount >= totalPeople && andataCount >= totalPeople && ritornoCount >= totalPeople
+      statuses.logistica = allDone ? 'complete' : (hotelCount > 0 || andataCount > 0 || ritornoCount > 0) ? 'warning' : undefined
+    }
+
+    return statuses
+  }
+
+  const tabStatuses = computeTabStatus()
+  const tabs = getVisibleTabs(event, profile, permissions).map(tab => ({
+    ...tab,
+    status: tabStatuses[tab.id],
+  }))
   const subtitle = `${TIPO_EVENTO[event.tipo_evento]} \u00B7 ${formatDateRange(event.data_inizio, event.data_fine)}${event.luogo ? ` \u00B7 ${event.luogo}` : ''}`
 
   const refreshEvent = () => {
@@ -113,13 +152,14 @@ export function EventiDetail() {
       <div className="px-4 md:px-8 py-5">
         {activeTab === 'info' && <EventInfoTab event={event} onUpdate={refreshEvent} />}
         {activeTab === 'persone' && <EventPersoneTab event={event} users={users} />}
+        {activeTab === 'tavoli' && <EventTavoliTab event={event} staff={staff} participants={participants} />}
         {activeTab === 'programma' && <EventProgrammaTab event={event} />}
         {activeTab === 'materiale' && <EventMaterialList event={event} />}
         {activeTab === 'logistica' && <EventLogisticaTab event={event} />}
         {activeTab === 'costi' && <EventCostiTab event={event} />}
-        {activeTab === 'documenti' && <PlaceholderTab name="Documenti" />}
+        {activeTab === 'documenti' && <ComingSoon title="Documenti" description="La gestione documenti sarà disponibile nella prossima versione." />}
         {activeTab === 'preparazione' && <EventPreparazioneTab event={event} />}
-        {activeTab === 'report' && <PlaceholderTab name="Report post-evento" />}
+        {activeTab === 'report' && <ComingSoon title="Report post-evento" description="I report saranno disponibili nella prossima versione." />}
       </div>
     </div>
   )

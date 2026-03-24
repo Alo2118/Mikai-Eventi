@@ -7,10 +7,10 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
-import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE } from '../../lib/constants'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
-
-const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+import { ProgressIndicator } from '../ui/ProgressIndicator'
+import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 
 export function EventCostiTab({ event }) {
   const preventivi = useCostsStore(s => s.preventivi)
@@ -75,6 +75,23 @@ export function EventCostiTab({ event }) {
 
   return (
     <div className="space-y-6">
+      {preventivi.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <ProgressIndicator
+            label="Preventivi approvati"
+            current={preventivi.filter(p => p.stato === 'approvato').length}
+            total={preventivi.length}
+            color="green"
+          />
+          <ProgressIndicator
+            label="Preventivi in attesa"
+            current={preventivi.filter(p => p.stato !== 'in_attesa').length}
+            total={preventivi.length}
+            color="mikai"
+          />
+        </div>
+      )}
+
       {/* Budget bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <h3 className="font-semibold text-lg mb-3">Budget</h3>
@@ -117,10 +134,10 @@ export function EventCostiTab({ event }) {
 
         {showForm && (
           <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-lg">
-            <input className={INPUT} value={form.descrizione} onChange={e => setField('descrizione', e.target.value)} placeholder="Descrizione (es. Catering pranzo 20 pax)" />
+            <input className={INPUT_STYLE} value={form.descrizione} onChange={e => setField('descrizione', e.target.value)} placeholder="Descrizione (es. Catering pranzo 20 pax)" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input type="number" step="0.01" className={INPUT} value={form.importo} onChange={e => setField('importo', e.target.value)} placeholder="Importo €" />
-              <input className={INPUT} value={form.fornitore_nome} onChange={e => setField('fornitore_nome', e.target.value)} placeholder="Fornitore" />
+              <input type="number" step="0.01" className={INPUT_STYLE} value={form.importo} onChange={e => setField('importo', e.target.value)} placeholder="Importo €" />
+              <input className={INPUT_STYLE} value={form.fornitore_nome} onChange={e => setField('fornitore_nome', e.target.value)} placeholder="Fornitore" />
             </div>
             <div className="flex gap-3">
               <Button size="sm" onClick={handleCreate}>Aggiungi</Button>
@@ -154,7 +171,18 @@ export function EventCostiTab({ event }) {
               )}
             </div>
           ))}
-          {preventivi.length === 0 && !loading && <p className="text-gray-400 text-center py-4">Nessun preventivo</p>}
+          {loading && <LoadingSkeleton lines={3} />}
+          {preventivi.length === 0 && !loading && (
+            <div className="text-center py-6">
+              <p className="text-gray-400 mb-3">Nessun preventivo</p>
+              {canManage && !showForm && (
+                <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+                  <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
+                  Aggiungi il primo preventivo
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -167,7 +195,7 @@ export function EventCostiTab({ event }) {
             <div className="space-y-2">
               <p>{actionDialog.preventivo.descrizione} — {actionDialog.preventivo.importo?.toLocaleString('it-IT')} €</p>
               <textarea
-                className={INPUT + ' min-h-[80px]'}
+                className={INPUT_STYLE + ' min-h-[80px]'}
                 value={actionDialog.nota}
                 onChange={e => setActionDialog(d => ({ ...d, nota: e.target.value }))}
                 placeholder={actionDialog.type === 'reject' ? 'Motivo del rifiuto...' : 'Note (opzionale)...'}

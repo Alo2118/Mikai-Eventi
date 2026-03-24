@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useContactsStore } from '../../hooks/useContacts'
+import { INPUT_STYLE } from '../../lib/constants'
 
 export function ContactPicker({ value, onChange, placeholder = 'Cerca contatto...' }) {
   const [term, setTerm] = useState('')
@@ -37,7 +38,7 @@ export function ContactPicker({ value, onChange, placeholder = 'Cerca contatto..
         value={term}
         onChange={(e) => { setTerm(e.target.value); if (!value) onChange(null) }}
         placeholder={placeholder}
-        className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none"
+        className={INPUT_STYLE}
       />
       {open && results.length > 0 && (
         <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">

@@ -1,8 +1,19 @@
+import { useState } from 'react'
 import { DatePicker } from '../ui/DatePicker'
+import { FormField } from '../ui/FormField'
 import { VenueAutocomplete } from './VenueAutocomplete'
+import { INPUT_STYLE } from '../../lib/constants'
 
 export function WizardStepDove({ data, onChange }) {
+  const [touched, setTouched] = useState({})
   const update = (field, value) => onChange({ ...data, [field]: value })
+  const touch = (field) => setTouched(t => ({ ...t, [field]: true }))
+
+  const errors = {
+    titolo: touched.titolo && !data.titolo?.trim() ? 'Il titolo è obbligatorio' : null,
+    data_inizio: touched.data_inizio && !data.data_inizio ? 'La data di inizio è obbligatoria' : null,
+    luogo: touched.luogo && !data.luogo?.trim() ? 'Il luogo è obbligatorio' : null,
+  }
 
   const handleVenueSelect = (venue) => {
     onChange({
@@ -19,26 +30,24 @@ export function WizardStepDove({ data, onChange }) {
       <p className="text-base text-gray-500 mb-6">Inserisci i dettagli dell'evento.</p>
 
       <div className="space-y-5">
-        <div>
-          <label className="block text-base font-medium text-gray-700 mb-1">
-            Titolo <span className="text-red-500">*</span>
-          </label>
+        <FormField label="Titolo" required error={errors.titolo}>
           <input
             type="text"
             value={data.titolo || ''}
             onChange={(e) => update('titolo', e.target.value)}
+            onBlur={() => touch('titolo')}
             placeholder="Es: Workshop Fissatore Poloso"
-            className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 min-h-[48px]"
-            required
+            className={INPUT_STYLE}
           />
-        </div>
+        </FormField>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DatePicker
             label="Data inizio"
             value={data.data_inizio}
-            onChange={(v) => update('data_inizio', v)}
+            onChange={(v) => { update('data_inizio', v); touch('data_inizio') }}
             required
+            error={errors.data_inizio}
           />
           <DatePicker
             label="Data fine"
@@ -52,20 +61,19 @@ export function WizardStepDove({ data, onChange }) {
           value={data.luogo || ''}
           onChange={(val) => update('luogo', val)}
           onSelect={handleVenueSelect}
+          onBlur={() => touch('luogo')}
+          error={errors.luogo}
         />
 
-        <div>
-          <label className="block text-base font-medium text-gray-700 mb-1">
-            Dettaglio sede <span className="text-gray-400">(facoltativo)</span>
-          </label>
+        <FormField label="Dettaglio sede" hint="Facoltativo">
           <input
             type="text"
             value={data.sede_dettaglio || ''}
             onChange={(e) => update('sede_dettaglio', e.target.value)}
             placeholder="Es: Sala conferenze, Piano 2"
-            className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 min-h-[48px]"
+            className={INPUT_STYLE}
           />
-        </div>
+        </FormField>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DatePicker
@@ -74,18 +82,15 @@ export function WizardStepDove({ data, onChange }) {
             onChange={(v) => update('data_spedizione_prevista', v)}
             max={data.data_inizio}
           />
-          <div>
-            <label className="block text-base font-medium text-gray-700 mb-1">
-              Note consegna <span className="text-gray-400">(facoltativo)</span>
-            </label>
+          <FormField label="Note consegna" hint="Facoltativo">
             <input
               type="text"
               value={data.note_consegna || ''}
               onChange={(e) => update('note_consegna', e.target.value)}
               placeholder="Es: Consegnare al portiere"
-              className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 min-h-[48px]"
+              className={INPUT_STYLE}
             />
-          </div>
+          </FormField>
         </div>
       </div>
     </div>

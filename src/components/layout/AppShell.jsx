@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { BottomBar } from './BottomBar'
 import { ToastContainer } from '../ui/Toast'
+import { GlobalSearch } from '../ui/GlobalSearch'
 
 export function AppShell() {
   return (
@@ -12,6 +13,7 @@ export function AppShell() {
       </main>
       <BottomBar />
       <ToastContainer />
+      <GlobalSearch />
     </div>
   )
 }

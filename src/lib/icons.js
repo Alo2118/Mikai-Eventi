@@ -26,6 +26,7 @@ import {
 
   // Navigazione
   LayoutDashboard,
+  LayoutGrid,
   Calendar,
   CalendarDays,
   Package,
@@ -50,6 +51,7 @@ import {
   Filter,
   CirclePlus,
   Pencil,
+  Upload,
 
   // Status/feedback
   AlertTriangle,
@@ -94,17 +96,21 @@ import {
   // Catalogo
   ShoppingCart,
   SlidersHorizontal,
+  ClipboardCheck,
 
   // Phase 4 — persone e logistica
   Bed,
   Bus,
+  Car,
   Clipboard,
   Euro,
   Hotel,
   Plane,
   Receipt,
+  TrainFront,
   UserCheck,
   UserPlus,
+  UserX,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -174,6 +180,7 @@ export const NAV_ICONS = {
   dashboard: LayoutDashboard,
   attivita: ListTodo,
   costi: Euro,
+  checklist: ClipboardCheck,
 }
 
 // ═══════════════════════════════════════════
@@ -193,6 +200,7 @@ export const ACTION_ICONS = {
   chevron_right: ChevronRight,
   clearFilter: FilterX,
   edit: Pencil,
+  upload: Upload,
 }
 
 // ═══════════════════════════════════════════
@@ -288,6 +296,7 @@ export const ATTIVITA_STATO_ICONS = {
   in_ritardo: Timer,
   bloccata: Lock,
   disattivata: XCircle,
+  auto_verificata: ShieldCheck,
 }
 
 export const CATEGORIA_ICONS = {
@@ -332,4 +341,22 @@ export const COSTI_ICONS = {
 // ═══════════════════════════════════════════
 export const SOTTO_ATTIVITA_ICONS = {
   programma: ListChecks,
+}
+
+// ═══════════════════════════════════════════
+// Trasporti
+// ═══════════════════════════════════════════
+export const TRASPORTO_ICONS = {
+  treno: TrainFront,
+  volo: Plane,
+  auto: Car,
+  navetta: Bus,
+  indipendente: UserX,
+}
+
+// ═══════════════════════════════════════════
+// Tavoli
+// ═══════════════════════════════════════════
+export const TAVOLI_ICONS = {
+  tavoli: LayoutGrid,
 }

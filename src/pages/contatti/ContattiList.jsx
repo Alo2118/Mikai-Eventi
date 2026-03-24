@@ -13,8 +13,9 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToastStore } from '../../components/ui/Toast'
-import { TIPO_CONTATTO } from '../../lib/constants'
-import { CONTATTI_ICONS } from '../../lib/icons'
+import { TIPO_CONTATTO, SELECT_STYLE } from '../../lib/constants'
+import { CONTATTI_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { BulkImportModal } from '../../components/contatti/BulkImportModal'
 
 export function ContattiList() {
   const navigate = useNavigate()
@@ -29,6 +30,7 @@ export function ContattiList() {
   const addToast = useToastStore(s => s.add)
 
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const zones = useAdminStore(s => s.zones)
@@ -57,10 +59,16 @@ export function ContattiList() {
         title="Rubrica contatti"
         subtitle={`${contacts.length} contatti`}
         action={canCreate && (
-          <Button onClick={() => setShowForm(true)}>
-            <Icon icon={CONTATTI_ICONS.aggiungi} size={18} />
-            <span className="ml-2">Nuovo contatto</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setShowImport(true)}>
+              <Icon icon={ACTION_ICONS.upload} size={18} />
+              <span className="ml-2">Importa</span>
+            </Button>
+            <Button onClick={() => setShowForm(true)}>
+              <Icon icon={CONTATTI_ICONS.aggiungi} size={18} />
+              <span className="ml-2">Nuovo contatto</span>
+            </Button>
+          </div>
         )}
       />
 
@@ -83,7 +91,7 @@ export function ContattiList() {
         <select
           value={filters.tipo}
           onChange={e => { setFilter('tipo', e.target.value); fetchContacts() }}
-          className="px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px]"
+          className={SELECT_STYLE}
         >
           <option value="">Tutti i tipi</option>
           {Object.entries(TIPO_CONTATTO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -111,6 +119,11 @@ export function ContattiList() {
           ))}
         </div>
       )}
+      <BulkImportModal
+        open={showImport}
+        onComplete={() => { setShowImport(false); fetchContacts() }}
+        onClose={() => setShowImport(false)}
+      />
     </div>
   )
 }

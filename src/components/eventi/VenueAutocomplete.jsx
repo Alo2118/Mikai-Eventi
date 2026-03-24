@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
 import { useToastStore } from '../ui/Toast'
 
-export function VenueAutocomplete({ value, onChange, onSelect }) {
+export function VenueAutocomplete({ value, onChange, onSelect, onBlur, error }) {
   const [query, setQuery] = useState(value || '')
   const [results, setResults] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -49,15 +49,22 @@ export function VenueAutocomplete({ value, onChange, onSelect }) {
 
   return (
     <div className="relative">
-      <label className="block text-base font-medium text-gray-700 mb-1">Sede</label>
+      <label className={`block text-base font-medium mb-1 ${error ? 'text-red-600' : 'text-gray-700'}`}>
+        Sede <span className="text-red-500">*</span>
+      </label>
       <input
         type="text"
         value={query}
         onChange={(e) => { setQuery(e.target.value); onChange(e.target.value) }}
         onFocus={() => { if (results.length > 0) setShowDropdown(true) }}
-        className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+        onBlur={() => onBlur && onBlur()}
+        className={`w-full px-4 py-3 text-base border rounded-lg min-h-[48px] focus:ring-2 ${
+          error ? 'border-red-400 ring-2 ring-red-300 focus:ring-red-400' : 'border-gray-300 focus:ring-mikai-400'
+        }`}
         placeholder="Cerca sede o digita il nome..."
+        aria-invalid={!!error}
       />
+      {error && <p className="text-sm text-red-600 mt-1" role="alert">{error}</p>}
 
       {showDropdown && (
         <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">

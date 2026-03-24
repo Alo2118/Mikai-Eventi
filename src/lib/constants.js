@@ -51,6 +51,8 @@ export const STATO_ATTIVITA = {
   in_corso: 'In corso',
   completata: 'Completata',
   disattivata: 'Disattivata',
+  in_ritardo: 'In ritardo',
+  bloccata: 'Bloccata',
 }
 
 export const STATO_ATTIVITA_COLORE = {
@@ -58,6 +60,8 @@ export const STATO_ATTIVITA_COLORE = {
   in_corso: 'mikai',
   completata: 'green',
   disattivata: 'gray',
+  in_ritardo: 'red',
+  bloccata: 'gray',
 }
 
 export const CATEGORIA_ATTIVITA = {
@@ -74,6 +78,15 @@ export const CATEGORIA_ATTIVITA_COLORE = {
   materiale: 'emerald',
   organizzazione: 'yellow',
   amministrazione: 'gray',
+}
+
+export const VERIFICATION_FUNCTIONS = {
+  lista_materiale_compilata: 'Lista materiale compilata',
+  materiale_tutto_confermato: 'Materiale tutto confermato',
+  indirizzo_spedizione_specificato: 'Indirizzo spedizione specificato',
+  titolo_orario_definitivi: 'Titolo e orario definitivi',
+  materiale_tutto_preparato: 'Materiale tutto preparato',
+  materiale_tutto_spedito: 'Materiale tutto spedito',
 }
 
 export const STATO_MATERIALE_RICHIESTA = {
@@ -112,6 +125,17 @@ export const TIPO_CONTATTO = {
   altro: 'Altro',
 }
 
+// Tipologia per import in blocco — labels familiari, mapping a tipo_contatto + ruolo_medico
+export const TIPOLOGIA_IMPORT = {
+  medico:          { label: 'Medico',          tipo_contatto: 'medico',        ruolo_medico: 'medico' },
+  specializzando:  { label: 'Specializzando',  tipo_contatto: 'medico',        ruolo_medico: 'specializzando' },
+  strumentista:    { label: 'Strumentista',     tipo_contatto: 'tecnico',       ruolo_medico: 'strumentista' },
+  fornitore:       { label: 'Fornitore',        tipo_contatto: 'fornitore',     ruolo_medico: null },
+  tecnico:         { label: 'Tecnico',          tipo_contatto: 'tecnico',       ruolo_medico: null },
+  istituzionale:   { label: 'Istituzionale',    tipo_contatto: 'istituzionale', ruolo_medico: null },
+  altro:           { label: 'Altro',            tipo_contatto: 'altro',         ruolo_medico: null },
+}
+
 // Stato prenotazione (hotel + trasporti)
 export const STATO_PRENOTAZIONE = {
   da_prenotare: 'Da prenotare',
@@ -129,6 +153,25 @@ export const STATO_PRENOTAZIONE_COLORE = {
 export const DIREZIONE_TRASPORTO = {
   andata: 'Andata',
   ritorno: 'Ritorno',
+}
+
+// Mezzo trasporto
+export const MEZZO_TRASPORTO = {
+  treno: 'Treno',
+  volo: 'Volo',
+  auto: 'Auto',
+  navetta: 'Navetta',
+  indipendente: 'Indipendente',
+}
+
+// Tipi evento che usano i tavoli
+export const TIPI_EVENTO_CON_TAVOLI = ['corso', 'cadaver_lab']
+
+// Tab status dot colors
+export const TAB_STATUS_COLOR = {
+  complete:   'green',
+  warning:    'yellow',
+  incomplete: 'red',
 }
 
 // Stato preventivo
@@ -152,6 +195,7 @@ export const TIPO_PARTECIPANTE = {
   relatore_esterno: 'Relatore esterno',
   ospite: 'Ospite',
   accompagnatore: 'Accompagnatore',
+  agente: 'Agente',
 }
 
 // Ruolo evento (staff interno)
@@ -272,5 +316,15 @@ export const ROLE_PERMISSION_PRESETS = {
   area_manager: ['richiedi_materiale', 'approva_eventi', 'gestione_contatti', 'gestione_staff_evento'],
   direzione: ['approva_eventi', 'approva_materiale', 'gestione_costi', 'compliance', 'gestione_contatti', 'gestione_staff_evento', 'approva_preventivi'],
   ufficio: ['approva_materiale', 'gestione_magazzino', 'gestione_spedizioni', 'gestione_gadget', 'gestione_sedi', 'gestione_costi', 'gestione_contatti', 'gestione_staff_evento', 'gestione_logistica', 'approva_preventivi'],
-  admin: ['gestione_utenti', 'gestione_catalogo', 'approva_eventi', 'gestione_costi', 'compliance'],
+  admin: ['gestione_utenti', 'gestione_catalogo', 'approva_eventi', 'approva_materiale', 'gestione_costi', 'compliance', 'gestione_magazzino', 'gestione_spedizioni', 'gestione_gadget', 'gestione_sedi', 'gestione_contatti', 'gestione_staff_evento', 'gestione_logistica', 'approva_preventivi', 'richiedi_materiale', 'gestione_marketing', 'gestione_organizzazione'],
 }
+
+// ═══════════════════════════════════════════
+// Shared input/form styling constants
+// Each is a full, independent string literal — no concatenation.
+// Tailwind v4 static analysis requires complete class tokens visible in source.
+// ═══════════════════════════════════════════
+export const INPUT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+export const INPUT_ERROR_STYLE = 'w-full px-4 py-3 text-base border border-red-400 rounded-lg min-h-[48px] focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none bg-red-50'
+export const SELECT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none bg-white'
+export const TEXTAREA_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[80px] resize-none focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'

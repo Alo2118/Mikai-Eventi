@@ -43,6 +43,27 @@ export function formatDateTime(dateStr) {
   return format(d, "d MMM yyyy 'alle' HH:mm", { locale: it })
 }
 
+export function formatTime(dateStr) {
+  if (!dateStr) return ''
+  const d = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr
+  if (!isValid(d)) return ''
+  return format(d, 'HH:mm', { locale: it })
+}
+
+export function formatDateShort(dateStr) {
+  if (!dateStr) return ''
+  const d = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr
+  if (!isValid(d)) return ''
+  return format(d, 'd MMM', { locale: it })
+}
+
+export function toLocalDateTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export function calculateDeadline(eventDate, giorniPrima) {
   if (!giorniPrima && giorniPrima !== 0) return null
   const d = new Date(eventDate)

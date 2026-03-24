@@ -7,8 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-
-const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+import { INPUT_STYLE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminDistretti() {
@@ -74,15 +73,15 @@ export function AdminDistretti() {
             <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica distretto' : 'Nuovo distretto'}</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
-              <input className={INPUT} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
+              <input className={INPUT_STYLE} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ordine</label>
-              <input type="number" className={INPUT} value={editing.ordine ?? ''} onChange={e => setEditing({ ...editing, ordine: e.target.value })} />
+              <input type="number" className={INPUT_STYLE} value={editing.ordine ?? ''} onChange={e => setEditing({ ...editing, ordine: e.target.value })} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">URL Immagine</label>
-              <input className={INPUT} value={editing.immagine_url || ''} onChange={e => setEditing({ ...editing, immagine_url: e.target.value })} />
+              <input className={INPUT_STYLE} value={editing.immagine_url || ''} onChange={e => setEditing({ ...editing, immagine_url: e.target.value })} />
             </div>
             <div className="flex items-center gap-3">
               <input type="checkbox" className={CHECK} checked={editing.attivo !== false} onChange={e => setEditing({ ...editing, attivo: e.target.checked })} id="attivo" />

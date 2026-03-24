@@ -44,6 +44,7 @@ export function EventiWizard() {
     setLoading(true)
     const { data: created, error } = await createEvent({
       ...data,
+      budget_previsto: data.budget_previsto === '' ? null : data.budget_previsto,
       data_fine: data.data_fine || data.data_inizio,
       promotore_id: user.id,
       created_by: user.id,

@@ -3,15 +3,16 @@ import { useStaffStore } from '../../hooks/useStaff'
 import { useParticipantsStore } from '../../hooks/useParticipants'
 import { useAuthStore } from '../../hooks/useAuth'
 import { ContactPicker } from '../contatti/ContactPicker'
+import { BulkImportModal } from '../contatti/BulkImportModal'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS } from '../../lib/icons'
-import { RUOLO_EVENTO, TIPO_PARTECIPANTE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE } from '../../lib/constants'
+import { RUOLO_EVENTO, TIPO_PARTECIPANTE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, SELECT_STYLE } from '../../lib/constants'
+import { ProgressIndicator } from '../ui/ProgressIndicator'
 
-const SELECT = 'px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
 
 export function EventPersoneTab({ event, users = [] }) {
   const staff = useStaffStore(s => s.staff)
@@ -34,6 +35,7 @@ export function EventPersoneTab({ event, users = [] }) {
   const [staffForm, setStaffForm] = useState(null) // { userId, ruolo }
   const [partForm, setPartForm] = useState(null) // { contact, tipo }
   const [deleting, setDeleting] = useState(null)
+  const [showImport, setShowImport] = useState(false)
 
   const canEditStaff = hasPermission('gestione_staff_evento')
   const canEditPart = hasPermission('gestione_contatti') || hasPermission('gestione_staff_evento')
@@ -64,6 +66,20 @@ export function EventPersoneTab({ event, users = [] }) {
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <ProgressIndicator
+          label="Staff confermati"
+          current={staff.filter(s => s.confermato).length}
+          total={staff.length}
+          color="mikai"
+        />
+        <ProgressIndicator
+          label="Partecipanti confermati"
+          current={participants.filter(p => p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente').length}
+          total={participants.length}
+          color="blue"
+        />
+      </div>
       {/* Riepilogo */}
       <div className="flex gap-4 text-sm text-gray-600">
         <span>Staff: {staff.length} ({staffConfermati} confermati)</span>
@@ -84,13 +100,13 @@ export function EventPersoneTab({ event, users = [] }) {
 
         {staffForm && (
           <div className="flex flex-col md:flex-row gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
-            <select className={SELECT + ' flex-1'} value={staffForm.userId} onChange={e => setStaffForm(f => ({ ...f, userId: e.target.value }))}>
+            <select className={SELECT_STYLE + ' flex-1'} value={staffForm.userId} onChange={e => setStaffForm(f => ({ ...f, userId: e.target.value }))}>
               <option value="">Seleziona persona...</option>
               {users.filter(u => !staff.some(s => s.user_id === u.id)).map(u => (
                 <option key={u.id} value={u.id}>{u.cognome} {u.nome} ({u.ruolo})</option>
               ))}
             </select>
-            <select className={SELECT} value={staffForm.ruolo} onChange={e => setStaffForm(f => ({ ...f, ruolo: e.target.value }))}>
+            <select className={SELECT_STYLE} value={staffForm.ruolo} onChange={e => setStaffForm(f => ({ ...f, ruolo: e.target.value }))}>
               {Object.entries(RUOLO_EVENTO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
             <div className="flex gap-2">
@@ -133,10 +149,16 @@ export function EventPersoneTab({ event, users = [] }) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-lg">Partecipanti</h3>
           {canEditPart && !partForm && (
-            <Button variant="secondary" size="sm" onClick={() => setPartForm({ contact: null, tipo: 'discente' })}>
-              <Icon icon={ACTION_ICONS.add} size={16} />
-              <span className="ml-1">Aggiungi</span>
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+                <Icon icon={ACTION_ICONS.upload} size={16} />
+                <span className="ml-1">Importa lista</span>
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setPartForm({ contact: null, tipo: 'discente' })}>
+                <Icon icon={ACTION_ICONS.add} size={16} />
+                <span className="ml-1">Aggiungi</span>
+              </Button>
+            </div>
           )}
         </div>
 
@@ -145,7 +167,7 @@ export function EventPersoneTab({ event, users = [] }) {
             <div className="flex-1">
               <ContactPicker value={partForm.contact} onChange={c => setPartForm(f => ({ ...f, contact: c }))} />
             </div>
-            <select className={SELECT} value={partForm.tipo} onChange={e => setPartForm(f => ({ ...f, tipo: e.target.value }))}>
+            <select className={SELECT_STYLE} value={partForm.tipo} onChange={e => setPartForm(f => ({ ...f, tipo: e.target.value }))}>
               {Object.entries(TIPO_PARTECIPANTE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
             <div className="flex gap-2">
@@ -185,6 +207,13 @@ export function EventPersoneTab({ event, users = [] }) {
           {participants.length === 0 && !participantsLoading && <p className="text-gray-400 text-center py-4">Nessun partecipante</p>}
         </div>
       </div>
+
+      <BulkImportModal
+        open={showImport}
+        eventId={event.id}
+        onComplete={() => { setShowImport(false); fetchEventParticipants(event.id) }}
+        onClose={() => setShowImport(false)}
+      />
 
       <ConfirmDialog
         open={!!deleting}

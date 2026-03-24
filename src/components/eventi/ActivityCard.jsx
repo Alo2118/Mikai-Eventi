@@ -79,7 +79,15 @@ export function ActivityCard({ activity, onStart, onComplete, onAssign, currentU
             </span>
           )}
         </div>
-        <StatoBadge displayStato={displayStato} />
+        <div className="flex items-center gap-2">
+          {activity.tipo_verifica === 'automatica' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-mikai-600 bg-mikai-50">
+              <Icon icon={ATTIVITA_STATO_ICONS.auto_verificata} size={12} />
+              Automatica
+            </span>
+          )}
+          <StatoBadge displayStato={displayStato} />
+        </div>
       </div>
 
       {/* Meta row */}

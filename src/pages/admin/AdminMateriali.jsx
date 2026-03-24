@@ -7,9 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { POSIZIONE_MATERIALE } from '../../lib/constants'
-
-const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+import { POSIZIONE_MATERIALE, INPUT_STYLE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminMateriali() {
@@ -89,28 +87,28 @@ export function AdminMateriali() {
             <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica materiale' : 'Nuovo materiale'}</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
-              <input className={INPUT} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} placeholder="Es. Chiodo Gamma 3 Demo" />
+              <input className={INPUT_STYLE} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} placeholder="Es. Chiodo Gamma 3 Demo" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Codice inventario</label>
-              <input className={INPUT} value={editing.codice_inventario || ''} onChange={e => setEditing({ ...editing, codice_inventario: e.target.value })} placeholder="Es. GAM3-001" />
+              <input className={INPUT_STYLE} value={editing.codice_inventario || ''} onChange={e => setEditing({ ...editing, codice_inventario: e.target.value })} placeholder="Es. GAM3-001" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prodotto</label>
-              <select className={INPUT} value={editing.product_id || ''} onChange={e => setEditing({ ...editing, product_id: e.target.value })}>
+              <select className={INPUT_STYLE} value={editing.product_id || ''} onChange={e => setEditing({ ...editing, product_id: e.target.value })}>
                 <option value="">-- Seleziona --</option>
                 {products.filter(p => p.attivo).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Posizione</label>
-              <select className={INPUT} value={editing.posizione_attuale || 'in_magazzino'} onChange={e => setEditing({ ...editing, posizione_attuale: e.target.value })}>
+              <select className={INPUT_STYLE} value={editing.posizione_attuale || 'in_magazzino'} onChange={e => setEditing({ ...editing, posizione_attuale: e.target.value })}>
                 {Object.entries(POSIZIONE_MATERIALE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-              <textarea className={`${INPUT} min-h-[96px]`} value={editing.note || ''} onChange={e => setEditing({ ...editing, note: e.target.value })} />
+              <textarea className={`${INPUT_STYLE} min-h-[96px]`} value={editing.note || ''} onChange={e => setEditing({ ...editing, note: e.target.value })} />
             </div>
             <div className="flex items-center gap-3">
               <input type="checkbox" className={CHECK} checked={editing.attivo !== false} onChange={e => setEditing({ ...editing, attivo: e.target.checked })} id="attivo" />

@@ -9,29 +9,24 @@ import { EmptyState } from '../ui/EmptyState'
 import { ActivityCard } from './ActivityCard'
 import { ActivityGateBar } from './ActivityGateBar'
 import { CATEGORIA_ATTIVITA } from '../../lib/constants'
-import { FEEDBACK_ICONS, CATEGORIA_ICONS } from '../../lib/icons'
+import { CATEGORIA_ICONS } from '../../lib/icons'
 
 function TrafficLight({ total, completed, overdue }) {
-  if (overdue > 0) {
-    return (
-      <div className="flex items-center gap-2 text-red-600">
-        <Icon icon={FEEDBACK_ICONS.warning} size={18} />
-        <span className="text-sm font-semibold">Ritardi</span>
-      </div>
-    )
+  let status = 'yellow'
+  let label = 'In corso'
+  if (overdue > 0) { status = 'red'; label = `${overdue} in ritardo` }
+  else if (total > 0 && completed === total) { status = 'green'; label = 'Tutto completato' }
+
+  const colors = {
+    red: { bg: 'bg-red-500', ring: 'ring-red-200', text: 'text-red-600' },
+    yellow: { bg: 'bg-yellow-400', ring: 'ring-yellow-200', text: 'text-yellow-600' },
+    green: { bg: 'bg-green-500', ring: 'ring-green-200', text: 'text-green-600' },
   }
-  if (total > 0 && completed === total) {
-    return (
-      <div className="flex items-center gap-2 text-green-600">
-        <Icon icon={FEEDBACK_ICONS.success} size={18} />
-        <span className="text-sm font-semibold">In ordine</span>
-      </div>
-    )
-  }
+  const c = colors[status]
   return (
-    <div className="flex items-center gap-2 text-yellow-600">
-      <Icon icon={FEEDBACK_ICONS.warning} size={18} />
-      <span className="text-sm font-semibold">In corso</span>
+    <div className="flex items-center gap-2">
+      <span className={`inline-block w-3.5 h-3.5 rounded-full ${c.bg} ring-2 ${c.ring}`} />
+      <span className={`text-sm font-semibold ${c.text}`}>{label}</span>
     </div>
   )
 }
@@ -44,12 +39,15 @@ export function EventPreparazioneTab({ event }) {
   const completeActivity = useActivitiesStore(s => s.completeActivity)
   const assignActivity = useActivitiesStore(s => s.assignActivity)
   const instantiateTemplate = useActivitiesStore(s => s.instantiateTemplate)
+  const runAutoVerifications = useActivitiesStore(s => s.runAutoVerifications)
 
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
 
   useEffect(() => {
-    fetchEventActivities(event.id)
+    fetchEventActivities(event.id).then(() => {
+      runAutoVerifications(event.id)
+    })
   }, [event.id])
 
   if (loading) return <LoadingSkeleton lines={5} />
@@ -80,6 +78,7 @@ export function EventPreparazioneTab({ event }) {
     } else {
       addToast('Attività completata.', 'success')
       fetchEventActivities(event.id)
+      runAutoVerifications(event.id)
     }
   }
 

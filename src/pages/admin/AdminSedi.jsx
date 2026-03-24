@@ -8,8 +8,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Tabs } from '../../components/ui/Tabs'
-
-const INPUT = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+import { INPUT_STYLE } from '../../lib/constants'
 
 const TABS = [
   { id: 'sedi', label: 'Sedi' },
@@ -123,43 +122,43 @@ export function AdminSedi() {
               <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica sede' : 'Nuova sede'}</h2>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
-                <input className={INPUT} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
+                <input className={INPUT_STYLE} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Indirizzo</label>
-                <input className={INPUT} value={editing.indirizzo || ''} onChange={e => setEditing({ ...editing, indirizzo: e.target.value })} />
+                <input className={INPUT_STYLE} value={editing.indirizzo || ''} onChange={e => setEditing({ ...editing, indirizzo: e.target.value })} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">CAP</label>
-                  <input className={INPUT} value={editing.cap || ''} onChange={e => setEditing({ ...editing, cap: e.target.value })} />
+                  <input className={INPUT_STYLE} value={editing.cap || ''} onChange={e => setEditing({ ...editing, cap: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Città</label>
-                  <input className={INPUT} value={editing.citta || ''} onChange={e => setEditing({ ...editing, citta: e.target.value })} />
+                  <input className={INPUT_STYLE} value={editing.citta || ''} onChange={e => setEditing({ ...editing, citta: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Provincia</label>
-                  <input className={INPUT} value={editing.provincia || ''} onChange={e => setEditing({ ...editing, provincia: e.target.value })} maxLength={2} />
+                  <input className={INPUT_STYLE} value={editing.provincia || ''} onChange={e => setEditing({ ...editing, provincia: e.target.value })} maxLength={2} />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Zona</label>
-                <select className={INPUT} value={editing.zone_id || ''} onChange={e => setEditing({ ...editing, zone_id: e.target.value })}>
+                <select className={INPUT_STYLE} value={editing.zone_id || ''} onChange={e => setEditing({ ...editing, zone_id: e.target.value })}>
                   <option value="">-- Nessuna --</option>
                   {zones.map(z => <option key={z.id} value={z.id}>{z.nome}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Corriere</label>
-                <select className={INPUT} value={editing.courier_id || ''} onChange={e => setEditing({ ...editing, courier_id: e.target.value })}>
+                <select className={INPUT_STYLE} value={editing.courier_id || ''} onChange={e => setEditing({ ...editing, courier_id: e.target.value })}>
                   <option value="">-- Nessuno --</option>
                   {couriers.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Note consegna</label>
-                <textarea className={`${INPUT} min-h-[96px]`} value={editing.note_consegna || ''} onChange={e => setEditing({ ...editing, note_consegna: e.target.value })} />
+                <textarea className={`${INPUT_STYLE} min-h-[96px]`} value={editing.note_consegna || ''} onChange={e => setEditing({ ...editing, note_consegna: e.target.value })} />
               </div>
               <div className="flex gap-3 pt-2">
                 <Button onClick={handleSaveSede} loading={saving} disabled={!editing.nome?.trim()}>Salva</Button>
@@ -185,11 +184,11 @@ export function AdminSedi() {
               <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica corriere' : 'Nuovo corriere'}</h2>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
-                <input className={INPUT} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
+                <input className={INPUT_STYLE} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contatto</label>
-                <input className={INPUT} value={editing.contatto || ''} onChange={e => setEditing({ ...editing, contatto: e.target.value })} />
+                <input className={INPUT_STYLE} value={editing.contatto || ''} onChange={e => setEditing({ ...editing, contatto: e.target.value })} />
               </div>
               <div className="flex gap-3 pt-2">
                 <Button onClick={handleSaveCorriere} loading={saving} disabled={!editing.nome?.trim()}>Salva</Button>

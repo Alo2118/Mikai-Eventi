@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Button } from '../../components/ui/Button'
+import { INPUT_STYLE } from '../../lib/constants'
 
 export function Login() {
   const session = useAuthStore(s => s.session)
@@ -41,7 +42,7 @@ export function Login() {
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400"
+              className={INPUT_STYLE}
               placeholder="nome@mikai.it"
             />
           </div>
@@ -56,7 +57,7 @@ export function Login() {
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400"
+              className={INPUT_STYLE}
             />
           </div>
 

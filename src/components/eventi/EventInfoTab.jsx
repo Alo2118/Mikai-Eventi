@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TIPO_EVENTO, MODALITA_EVENTO } from '../../lib/constants'
+import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
 import { EventStatusFlow } from './EventStatusFlow'
 import { EventApprovalBar } from './EventApprovalBar'
@@ -9,8 +9,6 @@ import { ACTION_ICONS } from '../../lib/icons'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
-
-const INPUT = 'w-full px-3 py-2 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
 
 function InfoRow({ label, value }) {
   if (!value) return null
@@ -90,37 +88,37 @@ export function EventInfoTab({ event, onUpdate }) {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Titolo <span className="text-red-500">*</span></label>
-            <input className={INPUT} value={fields.titolo} onChange={set('titolo')} />
+            <input className={INPUT_STYLE} value={fields.titolo} onChange={set('titolo')} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Luogo</label>
-            <input className={INPUT} value={fields.luogo} onChange={set('luogo')} />
+            <input className={INPUT_STYLE} value={fields.luogo} onChange={set('luogo')} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Dettaglio sede</label>
-            <input className={INPUT} value={fields.sede_dettaglio} onChange={set('sede_dettaglio')} />
+            <input className={INPUT_STYLE} value={fields.sede_dettaglio} onChange={set('sede_dettaglio')} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio <span className="text-red-500">*</span></label>
-              <input type="date" className={INPUT} value={fields.data_inizio} onChange={set('data_inizio')} />
+              <input type="date" className={INPUT_STYLE} value={fields.data_inizio} onChange={set('data_inizio')} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data fine</label>
-              <input type="date" className={INPUT} value={fields.data_fine} min={fields.data_inizio} onChange={set('data_fine')} />
+              <input type="date" className={INPUT_STYLE} value={fields.data_fine} min={fields.data_inizio} onChange={set('data_fine')} />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Budget previsto (&euro;) <span className="text-gray-400 text-xs">opzionale</span></label>
-            <input type="number" min="0" step="100" className={INPUT} value={fields.budget_previsto} onChange={set('budget_previsto')} placeholder="Es. 5000" />
+            <input type="number" min="0" step="100" className={INPUT_STYLE} value={fields.budget_previsto} onChange={set('budget_previsto')} placeholder="Es. 5000" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Indirizzo spedizione</label>
-            <input className={INPUT} value={fields.indirizzo_spedizione} onChange={set('indirizzo_spedizione')} />
+            <input className={INPUT_STYLE} value={fields.indirizzo_spedizione} onChange={set('indirizzo_spedizione')} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-            <textarea className={`${INPUT} min-h-[80px]`} value={fields.note} onChange={set('note')} />
+            <textarea className={`${INPUT_STYLE} min-h-[80px]`} value={fields.note} onChange={set('note')} />
           </div>
           <div className="flex gap-3 pt-2">
             <Button onClick={handleSave} loading={saving} disabled={!fields.titolo?.trim()}>

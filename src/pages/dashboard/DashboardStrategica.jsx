@@ -6,10 +6,14 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Icon } from '../../components/ui/Icon'
+import { Button } from '../../components/ui/Button'
+import { Modal } from '../../components/ui/Modal'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { STATO_EVENTO, STATO_EVENTO_COLORE } from '../../lib/constants'
-import { FEEDBACK_ICONS } from '../../lib/icons'
+import { STATO_EVENTO, STATO_EVENTO_COLORE, TEXTAREA_STYLE } from '../../lib/constants'
+import { ACTION_ICONS } from '../../lib/icons'
+import { useAuthStore } from '../../hooks/useAuth'
+import { useToastStore } from '../../components/ui/Toast'
 import { formatDate, formatDateRange } from '../../lib/date-utils'
 
 function budgetFormatted(val) {
@@ -32,26 +36,17 @@ function currentQuarterBudget(events) {
 }
 
 function SemaphoreIcon({ status }) {
-  if (status === 'red') {
-    return (
-      <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
-        <Icon icon={FEEDBACK_ICONS.error} size={16} />
-        Attività scadute
-      </span>
-    )
+  const config = {
+    red: { bg: 'bg-red-500', ring: 'ring-red-200', label: 'Ritardi', text: 'text-red-600' },
+    yellow: { bg: 'bg-yellow-400', ring: 'ring-yellow-200', label: 'In corso', text: 'text-yellow-600' },
+    green: { bg: 'bg-green-500', ring: 'ring-green-200', label: 'In ordine', text: 'text-green-600' },
+    gray: { bg: 'bg-gray-300', ring: 'ring-gray-100', label: 'Nessun dato', text: 'text-gray-400' },
   }
-  if (status === 'green') {
-    return (
-      <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
-        <Icon icon={FEEDBACK_ICONS.success} size={16} />
-        Tutto in ordine
-      </span>
-    )
-  }
+  const c = config[status] || config.gray
   return (
-    <span className="flex items-center gap-1 text-yellow-600 text-sm font-medium">
-      <Icon icon={FEEDBACK_ICONS.warning} size={16} />
-      In corso
+    <span className="inline-flex items-center gap-1.5" title={c.label}>
+      <span className={`inline-block w-3 h-3 rounded-full ${c.bg} ring-2 ${c.ring}`} />
+      <span className={`text-xs font-medium ${c.text}`}>{c.label}</span>
     </span>
   )
 }
@@ -62,6 +57,38 @@ export function DashboardStrategica() {
   const fetchEvents = useEventsStore(s => s.fetchEvents)
   const fetchEventSemaphores = useActivitiesStore(s => s.fetchEventSemaphores)
   const [semaphores, setSemaphores] = useState({})
+  const approveEvent = useEventsStore(s => s.approveEvent)
+  const rejectEvent = useEventsStore(s => s.rejectEvent)
+  const permissions = useAuthStore(s => s.permissions)
+  const addToast = useToastStore(s => s.add)
+  const [rejectingId, setRejectingId] = useState(null)
+  const [rejectMotivo, setRejectMotivo] = useState('')
+  const [approving, setApproving] = useState(null)
+
+  const canApprove = permissions?.includes('approva_eventi')
+
+  async function handleApprove(eventId) {
+    setApproving(eventId)
+    const { error } = await approveEvent(eventId)
+    setApproving(null)
+    if (error) {
+      addToast('Errore nell\'approvazione. Riprova.', 'error')
+    } else {
+      addToast('Evento approvato!', 'success')
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectMotivo.trim()) return
+    const { error } = await rejectEvent(rejectingId, rejectMotivo.trim())
+    setRejectingId(null)
+    setRejectMotivo('')
+    if (error) {
+      addToast('Errore nel rifiuto. Riprova.', 'error')
+    } else {
+      addToast('Evento rifiutato.', 'success')
+    }
+  }
 
   useEffect(() => { fetchEvents() }, [])
 
@@ -88,6 +115,9 @@ export function DashboardStrategica() {
     .slice(0, 10)
 
   const quarterBudget = currentQuarterBudget(events)
+  const attivi = events.filter(e => ['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(e.stato)).length
+  const inAttesa = proposti.length
+  const overdueCount = Object.values(semaphores).filter(s => s === 'red').length
 
   return (
     <div>
@@ -104,11 +134,24 @@ export function DashboardStrategica() {
           <LoadingSkeleton lines={6} />
         ) : (
           <>
-            {/* Budget trimestre */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-base font-semibold text-gray-700 mb-1">Budget trimestre corrente</h2>
-              <p className="text-3xl font-bold text-mikai-400">{budgetFormatted(quarterBudget)}</p>
-              <p className="text-sm text-gray-500 mt-1">Somma eventi approvati e in corso nel trimestre</p>
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">Eventi attivi</p>
+                <p className="text-3xl font-bold text-gray-900">{attivi}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">In attesa</p>
+                <p className={`text-3xl font-bold ${inAttesa > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>{inAttesa}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">Con ritardi</p>
+                <p className={`text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-sm text-gray-500">Budget trimestre</p>
+                <p className="text-3xl font-bold text-mikai-400">{budgetFormatted(quarterBudget)}</p>
+              </div>
             </div>
 
             {/* Coda approvazioni */}
@@ -126,31 +169,46 @@ export function DashboardStrategica() {
               ) : (
                 <div className="space-y-3">
                   {proposti.map(event => (
-                    <Link
+                    <div
                       key={event.id}
-                      to={`/eventi/${event.id}`}
-                      className="block bg-white rounded-xl border-l-4 border-l-yellow-400 border border-gray-200 p-4 hover:shadow-md transition-all"
+                      className="bg-white rounded-xl border-l-4 border-l-yellow-400 border border-gray-200 p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
+                        <Link to={`/eventi/${event.id}`} className="flex-1 min-w-0 hover:underline">
                           <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
                             {event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : '—'}
                             {event.data_inizio && ` · ${formatDate(event.data_inizio)}`}
                           </p>
-                        </div>
+                        </Link>
                         <div className="shrink-0 text-right">
                           {event.budget_previsto && (
                             <p className="text-sm font-semibold text-gray-700">{budgetFormatted(event.budget_previsto)}</p>
                           )}
-                          <StatusBadge
-                            stato={event.stato}
-                            labels={STATO_EVENTO}
-                            colors={STATO_EVENTO_COLORE}
-                          />
                         </div>
                       </div>
-                    </Link>
+                      {canApprove && (
+                        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            loading={approving === event.id}
+                            onClick={() => handleApprove(event.id)}
+                          >
+                            <Icon icon={ACTION_ICONS.approve} size={16} className="mr-1" />
+                            Approva
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => { setRejectingId(event.id); setRejectMotivo('') }}
+                          >
+                            <Icon icon={ACTION_ICONS.reject} size={16} className="mr-1" />
+                            Rifiuta
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -182,9 +240,7 @@ export function DashboardStrategica() {
                             labels={STATO_EVENTO}
                             colors={STATO_EVENTO_COLORE}
                           />
-                          {semaphores[event.id] && (
-                            <SemaphoreIcon status={semaphores[event.id]} />
-                          )}
+                          <SemaphoreIcon status={semaphores[event.id] || 'gray'} />
                         </div>
                       </div>
                     </Link>
@@ -195,6 +251,31 @@ export function DashboardStrategica() {
           </>
         )}
       </div>
+
+      <Modal
+        open={!!rejectingId}
+        onClose={() => setRejectingId(null)}
+        title="Rifiuta evento"
+        size="sm"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setRejectingId(null)}>Annulla</Button>
+            <Button variant="danger" onClick={handleReject} disabled={!rejectMotivo.trim()}>
+              Rifiuta evento
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">Indica il motivo del rifiuto:</p>
+          <textarea
+            className={TEXTAREA_STYLE}
+            value={rejectMotivo}
+            onChange={e => setRejectMotivo(e.target.value)}
+            placeholder="Motivo del rifiuto..."
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

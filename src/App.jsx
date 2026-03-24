@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './hooks/useAuth'
+import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { AppShell } from './components/layout/AppShell'
 import { Login } from './pages/auth/Login'
 import { LoadingSkeleton } from './components/ui/LoadingSkeleton'
@@ -24,6 +25,8 @@ import { ContattiList } from './pages/contatti/ContattiList'
 import { ContattiDetail } from './pages/contatti/ContattiDetail'
 import { CostiPage } from './pages/costi/CostiPage'
 import { AdminSottoAttivita } from './pages/admin/AdminSottoAttivita'
+import { ComingSoon } from './components/ui/ComingSoon'
+import { AdminTemplate } from './pages/admin/AdminTemplate'
 
 function ProtectedRoute({ children }) {
   const session = useAuthStore(s => s.session)
@@ -40,6 +43,7 @@ function App() {
   useEffect(() => { initialize() }, [initialize])
 
   return (
+    <ErrorBoundary>
     <BrowserRouter basename="/Eventi">
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -58,7 +62,7 @@ function App() {
           <Route path="/eventi/nuovo" element={<EventiWizard />} />
           <Route path="/eventi/calendario" element={<EventiCalendar />} />
           <Route path="/eventi/:id" element={<EventiDetail />} />
-          <Route path="/notifiche" element={<div className="p-8 text-lg">Notifiche — In costruzione</div>} />
+          <Route path="/notifiche" element={<ComingSoon title="Notifiche" description="Le notifiche in tempo reale saranno disponibili nella prossima versione." />} />
           <Route path="/materiale" element={<MaterialeList />} />
           <Route path="/materiale/:id" element={<MaterialeDetail />} />
           <Route path="/admin/brand" element={<AdminBrand />} />
@@ -71,10 +75,12 @@ function App() {
           <Route path="/contatti/:id" element={<ContattiDetail />} />
           <Route path="/costi" element={<CostiPage />} />
           <Route path="/admin/sotto-attivita" element={<AdminSottoAttivita />} />
+          <Route path="/admin/template" element={<AdminTemplate />} />
           <Route path="/admin/utenti" element={<AdminUtenti />} />
         </Route>
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }
 

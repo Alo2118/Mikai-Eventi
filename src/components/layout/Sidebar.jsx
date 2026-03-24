@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Icon } from '../ui/Icon'
-import { NAV_ICONS, ADMIN_ICONS } from '../../lib/icons'
+import { NAV_ICONS, ADMIN_ICONS, ACTION_ICONS } from '../../lib/icons'
 
 const navItems = [
   { to: '/', label: 'Riepilogo', icon: NAV_ICONS.riepilogo, roles: ['admin', 'direzione', 'ufficio'] },
@@ -24,6 +24,7 @@ const adminItems = [
   { to: '/admin/sedi', label: 'Sedi & Corrieri', icon: ADMIN_ICONS.sedi },
   { to: '/admin/zone', label: 'Zone', icon: ADMIN_ICONS.zone },
   { to: '/admin/sotto-attivita', label: 'Sotto-attività', icon: ADMIN_ICONS.sottoattivita },
+  { to: '/admin/template', label: 'Template attività', icon: NAV_ICONS.checklist },
   { to: '/admin/utenti', label: 'Utenti', icon: ADMIN_ICONS.utenti, permissions: ['gestione_utenti'] },
 ]
 
@@ -46,6 +47,17 @@ export function Sidebar() {
     <aside className="hidden md:flex md:flex-col md:w-64 bg-white border-r border-gray-200 min-h-screen">
       <div className="p-5 border-b border-gray-200">
         <h1 className="text-xl font-bold text-mikai-400">Mikai Eventi</h1>
+      </div>
+      <div className="px-3 pt-3">
+        <button
+          onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors min-h-[44px]"
+          aria-label="Ricerca globale"
+        >
+          <Icon icon={ACTION_ICONS.search} size={18} />
+          <span className="flex-1 text-left">Cerca...</span>
+          <kbd className="text-xs bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">Ctrl+K</kbd>
+        </button>
       </div>
       <nav className="flex-1 p-3 space-y-1">
         {visibleItems.map(item => (
