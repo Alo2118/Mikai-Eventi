@@ -25,11 +25,19 @@ export function MaterialCard({ material, linkTo }) {
             </p>
           )}
         </div>
-        <StatusBadge
-          stato={material.posizione_attuale}
-          labels={POSIZIONE_MATERIALE}
-          colors={POSIZIONE_MATERIALE_COLORE}
-        />
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          <StatusBadge
+            stato={material.posizione_attuale}
+            labels={POSIZIONE_MATERIALE}
+            colors={POSIZIONE_MATERIALE_COLORE}
+          />
+          {material.posizione_attuale === 'in_magazzino' && material.magazzino?.nome && (
+            <span className="text-xs text-gray-500">({material.magazzino.nome})</span>
+          )}
+          {material.posizione_attuale === 'magazzino_agente' && material.agente && (
+            <span className="text-xs text-gray-500">({material.agente.cognome} {material.agente.nome})</span>
+          )}
+        </div>
       </div>
       {material.note && (
         <p className="mt-2 text-sm text-gray-400 truncate">{material.note}</p>

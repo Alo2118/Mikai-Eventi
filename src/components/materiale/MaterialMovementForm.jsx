@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
+import { FormField } from '../ui/FormField'
 import { DatePicker } from '../ui/DatePicker'
 import { useToastStore } from '../ui/Toast'
-import { MODALITA_MOVIMENTO } from '../../lib/constants'
+import { MODALITA_MOVIMENTO, POSIZIONE_MATERIALE, SELECT_STYLE } from '../../lib/constants'
 
-export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', allMaterialIds, onDone }) {
+export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', allMaterialIds, onDone, material }) {
   const [modalita, setModalita] = useState('')
   const [aPos, setAPos] = useState(tipo === 'rientro' ? 'in_magazzino' : 'presso_evento')
   const [tracking, setTracking] = useState('')
@@ -14,10 +15,24 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
   const [statoRientro, setStatoRientro] = useState('')
   const [noteDanni, setNoteDanni] = useState('')
   const [loading, setLoading] = useState(false)
+  const [magazzini, setMagazzini] = useState([])
+  const [agenti, setAgenti] = useState([])
+  const [targetMagazzino, setTargetMagazzino] = useState('')
+  const [targetUtente, setTargetUtente] = useState('')
 
   const createMovement = useMaterialsStore(s => s.createMovement)
+  const fetchMagazzini = useMaterialsStore(s => s.fetchMagazzini)
+  const fetchAgenti = useMaterialsStore(s => s.fetchAgenti)
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
+
+  useEffect(() => {
+    fetchMagazzini().then(({ data }) => {
+      setMagazzini(data)
+      if (data.length > 0) setTargetMagazzino(data[0].id)
+    })
+    fetchAgenti().then(({ data }) => setAgenti(data))
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -29,7 +44,9 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
       tipo,
       modalita,
       a_posizione: aPos,
-      da_posizione: tipo === 'rientro' ? 'presso_evento' : 'in_magazzino',
+      da_posizione: material?.posizione_attuale || (tipo === 'rientro' ? 'presso_evento' : 'in_magazzino'),
+      a_magazzino_id: aPos === 'in_magazzino' ? targetMagazzino || null : null,
+      a_utente_id: aPos === 'magazzino_agente' ? targetUtente || null : null,
       data_movimento: new Date().toISOString(),
       data_rientro_prevista: rientro || null,
       responsabile_id: user.id,
@@ -72,6 +89,35 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
           ))}
         </select>
       </div>
+
+      <FormField label="Destinazione">
+        <select className={SELECT_STYLE} value={aPos} onChange={e => setAPos(e.target.value)}>
+          {Object.entries(POSIZIONE_MATERIALE).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+      </FormField>
+
+      {aPos === 'in_magazzino' && magazzini.length > 0 && (
+        <FormField label="Magazzino di destinazione" required>
+          <select className={SELECT_STYLE} value={targetMagazzino} onChange={e => setTargetMagazzino(e.target.value)} required>
+            {magazzini.map(m => (
+              <option key={m.id} value={m.id}>{m.nome}{m.indirizzo ? ` — ${m.indirizzo}` : ''}</option>
+            ))}
+          </select>
+        </FormField>
+      )}
+
+      {aPos === 'magazzino_agente' && (
+        <FormField label="Agente" required>
+          <select className={SELECT_STYLE} value={targetUtente} onChange={e => setTargetUtente(e.target.value)} required>
+            <option value="">Seleziona agente...</option>
+            {agenti.map(u => (
+              <option key={u.id} value={u.id}>{u.cognome} {u.nome}</option>
+            ))}
+          </select>
+        </FormField>
+      )}
 
       {tipo === 'uscita' && (
         <DatePicker label="Rientro previsto" value={rientro} onChange={setRientro} />

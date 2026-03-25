@@ -10,6 +10,7 @@ const colorMap = {
   indigo: 'bg-mikai-100 text-mikai-700',
   mikai: 'bg-mikai-100 text-mikai-700',
   emerald: 'bg-emerald-100 text-emerald-800',
+  purple: 'bg-purple-100 text-purple-800',
   gray: 'bg-gray-100 text-gray-600',
 }
 

@@ -3,6 +3,7 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { DashboardOperativa } from './DashboardOperativa'
 import { DashboardStrategica } from './DashboardStrategica'
+import { DashboardCommerciale } from './DashboardCommerciale'
 
 export function DashboardRouter() {
   const profile = useAuthStore(s => s.profile)
@@ -19,5 +20,6 @@ export function DashboardRouter() {
     const hasOther = permissions.some(p => p.startsWith('gestione_') && p !== 'gestione_spedizioni' && p !== 'gestione_magazzino')
     return <DashboardOperativa warehouseOnly={hasWarehouse && !hasOther} />
   }
+  if (ruolo === 'commerciale' || ruolo === 'area_manager') return <DashboardCommerciale />
   return <Navigate to="/eventi" replace />
 }

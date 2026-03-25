@@ -42,6 +42,12 @@ function InventarioCard({ material, onNavigate }) {
             {tipo && (
               <p className="text-xs text-gray-400 mt-0.5 capitalize">{tipo.replace('_', ' ')}</p>
             )}
+            {material.magazzino?.nome && (
+              <p className="text-xs text-gray-400 mt-0.5">{material.magazzino.nome}</p>
+            )}
+            {material.agente && (
+              <p className="text-xs text-gray-400 mt-0.5">{material.agente.cognome} {material.agente.nome}</p>
+            )}
           </div>
         </div>
         <div className="shrink-0">
@@ -60,16 +66,23 @@ export function LogisticaInventario() {
   const allMaterials = useMaterialsStore(s => s.materials)
   const loading = useMaterialsStore(s => s.loading)
   const fetchMaterials = useMaterialsStore(s => s.fetchMaterials)
+  const fetchMagazzini = useMaterialsStore(s => s.fetchMagazzini)
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [posizione, setPosizione] = useState('')
+  const [magazzini, setMagazzini] = useState([])
+  const [filterMagazzino, setFilterMagazzino] = useState('')
 
-  useEffect(() => { fetchMaterials() }, [])
+  useEffect(() => {
+    fetchMaterials()
+    fetchMagazzini().then(({ data }) => setMagazzini(data))
+  }, [])
 
   const filtered = allMaterials.filter(m => {
     const matchSearch = !search || m.nome?.toLowerCase().includes(search.toLowerCase())
     const matchPosizione = !posizione || m.posizione_attuale === posizione
-    return matchSearch && matchPosizione
+    const matchMagazzino = !filterMagazzino || m.magazzino_id === filterMagazzino
+    return matchSearch && matchPosizione && matchMagazzino
   })
 
   const fuori = allMaterials.filter(m => m.posizione_attuale !== 'in_magazzino').length
@@ -94,6 +107,19 @@ export function LogisticaInventario() {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
+        {magazzini.length > 0 && (
+          <select
+            value={filterMagazzino}
+            onChange={e => setFilterMagazzino(e.target.value)}
+            className={SELECT_STYLE}
+            aria-label="Filtra per magazzino"
+          >
+            <option value="">Tutti i magazzini</option>
+            {magazzini.map(m => (
+              <option key={m.id} value={m.id}>{m.nome}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {fuori > 0 && (

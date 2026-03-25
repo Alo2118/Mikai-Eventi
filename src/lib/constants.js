@@ -81,12 +81,30 @@ export const CATEGORIA_ATTIVITA_COLORE = {
 }
 
 export const VERIFICATION_FUNCTIONS = {
-  lista_materiale_compilata: 'Lista materiale compilata',
-  materiale_tutto_confermato: 'Materiale tutto confermato',
-  indirizzo_spedizione_specificato: 'Indirizzo spedizione specificato',
-  titolo_orario_definitivi: 'Titolo e orario definitivi',
-  materiale_tutto_preparato: 'Materiale tutto preparato',
-  materiale_tutto_spedito: 'Materiale tutto spedito',
+  lista_materiale_compilata: {
+    label: 'Lista materiale compilata',
+    desc: 'Almeno un prodotto nella lista materiale evento',
+  },
+  materiale_tutto_confermato: {
+    label: 'Materiale tutto confermato',
+    desc: 'Tutti i prodotti in lista hanno stato "approvato"',
+  },
+  indirizzo_spedizione_specificato: {
+    label: 'Indirizzo spedizione specificato',
+    desc: 'Il campo indirizzo spedizione evento non è vuoto',
+  },
+  titolo_orario_definitivi: {
+    label: 'Titolo e orario definitivi',
+    desc: 'Titolo, data inizio e data fine sono tutti compilati',
+  },
+  materiale_tutto_preparato: {
+    label: 'Materiale tutto preparato',
+    desc: 'Nessun prodotto in stato "richiesto" o "approvato" (tutti almeno in_preparazione)',
+  },
+  materiale_tutto_spedito: {
+    label: 'Materiale tutto spedito',
+    desc: 'Ogni materiale fisico ha un movimento di uscita registrato',
+  },
 }
 
 export const STATO_MATERIALE_RICHIESTA = {
@@ -317,6 +335,102 @@ export const ROLE_PERMISSION_PRESETS = {
   direzione: ['approva_eventi', 'approva_materiale', 'gestione_costi', 'compliance', 'gestione_contatti', 'gestione_staff_evento', 'approva_preventivi'],
   ufficio: ['approva_materiale', 'gestione_magazzino', 'gestione_spedizioni', 'gestione_gadget', 'gestione_sedi', 'gestione_costi', 'gestione_contatti', 'gestione_staff_evento', 'gestione_logistica', 'approva_preventivi'],
   admin: ['gestione_utenti', 'gestione_catalogo', 'approva_eventi', 'approva_materiale', 'gestione_costi', 'compliance', 'gestione_magazzino', 'gestione_spedizioni', 'gestione_gadget', 'gestione_sedi', 'gestione_contatti', 'gestione_staff_evento', 'gestione_logistica', 'approva_preventivi', 'richiedi_materiale', 'gestione_marketing', 'gestione_organizzazione'],
+}
+
+// Tipo notifica
+export const TIPO_NOTIFICA = {
+  approvazione_richiesta: 'Approvazione richiesta',
+  approvazione_completata: 'Approvazione completata',
+  attivita_scaduta: 'Attività scaduta',
+  attivita_in_scadenza: 'Attività in scadenza',
+  attivita_assegnata: 'Attività assegnata',
+  conflitto_materiale: 'Conflitto materiale',
+  rientro_scaduto: 'Rientro materiale scaduto',
+  preventivo_stato: 'Stato preventivo cambiato',
+  evento_stato_cambiato: 'Stato evento cambiato',
+  escalation: 'Escalation',
+}
+
+export const TIPO_NOTIFICA_COLORE = {
+  approvazione_richiesta: 'yellow',
+  approvazione_completata: 'green',
+  attivita_scaduta: 'red',
+  attivita_in_scadenza: 'yellow',
+  attivita_assegnata: 'blue',
+  conflitto_materiale: 'red',
+  rientro_scaduto: 'red',
+  preventivo_stato: 'blue',
+  evento_stato_cambiato: 'mikai',
+  escalation: 'red',
+}
+
+// Tipo documento (allegati evento)
+export const TIPO_DOCUMENTO = {
+  contratto: 'Contratto',
+  preventivo_firmato: 'Preventivo firmato',
+  programma: 'Programma',
+  presentazione: 'Presentazione',
+  foto: 'Foto',
+  autorizzazione: 'Autorizzazione',
+  altro: 'Altro',
+}
+
+export const TIPO_DOCUMENTO_COLORE = {
+  contratto: 'blue',
+  preventivo_firmato: 'green',
+  programma: 'purple',
+  presentazione: 'yellow',
+  foto: 'emerald',
+  autorizzazione: 'red',
+  altro: 'gray',
+}
+
+// Max upload size in bytes (10 MB)
+export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
+// Allowed file extensions for upload validation
+export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.jpg', '.jpeg', '.png']
+
+export const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/png',
+]
+
+// Hex colors for recharts (Tailwind classes don't work in SVG fills)
+export const CHART_COLORS = {
+  mikai: '#3296dc',
+  green: '#22c55e',
+  yellow: '#eab308',
+  red: '#ef4444',
+  blue: '#3b82f6',
+  emerald: '#10b981',
+  gray: '#9ca3af',
+  purple: '#8b5cf6',
+  amber: '#f59e0b',
+  orange: '#f97316',
+}
+
+export const STATO_EVENTO_CHART_COLOR = {
+  proposto: '#eab308',
+  confermato: '#3b82f6',
+  in_preparazione: '#3296dc',
+  pronto: '#22c55e',
+  in_corso: '#10b981',
+  concluso: '#9ca3af',
+  cancellato: '#ef4444',
+  rifiutato: '#ef4444',
+}
+
+export const TIPO_EVENTO_CHART_COLOR = {
+  workshop: '#3296dc',
+  corso: '#3b82f6',
+  congresso: '#8b5cf6',
+  convegno: '#f59e0b',
+  cadaver_lab: '#10b981',
+  live_surgery: '#ef4444',
 }
 
 // ═══════════════════════════════════════════

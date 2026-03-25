@@ -5,6 +5,8 @@ export const useMaterialsStore = create((set, get) => ({
   materials: [],
   logisticsTimeline: [],
   overdueReturns: [],
+  materialAnalytics: null,
+  upcomingBookings: [],
   loading: false,
   error: null,
   filters: { search: '', tipo: '', posizione: '', brand: '', section: '' },
@@ -21,7 +23,12 @@ export const useMaterialsStore = create((set, get) => ({
 
   fetchMaterials: async () => {
     set({ loading: true, error: null })
-    let query = supabase.from('materials').select('*, product:products(id, nome, codice, brand:brands(id, nome))').eq('attivo', true).order('nome')
+    let query = supabase.from('materials').select(`
+      *,
+      product:products(id, nome, codice, brand:brands(id, nome)),
+      magazzino:magazzini(id, nome),
+      agente:users!materials_presso_utente_id_fkey(id, nome, cognome)
+    `).eq('attivo', true).order('nome')
 
     const { search, tipo, posizione } = get().filters
     if (search) query = query.ilike('nome', `%${search}%`)
@@ -34,7 +41,12 @@ export const useMaterialsStore = create((set, get) => ({
 
   fetchMaterial: async (id) => {
     const { data, error } = await supabase
-      .from('materials').select('*, product:products(id, nome, codice, descrizione, brand:brands(id, nome, tipo))').eq('id', id).single()
+      .from('materials').select(`
+        *,
+        product:products(id, nome, codice, descrizione, brand:brands(id, nome, tipo)),
+        magazzino:magazzini(id, nome),
+        agente:users!materials_presso_utente_id_fkey(id, nome, cognome)
+      `).eq('id', id).single()
     if (error) return { data: null, error: error.message }
     return { data, error: null }
   },
@@ -82,6 +94,26 @@ export const useMaterialsStore = create((set, get) => ({
     if (excludeRequestId) query = query.neq('id', excludeRequestId)
 
     const { data, error } = await query
+
+    // Create notification if conflicts found
+    if (data && data.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const conflictEvents = data.map(c => c.event?.titolo).filter(Boolean).join(', ')
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          tipo: 'conflitto_materiale',
+          titolo: 'Conflitto materiale rilevato',
+          messaggio: `Già assegnato a: ${conflictEvents}`,
+          link: `/materiale/${materialId}`,
+          link_label: 'Vai al materiale',
+          entity_type: 'material',
+          entity_id: materialId,
+          gruppo: `conflict_${materialId}_${new Date().toISOString().slice(0, 10)}`,
+        })
+      }
+    }
+
     return { data: data || [], error: error?.message || null }
   },
 
@@ -336,6 +368,25 @@ export const useMaterialsStore = create((set, get) => ({
     return { data: data || [], error: error?.message || null }
   },
 
+  fetchMagazzini: async () => {
+    const { data, error } = await supabase
+      .from('magazzini')
+      .select('*')
+      .eq('attivo', true)
+      .order('nome')
+    return { data: data || [], error: error?.message || null }
+  },
+
+  fetchAgenti: async () => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, nome, cognome, ruolo')
+      .in('ruolo', ['commerciale', 'area_manager'])
+      .eq('attivo', true)
+      .order('cognome')
+    return { data: data || [], error: error?.message || null }
+  },
+
   fetchLogisticsTimeline: async () => {
     set({ loading: true, error: null })
     const { data, error } = await supabase
@@ -371,4 +422,140 @@ export const useMaterialsStore = create((set, get) => ({
     set({ overdueReturns: overdue, loading: false, error: error?.message || null })
     return { data: overdue, error }
   },
+
+  fetchMaterialAnalytics: async () => {
+    set({ loading: true })
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+
+    const [usage, movements, fuori] = await Promise.all([
+      supabase.from('event_materials').select('material_id, product_id, created_at')
+        .gte('created_at', oneYearAgo.toISOString()),
+      supabase.from('material_movements')
+        .select('material_id, tipo, data_movimento, data_rientro_prevista')
+        .in('tipo', ['uscita', 'rientro'])
+        .gte('data_movimento', oneYearAgo.toISOString())
+        .order('data_movimento'),
+      supabase.from('materials')
+        .select('id, nome, codice_inventario, posizione_attuale')
+        .neq('posizione_attuale', 'in_magazzino').eq('attivo', true),
+    ])
+
+    const analytics = computeMaterialMetrics(
+      usage.data || [], movements.data || [], fuori.data || []
+    )
+    set({ materialAnalytics: analytics, loading: false })
+    return analytics
+  },
+
+  fetchProductNames: async (ids) => {
+    if (!ids?.length) return {}
+    const { data } = await supabase
+      .from('products').select('id, nome, codice').in('id', ids)
+    const map = {}
+    for (const p of (data || [])) {
+      map[p.id] = p.nome + (p.codice ? ` (${p.codice})` : '')
+    }
+    return map
+  },
+
+  fetchUpcomingBookings: async () => {
+    const { data } = await supabase
+      .from('event_materials')
+      .select(`
+        material_id, product_id, data_inizio_utilizzo, data_fine_utilizzo,
+        material:materials(nome, codice_inventario),
+        product:products(nome, codice),
+        evento:events!event_materials_event_id_fkey(id, titolo)
+      `)
+      .gte('data_fine_utilizzo', new Date().toISOString())
+      .neq('stato', 'rifiutato')
+      .order('data_inizio_utilizzo')
+      .limit(20)
+    set({ upcomingBookings: data || [] })
+    return data || []
+  },
 }))
+
+function computeMaterialMetrics(usageData, movementsData, fuoriData) {
+  // Frequency by material_id (consistent key for all maps)
+  const frequency = {}
+  for (const u of usageData) {
+    const key = u.material_id || u.product_id || 'unknown'
+    frequency[key] = (frequency[key] || 0) + 1
+  }
+
+  // Group movements by material_id
+  const usciteByMat = {}
+  const rientriByMat = {}
+  for (const m of movementsData) {
+    if (!m.material_id || !m.data_movimento) continue
+    if (m.tipo === 'uscita') {
+      if (!usciteByMat[m.material_id]) usciteByMat[m.material_id] = []
+      usciteByMat[m.material_id].push(m)
+    } else if (m.tipo === 'rientro') {
+      if (!rientriByMat[m.material_id]) rientriByMat[m.material_id] = []
+      rientriByMat[m.material_id].push(m)
+    }
+  }
+
+  // Per-material avgDaysOut and onTimeRate
+  const avgDaysOut = {}
+  const onTimeRateByMat = {}
+  let totalOnTime = 0
+  let totalWithDeadline = 0
+
+  for (const matId of Object.keys(usciteByMat)) {
+    const uscite = usciteByMat[matId] || []
+    const rientri = rientriByMat[matId] || []
+    const durations = []
+    let matOnTime = 0
+    let matWithDeadline = 0
+
+    for (let i = 0; i < uscite.length; i++) {
+      const uscita = uscite[i]
+      const rientro = rientri[i]
+      if (rientro?.data_movimento) {
+        const days = Math.floor(
+          (new Date(rientro.data_movimento) - new Date(uscita.data_movimento)) / 86400000
+        )
+        durations.push(Math.max(0, days))
+        if (uscita.data_rientro_prevista) {
+          matWithDeadline++
+          totalWithDeadline++
+          if (new Date(rientro.data_movimento) <= new Date(uscita.data_rientro_prevista)) {
+            matOnTime++
+            totalOnTime++
+          }
+        }
+      }
+    }
+
+    if (durations.length > 0) {
+      avgDaysOut[matId] = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+    }
+    if (matWithDeadline > 0) {
+      onTimeRateByMat[matId] = Math.round((matOnTime / matWithDeadline) * 100)
+    }
+  }
+
+  const onTimeRate = totalWithDeadline > 0
+    ? Math.round((totalOnTime / totalWithDeadline) * 100)
+    : null
+
+  const topUsed = Object.entries(frequency)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([id, count]) => ({ id, count }))
+
+  return {
+    frequency,
+    avgDaysOut,
+    onTimeRate,
+    onTimeRateByMat,
+    fuori: fuoriData,
+    topUsed,
+    totalUsages: usageData.length,
+    totalMovements: movementsData.length,
+  }
+}

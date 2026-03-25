@@ -11,6 +11,7 @@ import { CatalogBrowser } from '../materiale/CatalogBrowser'
 import { MovementHistory } from '../materiale/MovementHistory'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
+import { ProgressIndicator } from '../ui/ProgressIndicator'
 
 export function EventMaterialList({ event }) {
   const [rows, setRows] = useState([])
@@ -144,6 +145,15 @@ export function EventMaterialList({ event }) {
 
   return (
     <div className="space-y-4">
+      {rows.length > 0 && (
+        <div className="mb-4">
+          <ProgressIndicator
+            label="Materiale confermato"
+            current={rows.filter(r => r.stato === 'approvato' || r.stato === 'in_preparazione').length}
+            total={rows.length}
+          />
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">Lista materiale</h2>
         {canEdit && (

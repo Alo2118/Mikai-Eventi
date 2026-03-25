@@ -9,9 +9,10 @@ import { Icon } from '../ui/Icon'
 import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
-import { ACTION_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, NAV_ICONS } from '../../lib/icons'
 import { RUOLO_EVENTO, TIPO_PARTECIPANTE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, SELECT_STYLE } from '../../lib/constants'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
+import { EventChecklistView } from './EventChecklistView'
 
 
 export function EventPersoneTab({ event, users = [] }) {
@@ -36,6 +37,7 @@ export function EventPersoneTab({ event, users = [] }) {
   const [partForm, setPartForm] = useState(null) // { contact, tipo }
   const [deleting, setDeleting] = useState(null)
   const [showImport, setShowImport] = useState(false)
+  const [checklistMode, setChecklistMode] = useState(false)
 
   const canEditStaff = hasPermission('gestione_staff_evento')
   const canEditPart = hasPermission('gestione_contatti') || hasPermission('gestione_staff_evento')
@@ -64,8 +66,31 @@ export function EventPersoneTab({ event, users = [] }) {
   const staffConfermati = staff.filter(s => s.confermato).length
   const partConfermati = participants.filter(p => p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente').length
 
+  if (checklistMode) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Checklist presenze</h2>
+          <Button variant="secondary" size="sm" onClick={() => setChecklistMode(false)}>
+            <Icon icon={ACTION_ICONS.back} size={16} className="mr-1" />
+            Gestione persone
+          </Button>
+        </div>
+        <EventChecklistView event={event} participants={participants} />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {['pronto', 'in_corso'].includes(event.stato) && (
+        <div className="flex justify-end">
+          <Button variant="secondary" size="sm" onClick={() => setChecklistMode(true)}>
+            <Icon icon={NAV_ICONS.checklist} size={16} className="mr-1" />
+            Checklist presenze
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <ProgressIndicator
           label="Staff confermati"

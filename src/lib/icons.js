@@ -98,6 +98,12 @@ import {
   SlidersHorizontal,
   ClipboardCheck,
 
+  // DataTable + Material Position
+  ArrowUpNarrowWide,
+  ArrowDownWideNarrow,
+  ChevronDown,
+  Warehouse,
+
   // Phase 4 — persone e logistica
   Bed,
   Bus,
@@ -111,6 +117,28 @@ import {
   UserCheck,
   UserPlus,
   UserX,
+
+  // Notifiche
+  BellRing,
+  BellDot,
+  BellOff,
+  Megaphone,
+
+  // Documenti
+  Download,
+  FileImage,
+  FileSpreadsheet,
+  File,
+  Eye,
+  Printer,
+  FileDown,
+  Trash2,
+
+  // Dashboard & Report
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  CalendarPlus,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -181,6 +209,7 @@ export const NAV_ICONS = {
   attivita: ListTodo,
   costi: Euro,
   checklist: ClipboardCheck,
+  report: BarChart3,
 }
 
 // ═══════════════════════════════════════════
@@ -201,6 +230,9 @@ export const ACTION_ICONS = {
   clearFilter: FilterX,
   edit: Pencil,
   upload: Upload,
+  sortAsc: ArrowUpNarrowWide,
+  sortDesc: ArrowDownWideNarrow,
+  chevronDown: ChevronDown,
 }
 
 // ═══════════════════════════════════════════
@@ -220,6 +252,7 @@ export const MATERIALE_ICONS = {
   confermato: CheckCircle,
   rifiutato: XCircle,
   listLocked: Lock,
+  warehouse: Warehouse,
 }
 
 // ═══════════════════════════════════════════
@@ -337,6 +370,25 @@ export const COSTI_ICONS = {
 }
 
 // ═══════════════════════════════════════════
+// Notifiche
+// ═══════════════════════════════════════════
+export const NOTIFICA_ICONS = {
+  approvazione_richiesta: Clock,
+  approvazione_completata: CheckCircle,
+  attivita_scaduta: Timer,
+  attivita_in_scadenza: AlertTriangle,
+  attivita_assegnata: UserCheck,
+  conflitto_materiale: AlertTriangle,
+  rientro_scaduto: RotateCcw,
+  preventivo_stato: FileText,
+  evento_stato_cambiato: Calendar,
+  escalation: Megaphone,
+  bell_ring: BellRing,
+  bell_dot: BellDot,
+  bell_off: BellOff,
+}
+
+// ═══════════════════════════════════════════
 // Sotto-attività
 // ═══════════════════════════════════════════
 export const SOTTO_ATTIVITA_ICONS = {
@@ -359,4 +411,36 @@ export const TRASPORTO_ICONS = {
 // ═══════════════════════════════════════════
 export const TAVOLI_ICONS = {
   tavoli: LayoutGrid,
+}
+
+// ═══════════════════════════════════════════
+// Documenti
+// ═══════════════════════════════════════════
+export const DOCUMENTO_ICONS = {
+  contratto: FileText,
+  preventivo_firmato: FileText,
+  programma: FileText,
+  presentazione: File,
+  foto: FileImage,
+  autorizzazione: FileText,
+  altro: File,
+  upload: Upload,
+  download: Download,
+  delete: Trash2,
+  preview: Eye,
+  attachment: Paperclip,
+  spreadsheet: FileSpreadsheet,
+  print: Printer,
+  dossier: FileDown,
+}
+
+// ═══════════════════════════════════════════
+// Dashboard & Report
+// ═══════════════════════════════════════════
+export const DASHBOARD_ICONS = {
+  report: BarChart3,
+  trendUp: TrendingUp,
+  trendDown: TrendingDown,
+  newEvent: CalendarPlus,
+  newContact: UserPlus,
 }

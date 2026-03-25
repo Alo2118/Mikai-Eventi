@@ -13,3 +13,13 @@
   --color-mikai-900: #0e2840;
   --color-mikai-950: #091a2b;
 }
+
+@media print {
+  nav, aside, .bottom-bar, .no-print { display: none !important; }
+  button:not(.print-visible) { display: none !important; }
+  .print-checkbox::before { content: '[ ]'; font-family: monospace; margin-right: 8px; }
+  .print-checkbox.checked::before { content: '[X]'; }
+  main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+  .print-header { display: block !important; }
+  .packing-item { break-inside: avoid; }
+}

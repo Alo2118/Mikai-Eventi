@@ -31,7 +31,7 @@ function TrafficLight({ total, completed, overdue }) {
   )
 }
 
-export function EventPreparazioneTab({ event }) {
+export function EventPreparazioneTab({ event, onShowPackingList }) {
   const eventActivities = useActivitiesStore(s => s.eventActivities)
   const loading = useActivitiesStore(s => s.eventLoading)
   const fetchEventActivities = useActivitiesStore(s => s.fetchEventActivities)
@@ -44,10 +44,10 @@ export function EventPreparazioneTab({ event }) {
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
 
+  // Activities are already fetched by EventiDetail for tab status dots.
+  // Only run auto-verifications here, don't re-fetch.
   useEffect(() => {
-    fetchEventActivities(event.id).then(() => {
-      runAutoVerifications(event.id)
-    })
+    runAutoVerifications(event.id)
   }, [event.id])
 
   if (loading) return <LoadingSkeleton lines={5} />
@@ -132,6 +132,14 @@ export function EventPreparazioneTab({ event }) {
 
   return (
     <div className="space-y-6">
+      {onShowPackingList && (
+        <div className="flex justify-end">
+          <Button variant="secondary" size="sm" onClick={onShowPackingList}>
+            <Icon icon={CATEGORIA_ICONS.materiale} size={16} className="mr-1" />
+            Lista preparazione
+          </Button>
+        </div>
+      )}
       {/* Progress section */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
         <div className="flex items-center justify-between">

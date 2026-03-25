@@ -25,8 +25,9 @@ import { ContattiList } from './pages/contatti/ContattiList'
 import { ContattiDetail } from './pages/contatti/ContattiDetail'
 import { CostiPage } from './pages/costi/CostiPage'
 import { AdminSottoAttivita } from './pages/admin/AdminSottoAttivita'
-import { ComingSoon } from './components/ui/ComingSoon'
 import { AdminTemplate } from './pages/admin/AdminTemplate'
+import { NotifichePage } from './pages/notifiche/NotifichePage'
+import { ReportMaterialePage } from './pages/report/ReportMaterialePage'
 
 function ProtectedRoute({ children }) {
   const session = useAuthStore(s => s.session)
@@ -62,9 +63,10 @@ function App() {
           <Route path="/eventi/nuovo" element={<EventiWizard />} />
           <Route path="/eventi/calendario" element={<EventiCalendar />} />
           <Route path="/eventi/:id" element={<EventiDetail />} />
-          <Route path="/notifiche" element={<ComingSoon title="Notifiche" description="Le notifiche in tempo reale saranno disponibili nella prossima versione." />} />
+          <Route path="/notifiche" element={<NotifichePage />} />
           <Route path="/materiale" element={<MaterialeList />} />
           <Route path="/materiale/:id" element={<MaterialeDetail />} />
+          <Route path="/report/materiale" element={<ReportMaterialePage />} />
           <Route path="/admin/brand" element={<AdminBrand />} />
           <Route path="/admin/distretti" element={<AdminDistretti />} />
           <Route path="/admin/prodotti" element={<AdminProdotti />} />

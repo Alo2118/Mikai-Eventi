@@ -86,6 +86,31 @@ export const useCostsStore = create((set, get) => ({
     return { data: data || [], error }
   },
 
+  updateConsuntivo: async (preventivoId, { importo_effettivo, n_fattura, data_fattura, note_consuntivo }) => {
+    return get().updatePreventivo(preventivoId, {
+      importo_effettivo,
+      n_fattura,
+      data_fattura,
+      note_consuntivo,
+    })
+  },
+
+  fetchCostiAnalysis: async (periodStart, periodEnd) => {
+    // PostgREST cannot filter on joined table columns with .gte/.lte — filter client-side
+    const { data, error } = await supabase
+      .from('event_preventivi')
+      .select('fornitore_nome, fornitore_ref:contacts!event_preventivi_fornitore_id_fkey(nome, cognome), importo, importo_effettivo, stato, evento:events!event_preventivi_event_id_fkey(tipo_evento, data_inizio)')
+      .eq('stato', 'approvato')
+    const filtered = (data || []).filter(p => {
+      const d = p.evento?.data_inizio
+      if (!d) return false
+      if (periodStart && d < periodStart) return false
+      if (periodEnd && d > periodEnd) return false
+      return true
+    })
+    return { data: filtered, error }
+  },
+
   createCost: async (payload) => {
     const { data, error } = await supabase
       .from('event_costs')

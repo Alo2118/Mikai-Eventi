@@ -1,19 +1,19 @@
 import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Icon } from '../ui/Icon'
+import { NotificationBell } from '../ui/NotificationBell'
 import { NAV_ICONS, ADMIN_ICONS, ACTION_ICONS } from '../../lib/icons'
 
 const navItems = [
-  { to: '/', label: 'Riepilogo', icon: NAV_ICONS.riepilogo, roles: ['admin', 'direzione', 'ufficio'] },
+  { to: '/', label: 'Riepilogo', icon: NAV_ICONS.riepilogo, roles: ['admin', 'direzione', 'ufficio', 'commerciale', 'area_manager'] },
   { to: '/eventi', label: 'Eventi', icon: NAV_ICONS.eventi },
   { to: '/eventi/calendario', label: 'Calendario', icon: NAV_ICONS.calendario },
   { to: '/materiale', label: 'Magazzino', icon: NAV_ICONS.materiale, permissions: ['gestione_magazzino', 'gestione_spedizioni'] },
+  { to: '/report/materiale', label: 'Report Materiale', icon: NAV_ICONS.report, permissions: ['gestione_magazzino', 'gestione_spedizioni'] },
   { to: '/logistica', label: 'Logistica', icon: NAV_ICONS.logistica, permissions: ['gestione_spedizioni', 'gestione_magazzino'] },
   { to: '/contatti', label: 'Contatti', icon: NAV_ICONS.contatti },
   { to: '/costi', label: 'Costi', icon: NAV_ICONS.costi, permissions: ['gestione_costi', 'approva_preventivi'] },
-  { to: '/documenti', label: 'Documenti', icon: NAV_ICONS.documenti, roles: ['admin', 'direzione', 'ufficio'] },
   { to: '/notifiche', label: 'Notifiche', icon: NAV_ICONS.notifiche },
-  { to: '/impostazioni', label: 'Impostazioni', icon: NAV_ICONS.impostazioni, roles: ['admin'] },
 ]
 
 const adminItems = [
@@ -45,8 +45,9 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex md:flex-col md:w-64 bg-white border-r border-gray-200 min-h-screen">
-      <div className="p-5 border-b border-gray-200">
+      <div className="p-5 border-b border-gray-200 flex items-center justify-between">
         <h1 className="text-xl font-bold text-mikai-400">Mikai Eventi</h1>
+        <NotificationBell />
       </div>
       <div className="px-3 pt-3">
         <button

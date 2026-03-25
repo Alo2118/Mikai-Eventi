@@ -8,6 +8,7 @@ import { FEEDBACK_ICONS } from '../../lib/icons'
 
 // Maps current stato → next stato + button label
 const NEXT_STATE = {
+  confermato: { stato: 'in_preparazione', label: 'Avvia preparazione' },
   in_preparazione: { stato: 'pronto', label: 'Segna come pronto' },
   pronto: { stato: 'in_corso', label: 'Avvia evento' },
   in_corso: { stato: 'concluso', label: 'Concludi evento' },
@@ -16,7 +17,9 @@ const NEXT_STATE = {
 export function ActivityGateBar({ event, activities }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [unreturnedMaterials, setUnreturnedMaterials] = useState([])
   const advanceEventState = useEventsStore(s => s.advanceEventState)
+  const checkGateConcluded = useEventsStore(s => s.checkGateConcluded)
   const addToast = useToastStore(s => s.add)
 
   const next = NEXT_STATE[event.stato]
@@ -25,13 +28,28 @@ export function ActivityGateBar({ event, activities }) {
   const mandatoryIncomplete = activities.filter(
     a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata'
   )
+  // Gates: in_preparazione requires all mandatory activities complete
+  // in_corso → concluso is checked on click (async gate)
   const canAdvance = event.stato !== 'in_preparazione' || mandatoryIncomplete.length === 0
+
+  async function handleAdvanceClick() {
+    // For in_corso → concluso: check unreturned materials first
+    if (event.stato === 'in_corso') {
+      const { canAdvance: matOk, unreturned } = await checkGateConcluded(event.id)
+      if (!matOk) {
+        setUnreturnedMaterials(unreturned)
+        addToast(`${unreturned.length} materiali non ancora rientrati — conferma per procedere`, 'warning')
+      }
+    }
+    setShowConfirm(true)
+  }
 
   async function handleConfirm() {
     setLoading(true)
     const { error } = await advanceEventState(event.id, next.stato)
     setLoading(false)
     setShowConfirm(false)
+    setUnreturnedMaterials([])
     if (error) {
       addToast('Impossibile aggiornare lo stato. Riprova.', 'error')
     } else {
@@ -54,7 +72,7 @@ export function ActivityGateBar({ event, activities }) {
           variant="primary"
           size="md"
           disabled={!canAdvance || loading}
-          onClick={() => setShowConfirm(true)}
+          onClick={handleAdvanceClick}
         >
           {next.label}
         </Button>
@@ -79,10 +97,13 @@ export function ActivityGateBar({ event, activities }) {
       <ConfirmDialog
         open={showConfirm}
         title={next.label}
-        message={`Confermi di voler avanzare lo stato dell'evento?`}
+        message={unreturnedMaterials.length > 0
+          ? `Attenzione: ${unreturnedMaterials.length} materiali non sono ancora rientrati. Vuoi concludere comunque?`
+          : 'Confermi di voler avanzare lo stato dell\'evento?'}
         confirmLabel="Conferma"
+        danger={unreturnedMaterials.length > 0}
         onConfirm={handleConfirm}
-        onCancel={() => setShowConfirm(false)}
+        onCancel={() => { setShowConfirm(false); setUnreturnedMaterials([]) }}
       />
     </div>
   )

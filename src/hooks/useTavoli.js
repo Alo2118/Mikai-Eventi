@@ -1,6 +1,88 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
+// Sync tavoli products → event_materials (auto-request)
+async function syncTavoliToMaterialList(eventId, tavoli) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { added: 0, updated: 0 }
+
+  // Aggregate: count how many tavoli use each product
+  const productCounts = {}
+  for (const t of tavoli) {
+    for (const m of (t.materiale || [])) {
+      productCounts[m.product_id] = (productCounts[m.product_id] || 0) + 1
+    }
+  }
+
+  // Fetch existing event_materials for this event
+  const { data: existing } = await supabase
+    .from('event_materials')
+    .select('id, product_id, quantita, stato')
+    .eq('event_id', eventId)
+
+  const existingByProduct = new Map((existing || []).map(e => [e.product_id, e]))
+
+  let added = 0
+  let updated = 0
+
+  for (const [productId, count] of Object.entries(productCounts)) {
+    const ex = existingByProduct.get(productId)
+    if (!ex) {
+      // Product not in material list — add it
+      await supabase.from('event_materials').insert({
+        event_id: eventId,
+        product_id: productId,
+        quantita: count,
+        stato: 'richiesto',
+        richiesto_da: user.id,
+        note_commerciale: `Richiesto automaticamente da ${count} tavol${count === 1 ? 'o' : 'i'}`,
+      })
+      added++
+    } else if (ex.quantita !== count && ex.stato === 'richiesto') {
+      // Quantity changed and not yet approved — update
+      await supabase.from('event_materials')
+        .update({ quantita: count, note_commerciale: `Aggiornato da ${count} tavol${count === 1 ? 'o' : 'i'}` })
+        .eq('id', ex.id)
+      updated++
+    }
+  }
+
+  return { added, updated }
+}
+
+// Create notification when tavoli materials change
+async function notifyTavoliMaterialChange(eventId, changeType, count) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: event } = await supabase.from('events').select('titolo').eq('id', eventId).single()
+  const titolo = event?.titolo || 'Evento'
+
+  const messages = {
+    added: `${count} prodott${count === 1 ? 'o aggiunto' : 'i aggiunti'} alla lista materiale da tavoli`,
+    updated: `Quantità aggiornate per ${count} prodott${count === 1 ? 'o' : 'i'} in base ai tavoli`,
+    removed: `Un prodotto è stato rimosso dai tavoli — verificare la lista materiale`,
+  }
+
+  // Notify warehouse staff
+  const { data: warehouseUsers } = await supabase
+    .from('user_permissions')
+    .select('user_id')
+    .in('permission', ['gestione_magazzino', 'approva_materiale'])
+
+  for (const u of (warehouseUsers || [])) {
+    if (u.user_id === user.id) continue
+    await supabase.from('notifications').insert({
+      user_id: u.user_id,
+      tipo: 'evento_stato_cambiato',
+      titolo: `Materiale tavoli aggiornato`,
+      messaggio: `${titolo}: ${messages[changeType]}`,
+      link: `/eventi/${eventId}`,
+      gruppo: `tavoli_mat_${eventId}_${new Date().toISOString().slice(0, 10)}`,
+    })
+  }
+}
+
 export const useTavoliStore = create((set, get) => ({
   tavoli: [],
   loading: false,
@@ -85,8 +167,12 @@ export const useTavoliStore = create((set, get) => ({
     const { error } = await supabase
       .from('event_tavoli_materiale')
       .insert({ tavolo_id: tavoloId, product_id: productId })
-    if (!error) get().fetchEventTavoli(eventId)
-    return { error: error?.message || null }
+    if (!error) {
+      await get().fetchEventTavoli(eventId)
+      const { added, updated } = await syncTavoliToMaterialList(eventId, get().tavoli)
+      if (added > 0) await notifyTavoliMaterialChange(eventId, 'added', added)
+    }
+    return { error: error?.message || null, synced: !error }
   },
 
   assignProductToAllTavoli: async (eventId, productIds) => {
@@ -100,18 +186,29 @@ export const useTavoliStore = create((set, get) => ({
         }
       }
     }
-    if (rows.length === 0) return { data: null, error: null }
+    if (rows.length === 0) return { data: null, error: null, synced: { added: 0, updated: 0 } }
     const { data, error } = await supabase
       .from('event_tavoli_materiale')
       .insert(rows)
       .select()
-    if (!error) get().fetchEventTavoli(eventId)
-    return { data, error: error?.message || null }
+    if (!error) {
+      await get().fetchEventTavoli(eventId)
+      const synced = await syncTavoliToMaterialList(eventId, get().tavoli)
+      if (synced.added > 0) await notifyTavoliMaterialChange(eventId, 'added', synced.added)
+      if (synced.updated > 0) await notifyTavoliMaterialChange(eventId, 'updated', synced.updated)
+      return { data, error: null, synced }
+    }
+    return { data, error: error?.message || null, synced: { added: 0, updated: 0 } }
   },
 
   removeProduct: async (id, eventId) => {
     const { error } = await supabase.from('event_tavoli_materiale').delete().eq('id', id)
-    if (!error) get().fetchEventTavoli(eventId)
+    if (!error) {
+      await get().fetchEventTavoli(eventId)
+      // Sync: recalculate quantities (products removed from all tavoli get quantity 0 but stay in list)
+      await syncTavoliToMaterialList(eventId, get().tavoli)
+      await notifyTavoliMaterialChange(eventId, 'removed', 1)
+    }
     return { error: error?.message || null }
   },
 

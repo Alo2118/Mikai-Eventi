@@ -13,6 +13,11 @@
 - **Event program:** Configurable sub-activities (pranzo, sessioni, ecc.) with fornitore and confirmation
 - **Logistics:** Hotel + transport tracking per person (staff & participants), with booking states
 - **Costs & Quotes:** Preventivi with approval flow (in_attesa → approvato/rifiutato/in_revisione), budget comparison
+- **Notifications:** In-app real-time notifications (Supabase Realtime), automatic triggers on event/activity/preventivo state changes, deadline reminders, escalation, email digest
+- **Documents:** File upload per event (Supabase Storage), drag&drop, preview, download, type categorization
+- **Packing list:** Generate from approved materials, checkbox tracking, manual items, print support
+- **Export:** Excel export on all list pages (eventi, contatti, materiale, costi, logistica), PDF dossier per event
+- **Analytics:** KPI dashboard with recharts (events by state/type, budget breakdown, participant confirmation rate, overdue activities, material out), consuntivo vs preventivo tracking, material utilization report, role-based dashboards (strategica/operativa/commerciale)
 - **MedTech compliance:** Track interactions with healthcare professionals (regulatory requirement, future phase)
 
 ### Company hierarchy (maps to app roles)
@@ -38,8 +43,11 @@ Sales reps, area managers, back-office staff with **highly variable digital lite
 | **Phase 4** | Done | People & Logistics: contacts directory, event staff/participants, sub-activities, hotel/transport, quotes with approval, costs |
 | **Phase 4b** | Done | Bulk import (paste from spreadsheet), transport details (mezzo/codice/orario/autista), tavoli corso, logistics redesign (checkbox selection + bulk modals + grouping), hotel details, agente participant type |
 | **Design System** | Done | 20 UI components: Modal (unified, accessible), FormField, StatusPill, ProgressIndicator, ActionToolbar, FilterBar, FilterSelect, ChipFilter, EventChecklistView. Summary bars in tabs, tab status dots, INPUT_STYLE constants. Specs: `docs/superpowers/specs/2026-03-23-design-system-spec.md` |
-| **Phase 5** | Next | Workflow (tasks, autopilot, notifications, documents) |
-| **Phase 6** | Planned | Polish (dashboards per role, packing list, compliance, PWA offline, cron) |
+| **Phase 5A** | Done | Gap completion: DataTable component, tab status dots (6 tabs), summary bars, EventChecklistView integration, template admin (cycle detection, topological sort, segmented controls), material position UI (warehouse/agent selectors) |
+| **Phase 5B** | Done | Notifications: in-app notifications with Realtime, NotificationBell + dropdown, NotifichePage with filters, DB triggers (event/activity/preventivo), Edge Functions (deadline-checker, overdue-returns, email-digest), pg_cron schedules, notification preferences |
+| **Phase 5C** | Done | Documents & Export: EventDocumentiTab (drag&drop upload, preview, download), Excel export on 5 list pages (exceljs), packing list (generate/toggle/print), dossier PDF generator (jsPDF), print CSS |
+| **Phase 5D** | Done | Analytics: KPI dashboard (recharts), consuntivo vs preventivo, material utilization report, dashboard commerciale |
+| **Phase 6** | Next | Compliance (Sunshine Act/ToV tracking, HCP interaction history, audit trail), PWA offline, CI/CD |
 
 ### Readiness Engine (cross-phase, implemented)
 The Event Readiness Engine is a cross-cutting system that solves coordination failures. Spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md` (all sections approved and implemented).
@@ -66,7 +74,10 @@ Key business rules:
 - **Project ID:** `ncjpbbvlucquopyihios`
 - **URL:** `https://ncjpbbvlucquopyihios.supabase.co`
 - **Auth:** Email/password. Admin user: `nicola@mikai.it`
-- **Database:** PostgreSQL with 40+ tables, RLS on every table, 40 migrations
+- **Database:** PostgreSQL with 45+ tables, RLS on every table, 50+ migrations
+- **Storage:** `event-documents` private bucket for file uploads (10MB max, PDF/DOCX/XLSX/JPG/PNG)
+- **Edge Functions:** 3 Deno functions (deadline-checker, overdue-returns-checker, email-digest)
+- **Realtime:** Enabled on `notifications` table for live push
 - **Environment vars:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` (never committed)
 - **CLI vars:** `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` in `.env` (for `supabase db push`)
 - **Supabase CLI:** installed via npx (`npx supabase`), project linked. Use `SUPABASE_ACCESS_TOKEN` env var.
@@ -115,7 +126,10 @@ source .env && SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN npx supabase migrati
 | Routing | React Router DOM | 7.x |
 | Dates | date-fns | 4.x (locale: `it`) |
 | Icons | lucide-react | 0.577+ |
-| Deploy | GitHub Pages | base: `/Eventi/` |
+| Excel export | exceljs | 4.x (MIT, dynamic import) |
+| Charts | recharts | 2.x (PieChart, BarChart, ResponsiveContainer) |
+| PDF generation | jsPDF + jspdf-autotable | 2.5.x / 3.8.x (dynamic import) |
+| Deploy | GitHub Pages | base: `/Mikai-Eventi/` |
 
 **Language:** UI text and labels always in **Italian** (natural language, zero jargon).
 **Brand color:** `mikai-400` = `#3296dc`. Full scale defined in `src/index.css` @theme.
@@ -127,21 +141,24 @@ source .env && SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN npx supabase migrati
 ```
 src/
 ├── components/
-│   ├── ui/           # Reusable primitives (Button, Icon, Tabs, Toast, etc.)
-│   ├── layout/       # App shell, Sidebar, BottomBar, MobileHeader, Breadcrumb
-│   ├── eventi/       # Event domain components (tabs: Info, Preparazione, Materiale, Persone, Programma, Logistica, Costi)
+│   ├── ui/           # Reusable primitives (Button, Icon, Tabs, Toast, DataTable, ExportButton, NotificationBell, NotificationCard, NotificationDropdown, etc.)
+│   ├── layout/       # App shell (with Realtime init), Sidebar (with bell), BottomBar (with badge), MobileHeader, Breadcrumb
+│   ├── eventi/       # Event domain components (tabs: Info, Preparazione, Materiale, Persone, Programma, Logistica, Costi, Documenti + EventChecklistView, EventPackingList)
 │   ├── materiale/    # Material domain components
-│   └── contatti/     # Contact components (ContactPicker, ContactForm)
+│   ├── contatti/     # Contact components (ContactPicker, ContactForm)
+│   └── notifiche/    # NotificationPreferences
 ├── pages/
 │   ├── auth/         # Login
 │   ├── eventi/       # EventiList, EventiDetail, EventiWizard, EventiCalendar
 │   ├── materiale/    # MaterialeList, MaterialeDetail
 │   ├── contatti/     # ContattiList, ContattiDetail
-│   ├── costi/        # CostiPage (cross-event quotes)
+│   ├── notifiche/    # NotifichePage (full list + filters + preferences)
+│   ├── costi/        # CostiPage (cross-event quotes + analisi costi)
 │   ├── logistica/    # LogisticaPage (cross-event logistics)
+│   ├── report/       # ReportMaterialePage (material utilization analytics)
 │   └── admin/        # AdminBrand, AdminProdotti, AdminSedi, AdminUtenti, AdminSottoAttivita, etc.
-├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useContacts, useStaff, useParticipants, useSubActivities, useLogistics, useCosts, useAdmin, useTavoli)
-├── lib/              # Utilities (constants, date-utils, icons, supabase client)
+├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useContacts, useStaff, useParticipants, useSubActivities, useLogistics, useCosts, useAdmin, useTavoli, useNotifications, useDocuments, usePackingList)
+├── lib/              # Utilities (constants, date-utils, format-utils, icons, supabase client, export-utils, generate-dossier)
 └── main.jsx          # Entry point
 public/
 └── 404.html          # GitHub Pages SPA redirect
@@ -149,7 +166,8 @@ docs/superpowers/
 ├── specs/            # Design specs (brainstorming output): YYYY-MM-DD-<topic>-design.md
 └── plans/            # Implementation plans (writing-plans output): YYYY-MM-DD-<topic>-plan.md
 supabase/
-└── migrations/       # SQL migrations (timestamp format), sequential and idempotent
+├── migrations/       # SQL migrations (timestamp format), sequential and idempotent
+└── functions/        # Edge Functions (Deno): deadline-checker, overdue-returns-checker, email-digest
 ```
 
 ### File ownership rules
@@ -157,7 +175,10 @@ supabase/
 - **`src/lib/icons.js`** — Central icon registry. The ONLY file that imports from `lucide-react`.
 - **`src/components/ui/Icon.jsx`** — Icon wrapper. All components use `<Icon>`, never raw Lucide imports.
 - **`src/lib/date-utils.js`** — All date formatting. Uses `date-fns` with Italian locale (`it`).
-- **`src/index.css`** — Tailwind import + Mikai color @theme. No utility classes here.
+- **`src/lib/format-utils.js`** — Non-date formatting utilities (formatFileSize). NOT in date-utils.
+- **`src/lib/export-utils.js`** — Excel export with dynamic import of exceljs. exportToExcel + exportToExcelMultiSheet.
+- **`src/lib/generate-dossier.js`** — PDF dossier generation with dynamic import of jsPDF.
+- **`src/index.css`** — Tailwind import + Mikai color @theme + @media print styles. No utility classes here.
 - **`src/App.jsx`** — All route definitions. The only file with a default export.
 
 ---
@@ -269,6 +290,8 @@ Always alias joins with readable names (`promotore`, `manager`, not `users`).
    - `TOAST_ICONS` — notification feedback icons
    - `FEEDBACK_ICONS` — alert/warning/info icons
    - `POSIZIONE_ICONS` — material position icons
+   - `NOTIFICA_ICONS` — notification type icons + bell variants
+   - `DOCUMENTO_ICONS` — document type icons + actions (upload, download, delete, preview, print, dossier)
 
 2. **`src/components/ui/Icon.jsx`** — Wrapper component:
    ```jsx
@@ -333,10 +356,16 @@ Use for all destructive actions (reject, cancel, delete).
 | `SearchInput` | Debounced search (300ms). Props: `value`, `onChange`, `placeholder` |
 | `DatePicker` | Wraps `<input type="date">`. Props: `label`, `value`, `onChange`, `min`, `max`, `required` |
 | `StatusBadge` | Color-coded badge with icon. Props: `stato`, `labels`, `colors` |
-| `PageHeader` | Page title + subtitle + action buttons |
+| `PageHeader` | Page title + subtitle + action buttons. Props: `title`, `subtitle`, `actions` (plural!) |
 | `LoadingSkeleton` | Animated pulse lines. Props: `lines` (default 3) |
 | `EmptyState` | Centered message + optional CTA. Props: `title`, `description`, `action` |
 | `Breadcrumb` | Desktop-only navigation trail. Props: `items` (array of `{ label, to? }`) |
+| `DataTable` | Sortable table with selection, grouping, mobile collapse, expandable rows. Props: `columns`, `rows`, `rowKey`, `selectable`, `groupBy`, `renderExpandedRow` |
+| `DataTableMobileRow` | Mobile row for DataTable — expands priority-2 columns on tap |
+| `ExportButton` | Secondary button with spreadsheet icon. Props: `onClick`, `loading`, `label` |
+| `NotificationBell` | Bell icon + unread badge. Desktop: toggles dropdown. Mobile: navigates to /notifiche |
+| `NotificationCard` | Notification display with icon, title, message, time. Props: `notification`, `compact` |
+| `NotificationDropdown` | Desktop dropdown showing last 10 notifications + "Vedi tutte" link |
 
 ---
 
@@ -349,6 +378,7 @@ All date formatting goes through **`src/lib/date-utils.js`** using `date-fns` wi
 | `formatDate(str)` | `d MMM yyyy` | `17 mar 2026` |
 | `formatDateRange(start, end)` | `d MMM yyyy — d MMM yyyy` | `17 mar 2026 — 19 mar 2026` |
 | `formatDateTime(str)` | `d MMM yyyy 'alle' HH:mm` | `17 mar 2026 alle 14:30` |
+| `formatRelativeTime(str)` | relative (date-fns) | `3 minuti fa`, `ieri` |
 
 **Rules:**
 - All dates stored in DB as ISO strings (`YYYY-MM-DD` or `TIMESTAMPTZ`)
@@ -436,12 +466,16 @@ Event cards add a **color band** (`w-1.5`) on the left side to indicate status a
 
 ## Database & Migrations
 
-- Migrations in `supabase/migrations/` numbered sequentially (`001_core.sql`, `002_events.sql`...)
+- Migrations in `supabase/migrations/` numbered sequentially (`001_core.sql`, `002_events.sql`...) + timestamp format (`20260324120000_...`)
 - Each migration is idempotent where possible (use `IF NOT EXISTS`, `CREATE OR REPLACE`)
 - All functions must set `search_path = public` (see migration 014 fix)
 - RLS policies enforced on every table. Frontend does NOT rely on client-side auth checks for security
 - Seed data in `012_seed.sql` — uses hex-valid UUID prefixes (`aaaa`, `bbbb`, `cccc`)
 - **Never modify existing migrations.** Always create a new sequential one.
+- **Supabase Realtime** enabled on `notifications` table — used for live notification push to clients
+- **Supabase Storage** bucket `event-documents` — private, 10MB max, authenticated RLS
+- **Edge Functions** in `supabase/functions/` — Deno runtime, use `Deno.serve()`, env vars via `Deno.env.get()`
+- **pg_cron** schedules for automated tasks (deadline checks, overdue returns, email digest, 90-day cleanup)
 
 ---
 

@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { useParticipantsStore } from '../../hooks/useParticipants'
 import { useToastStore } from '../ui/Toast'
 import { SearchInput } from '../ui/SearchInput'
+import { ProgressIndicator } from '../ui/ProgressIndicator'
+import { Icon } from '../ui/Icon'
+import { ACTION_ICONS } from '../../lib/icons'
+import { EmptyState } from '../ui/EmptyState'
 import { formatDate } from '../../lib/date-utils'
 import { TIPO_PARTECIPANTE } from '../../lib/constants'
 
@@ -36,9 +40,7 @@ export function EventChecklistView({ event, participants }) {
       <div>
         <h2 className="text-lg font-semibold text-gray-900">{event.titolo}</h2>
         <p className="text-sm text-gray-500">{formatDate(event.data_inizio)}</p>
-        <p className="text-sm font-medium text-gray-700 mt-1">
-          {attendees.length} partecipanti · {presenti.length} presenti
-        </p>
+        <ProgressIndicator label="Presenti" current={presenti.length} total={attendees.length} color="green" />
       </div>
 
       <SearchInput
@@ -72,11 +74,7 @@ export function EventChecklistView({ event, participants }) {
                   }`}
                   aria-hidden="true"
                 >
-                  {presente && (
-                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
+                  {presente && <Icon icon={ACTION_ICONS.check} size={16} className="text-white" />}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className={`font-semibold truncate ${presente ? 'text-green-900' : 'text-gray-900'}`}>
@@ -95,7 +93,10 @@ export function EventChecklistView({ event, participants }) {
         })}
       </ul>
 
-      {filtered.length === 0 && (
+      {attendees.length === 0 && (
+        <EmptyState title="Nessun partecipante da registrare" />
+      )}
+      {attendees.length > 0 && filtered.length === 0 && (
         <p className="text-center text-gray-500 py-8">Nessun partecipante trovato</p>
       )}
     </div>

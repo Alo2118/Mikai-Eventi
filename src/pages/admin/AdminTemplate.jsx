@@ -18,6 +18,46 @@ import {
   INPUT_STYLE, SELECT_STYLE,
 } from '../../lib/constants'
 
+function wouldCreateCycle(itemId, targetId, allItems) {
+  if (!itemId || !targetId) return false
+  const visited = new Set()
+  let current = targetId
+  while (current) {
+    if (current === itemId) return true
+    if (visited.has(current)) return false
+    visited.add(current)
+    const item = allItems.find(i => i.id === current)
+    current = item?.dipende_da || null
+  }
+  return false
+}
+
+function topologicalSort(items) {
+  const sorted = []
+  const visited = new Set()
+  const itemMap = new Map(items.map(i => [i.id, i]))
+  function visit(item) {
+    if (visited.has(item.id)) return
+    visited.add(item.id)
+    if (item.dipende_da && itemMap.has(item.dipende_da)) {
+      visit(itemMap.get(item.dipende_da))
+    }
+    sorted.push(item)
+  }
+  items.forEach(i => visit(i))
+  return sorted
+}
+
+function getDepthLevel(item, items, maxDepth = 3) {
+  let depth = 0
+  let current = item
+  while (current.dipende_da && depth < maxDepth) {
+    depth++
+    current = items.find(i => i.id === current.dipende_da) || { dipende_da: null }
+  }
+  return depth
+}
+
 const PERMISSION_OPTIONS = {
   gestione_marketing: 'Marketing',
   gestione_spedizioni: 'Spedizioni',
@@ -190,43 +230,48 @@ export function AdminTemplate() {
               <EmptyState title="Nessuna attività" description="Aggiungi la prima attività al template." />
             ) : (
               <div className="space-y-2">
-                {items.map(item => (
-                  <div
-                    key={item.id}
-                    className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-all cursor-pointer"
-                    onClick={() => openEdit(item)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Icon icon={CATEGORIA_ICONS[item.categoria]} size={16} className="text-gray-400 shrink-0" />
-                          <p className="text-base font-medium text-gray-900">{item.descrizione}</p>
+                {topologicalSort(items).map(item => {
+                  const depth = getDepthLevel(item, items)
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-all cursor-pointer"
+                      style={{ marginLeft: depth * 32 }}
+                      onClick={() => openEdit(item)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Icon icon={CATEGORIA_ICONS[item.categoria]} size={16} className="text-gray-400 shrink-0" />
+                            <p className="text-base font-medium text-gray-900">{item.descrizione}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
+                            <span>{CATEGORIA_ATTIVITA[item.categoria]}</span>
+                            <span>·</span>
+                            <span>{item.giorni_prima_evento}gg</span>
+                            {item.obbligatorio && <span className="text-red-600 font-medium">Obbligatoria</span>}
+                            {item.tipo_verifica === 'automatica' && (
+                              <span className="text-mikai-600 font-medium">Auto</span>
+                            )}
+                            {item.dipende_da && (
+                              <span className="text-gray-400">
+                                <Icon icon={ACTION_ICONS.forward} size={12} className="inline mr-1" />
+                                Dopo: {items.find(i => i.id === item.dipende_da)?.descrizione || 'Dipendenza rimossa'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
-                          <span>{CATEGORIA_ATTIVITA[item.categoria]}</span>
-                          <span>·</span>
-                          <span>{item.giorni_prima_evento}gg</span>
-                          {item.obbligatorio && <span className="text-red-600 font-medium">Obbligatoria</span>}
-                          {item.tipo_verifica === 'automatica' && (
-                            <span className="text-mikai-600 font-medium">Auto</span>
-                          )}
-                          {item.dipende_da && (
-                            <span className="text-gray-400">
-                              Dipende da: {items.find(i => i.id === item.dipende_da)?.descrizione || '...'}
-                            </span>
-                          )}
-                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); setDeleting(item) }}
+                          className="text-gray-400 hover:text-red-500 min-h-[48px] min-w-[48px] flex items-center justify-center"
+                          aria-label="Elimina"
+                        >
+                          <Icon icon={ACTION_ICONS.close} size={18} />
+                        </button>
                       </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); setDeleting(item) }}
-                        className="text-gray-400 hover:text-red-500 min-h-[48px] min-w-[48px] flex items-center justify-center"
-                        aria-label="Elimina"
-                      >
-                        <Icon icon={ACTION_ICONS.close} size={18} />
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -308,46 +353,73 @@ export function AdminTemplate() {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Tipo verifica">
+          <FormField label="Tipo verifica">
+            <div className="flex gap-2">
+              {[
+                { value: 'manuale', label: 'Manuale', desc: 'Un responsabile segna il completamento' },
+                { value: 'automatica', label: 'Automatica', desc: 'Il sistema verifica in base ai dati' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, tipo_verifica: opt.value }))}
+                  className={`flex-1 px-4 py-3 rounded-lg border-2 text-left min-h-[48px] transition-all ${
+                    form.tipo_verifica === opt.value
+                      ? 'border-mikai-400 bg-mikai-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="font-medium text-base">{opt.label}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </FormField>
+
+          {form.tipo_verifica === 'automatica' && (
+            <FormField label="Funzione di verifica">
               <select
                 className={SELECT_STYLE}
-                value={form.tipo_verifica}
-                onChange={e => setForm(f => ({ ...f, tipo_verifica: e.target.value }))}
+                value={form.verifica_automatica}
+                onChange={e => setForm(f => ({ ...f, verifica_automatica: e.target.value }))}
               >
-                <option value="manuale">Manuale</option>
-                <option value="automatica">Automatica</option>
+                <option value="">Seleziona...</option>
+                {Object.entries(VERIFICATION_FUNCTIONS).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
               </select>
+              {form.verifica_automatica && VERIFICATION_FUNCTIONS[form.verifica_automatica] && (
+                <p className="text-sm text-gray-500 mt-1">
+                  {VERIFICATION_FUNCTIONS[form.verifica_automatica].desc}
+                </p>
+              )}
             </FormField>
+          )}
 
-            {form.tipo_verifica === 'automatica' && (
-              <FormField label="Funzione di verifica">
-                <select
-                  className={SELECT_STYLE}
-                  value={form.verifica_automatica}
-                  onChange={e => setForm(f => ({ ...f, verifica_automatica: e.target.value }))}
-                >
-                  <option value="">Seleziona...</option>
-                  {Object.entries(VERIFICATION_FUNCTIONS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </FormField>
-            )}
-          </div>
-
-          <FormField label="Dipende da">
+          <FormField label="Dipende da" hint="L'attività non può iniziare finché la dipendenza non è completata">
             <select
               className={SELECT_STYLE}
               value={form.dipende_da}
-              onChange={e => setForm(f => ({ ...f, dipende_da: e.target.value }))}
+              onChange={e => {
+                const targetId = e.target.value
+                if (targetId && wouldCreateCycle(editing?.id, targetId, items)) {
+                  addToast('Dipendenza circolare non consentita', 'warning')
+                  return
+                }
+                setForm(f => ({ ...f, dipende_da: targetId }))
+              }}
             >
               <option value="">Nessuna dipendenza</option>
               {items
                 .filter(i => i.id !== editing?.id)
-                .map(i => (
-                  <option key={i.id} value={i.id}>{i.descrizione}</option>
-                ))}
+                .map(i => {
+                  const isCyclic = wouldCreateCycle(editing?.id, i.id, items)
+                  return (
+                    <option key={i.id} value={i.id} disabled={isCyclic}>
+                      {i.descrizione} ({i.giorni_prima_evento}gg){isCyclic ? ' [circolare]' : ''}
+                    </option>
+                  )
+                })}
             </select>
           </FormField>
         </div>

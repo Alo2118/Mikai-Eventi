@@ -1,4 +1,4 @@
-import { format, parseISO, isValid } from 'date-fns'
+import { format, parseISO, isValid, formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
 
 export function formatDayISO(date) {
@@ -62,6 +62,14 @@ export function toLocalDateTime(iso) {
   const d = new Date(iso)
   const pad = n => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+export function formatRelativeTime(dateStr) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const diffMs = Date.now() - date.getTime()
+  if (diffMs < 60_000) return 'adesso'
+  return formatDistanceToNow(date, { addSuffix: true, locale: it })
 }
 
 export function calculateDeadline(eventDate, giorniPrima) {

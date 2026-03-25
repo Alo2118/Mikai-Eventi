@@ -11,6 +11,7 @@ import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE } from '../../li
 import { formatDate } from '../../lib/date-utils'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
+import { ConsuntivoSection } from './ConsuntivoSection'
 
 export function EventCostiTab({ event }) {
   const preventivi = useCostsStore(s => s.preventivi)
@@ -67,10 +68,12 @@ export function EventCostiTab({ event }) {
     setActionDialog(null)
   }
 
-  // Budget summary
+  const approvedPreventivi = preventivi.filter(p => p.stato === 'approvato')
+
+  // Budget summary — uses only preventivi data
   const budgetPrevisto = event.budget_previsto || 0
-  const costiApprovati = preventivi.filter(p => p.stato === 'approvato').reduce((sum, p) => sum + (p.importo || 0), 0)
-  const costiEffettivi = costs.reduce((sum, c) => sum + (c.importo_effettivo || 0), 0)
+  const costiApprovati = approvedPreventivi.reduce((sum, p) => sum + (p.importo || 0), 0)
+  const costiEffettivi = approvedPreventivi.reduce((sum, p) => sum + (p.importo_effettivo || 0), 0)
   const maxBudget = Math.max(budgetPrevisto, costiApprovati, costiEffettivi, 1)
 
   return (
@@ -185,6 +188,11 @@ export function EventCostiTab({ event }) {
           )}
         </div>
       </div>
+
+      {/* Consuntivo */}
+      {approvedPreventivi.length > 0 && (
+        <ConsuntivoSection preventivi={approvedPreventivi} canManage={canManage} />
+      )}
 
       {/* Action dialog */}
       {actionDialog && (

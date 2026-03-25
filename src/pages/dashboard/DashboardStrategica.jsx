@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useActivitiesStore } from '../../hooks/useActivities'
+import { useAnalyticsStore } from '../../hooks/useAnalytics'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -10,14 +11,21 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
+import { TimeRangeFilter } from '../../components/dashboard/TimeRangeFilter'
+import { EventiPerStatoChart } from '../../components/dashboard/EventiPerStatoChart'
+import { EventiPerTipoChart } from '../../components/dashboard/EventiPerTipoChart'
+import { BudgetBreakdownChart } from '../../components/dashboard/BudgetBreakdownChart'
+import { ConfermaPartecipantiKpi } from '../../components/dashboard/ConfermaPartecipantiKpi'
+import { AttivitaInRitardoKpi } from '../../components/dashboard/AttivitaInRitardoKpi'
+import { MaterialeFuoriKpi } from '../../components/dashboard/MaterialeFuoriKpi'
 import { STATO_EVENTO, STATO_EVENTO_COLORE, TEXTAREA_STYLE } from '../../lib/constants'
 import { ACTION_ICONS } from '../../lib/icons'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
-import { formatDate, formatDateRange } from '../../lib/date-utils'
+import { formatDate, formatDateRange, formatDayISO } from '../../lib/date-utils'
 
 function budgetFormatted(val) {
-  if (!val) return '—'
+  if (!val) return '\u2014'
   return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)
 }
 
@@ -33,6 +41,13 @@ function currentQuarterBudget(events) {
       return d >= qStart && d <= qEnd
     })
     .reduce((sum, e) => sum + (e.budget_previsto || 0), 0)
+}
+
+function defaultTimeRange() {
+  const now = new Date()
+  const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+  const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
+  return { type: 'trimestre', start: formatDayISO(qStart), end: formatDayISO(qEnd) }
 }
 
 function SemaphoreIcon({ status }) {
@@ -51,6 +66,40 @@ function SemaphoreIcon({ status }) {
   )
 }
 
+function KpiCharts({ timeRange }) {
+  const eventiPerStato = useAnalyticsStore(s => s.eventiPerStato)
+  const eventiPerTipo = useAnalyticsStore(s => s.eventiPerTipo)
+  const budgetBreakdown = useAnalyticsStore(s => s.budgetBreakdown)
+  const confermaRate = useAnalyticsStore(s => s.confermaRate)
+  const attivitaInRitardo = useAnalyticsStore(s => s.attivitaInRitardo)
+  const materialeFuori = useAnalyticsStore(s => s.materialeFuori)
+  const analyticsLoading = useAnalyticsStore(s => s.loading)
+  const fetchKpiData = useAnalyticsStore(s => s.fetchKpiData)
+
+  useEffect(() => {
+    if (timeRange?.start && timeRange?.end) {
+      fetchKpiData(timeRange.start, timeRange.end)
+    }
+  }, [timeRange?.start, timeRange?.end])
+
+  if (analyticsLoading) return <LoadingSkeleton lines={4} />
+
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <EventiPerStatoChart data={eventiPerStato} />
+        <EventiPerTipoChart data={eventiPerTipo} />
+      </div>
+      <BudgetBreakdownChart data={budgetBreakdown} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <ConfermaPartecipantiKpi {...confermaRate} />
+        <AttivitaInRitardoKpi {...attivitaInRitardo} />
+        <MaterialeFuoriKpi {...materialeFuori} />
+      </div>
+    </>
+  )
+}
+
 export function DashboardStrategica() {
   const events = useEventsStore(s => s.events)
   const loading = useEventsStore(s => s.loading)
@@ -64,6 +113,7 @@ export function DashboardStrategica() {
   const [rejectingId, setRejectingId] = useState(null)
   const [rejectMotivo, setRejectMotivo] = useState('')
   const [approving, setApproving] = useState(null)
+  const [timeRange, setTimeRange] = useState(defaultTimeRange)
 
   const canApprove = permissions?.includes('approva_eventi')
 
@@ -154,6 +204,10 @@ export function DashboardStrategica() {
               </div>
             </div>
 
+            {/* Time Range Filter + KPI Charts */}
+            <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
+            <KpiCharts timeRange={timeRange} />
+
             {/* Coda approvazioni */}
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-3">
@@ -177,8 +231,8 @@ export function DashboardStrategica() {
                         <Link to={`/eventi/${event.id}`} className="flex-1 min-w-0 hover:underline">
                           <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
-                            {event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : '—'}
-                            {event.data_inizio && ` · ${formatDate(event.data_inizio)}`}
+                            {event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : '\u2014'}
+                            {event.data_inizio && ` \u00B7 ${formatDate(event.data_inizio)}`}
                           </p>
                         </Link>
                         <div className="shrink-0 text-right">

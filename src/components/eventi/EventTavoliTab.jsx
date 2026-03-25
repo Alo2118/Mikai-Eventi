@@ -112,9 +112,12 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
   }
 
   const handleAssegnaKit = async (productIds) => {
-    const { error } = await assignProductToAllTavoli(event.id, productIds)
+    const { error, synced } = await assignProductToAllTavoli(event.id, productIds)
     if (error) { addToast(error, 'error'); return }
-    addToast('Kit assegnato a tutti i tavoli', 'success')
+    let msg = 'Kit assegnato a tutti i tavoli'
+    if (synced?.added > 0) msg += ` · ${synced.added} prodott${synced.added === 1 ? 'o aggiunto' : 'i aggiunti'} alla lista materiale`
+    if (synced?.updated > 0) msg += ` · ${synced.updated} quantità aggiornate`
+    addToast(msg, 'success')
     setShowKitPicker(false)
   }
 
@@ -130,12 +133,18 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
   return (
     <div className="space-y-4">
       {tavoli.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <ProgressIndicator
             label="Tavoli"
             current={tavoli.length}
             total={tavoli.length}
             color="mikai"
+          />
+          <ProgressIndicator
+            label="Persone assegnate"
+            current={discenti.length - unassignedCount}
+            total={discenti.length}
+            color="green"
           />
           <ProgressIndicator
             label="Tavoli con materiale"

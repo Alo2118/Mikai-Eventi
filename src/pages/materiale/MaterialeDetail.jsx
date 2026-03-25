@@ -105,6 +105,7 @@ export function MaterialeDetail() {
         {showMovement && (
           <MaterialMovementForm
             materialId={material.id}
+            material={material}
             tipo={showMovement}
             onDone={() => { setShowMovement(null); loadData() }}
           />

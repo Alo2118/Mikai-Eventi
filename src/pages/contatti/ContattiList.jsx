@@ -6,6 +6,7 @@ import { useAdminStore } from '../../hooks/useAdmin'
 import { ContactForm } from '../../components/contatti/ContactForm'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
+import { ExportButton } from '../../components/ui/ExportButton'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -16,6 +17,17 @@ import { useToastStore } from '../../components/ui/Toast'
 import { TIPO_CONTATTO, SELECT_STYLE } from '../../lib/constants'
 import { CONTATTI_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { BulkImportModal } from '../../components/contatti/BulkImportModal'
+import { exportToExcel } from '../../lib/export-utils'
+
+const EXPORT_COLUMNS_CONTATTI = [
+  { key: 'cognome', label: 'Cognome', width: 20 },
+  { key: 'nome', label: 'Nome', width: 20 },
+  { key: 'tipo_contatto', label: 'Tipo', format: v => TIPO_CONTATTO[v] || v },
+  { key: 'azienda', label: 'Azienda', width: 25 },
+  { key: 'email', label: 'Email', width: 25 },
+  { key: 'telefono', label: 'Telefono' },
+  { key: 'zona', label: 'Zona', format: v => v?.nome || '' },
+]
 
 export function ContattiList() {
   const navigate = useNavigate()
@@ -32,6 +44,7 @@ export function ContattiList() {
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const zones = useAdminStore(s => s.zones)
   const fetchZones = useAdminStore(s => s.fetchZones)
@@ -52,24 +65,45 @@ export function ContattiList() {
 
   const canCreate = hasPermission('gestione_contatti') || profile?.ruolo === 'commerciale'
 
+  const handleExport = async () => {
+    if (contacts.length === 0) { addToast('Nessun dato da esportare', 'warning'); return }
+    setExporting(true)
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      await exportToExcel({
+        columns: EXPORT_COLUMNS_CONTATTI,
+        rows: contacts,
+        filename: `contatti_${today}.xlsx`,
+        sheetName: 'Contatti',
+      })
+      addToast('File esportato', 'success')
+    } catch { addToast('Errore durante l\'esportazione', 'error') }
+    setExporting(false)
+  }
+
   return (
     <div className="space-y-4">
       <Breadcrumb items={[{ label: 'Contatti' }]} />
       <PageHeader
         title="Rubrica contatti"
         subtitle={`${contacts.length} contatti`}
-        action={canCreate && (
+        actions={
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setShowImport(true)}>
-              <Icon icon={ACTION_ICONS.upload} size={18} />
-              <span className="ml-2">Importa</span>
-            </Button>
-            <Button onClick={() => setShowForm(true)}>
-              <Icon icon={CONTATTI_ICONS.aggiungi} size={18} />
-              <span className="ml-2">Nuovo contatto</span>
-            </Button>
+            <ExportButton onClick={handleExport} loading={exporting} />
+            {canCreate && (
+              <>
+                <Button variant="secondary" onClick={() => setShowImport(true)}>
+                  <Icon icon={ACTION_ICONS.upload} size={18} />
+                  <span className="ml-2">Importa</span>
+                </Button>
+                <Button onClick={() => setShowForm(true)}>
+                  <Icon icon={CONTATTI_ICONS.aggiungi} size={18} />
+                  <span className="ml-2">Nuovo contatto</span>
+                </Button>
+              </>
+            )}
           </div>
-        )}
+        }
       />
 
       {showForm && (
