@@ -10,8 +10,7 @@ export function DashboardRouter() {
   const permissions = useAuthStore(s => s.permissions)
   const loading = useAuthStore(s => s.loading)
 
-  if (loading) return <LoadingSkeleton lines={6} />
-  if (!profile) return <Navigate to="/login" replace />
+  if (loading || !profile) return <LoadingSkeleton lines={6} />
 
   const ruolo = profile.ruolo
   if (ruolo === 'direzione' || ruolo === 'admin') return <DashboardStrategica />
