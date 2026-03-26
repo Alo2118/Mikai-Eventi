@@ -399,6 +399,115 @@ export const ALLOWED_MIME_TYPES = [
   'image/png',
 ]
 
+// ═══════════════════════════════════════════
+// Compliance — HCP / ToV
+// ═══════════════════════════════════════════
+
+export const TIPO_HCP = {
+  medico: 'Medico',
+  infermiere: 'Infermiere',
+  tecnico: 'Tecnico',
+  fisioterapista: 'Fisioterapista',
+  farmacista: 'Farmacista',
+  altro: 'Altro',
+}
+
+export const TIPO_TOV = {
+  ospitalita: 'Ospitalità',
+  viaggio: 'Viaggio',
+  compenso: 'Compenso',
+  regalo: 'Regalo',
+  sponsorizzazione: 'Sponsorizzazione',
+  formazione: 'Formazione',
+  consulenza: 'Consulenza',
+}
+
+export const TIPO_TOV_COLORE = {
+  ospitalita: 'blue',
+  viaggio: 'emerald',
+  compenso: 'yellow',
+  regalo: 'purple',
+  sponsorizzazione: 'mikai',
+  formazione: 'green',
+  consulenza: 'gray',
+}
+
+export const STATO_TOV = {
+  registrato: 'Registrato',
+  verificato: 'Verificato',
+  segnalato: 'Segnalato',
+}
+
+export const STATO_TOV_COLORE = {
+  registrato: 'yellow',
+  verificato: 'green',
+  segnalato: 'red',
+}
+
+export const TIPO_INTERAZIONE_HCP = {
+  visita: 'Visita',
+  telefonata: 'Telefonata',
+  email: 'Email',
+  evento: 'Evento',
+  cadaver_lab: 'Cadaver Lab',
+  congresso: 'Congresso',
+  workshop: 'Workshop',
+}
+
+export const AUDIT_ENTITA = {
+  event: 'Evento',
+  material: 'Materiale',
+  material_request: 'Richiesta materiale',
+  document: 'Documento',
+  cost: 'Costo',
+  user: 'Utente',
+  participant: 'Partecipante',
+  task: 'Attività',
+  staff: 'Staff',
+  trasferimento_valore: 'Trasferimento valore',
+  interazione_hcp: 'Interazione HCP',
+  hcp_professionista: 'Professionista HCP',
+  permesso: 'Permesso',
+  contatto: 'Contatto',
+}
+
+export const AUDIT_AZIONE = {
+  creato: 'Creato',
+  modificato: 'Modificato',
+  approvato: 'Approvato',
+  rifiutato: 'Rifiutato',
+  cancellato: 'Cancellato',
+  stato_cambiato: 'Stato cambiato',
+  eliminato: 'Eliminato',
+  verificato: 'Verificato',
+  segnalato: 'Segnalato',
+}
+
+export const AUDIT_AZIONE_COLORE = {
+  creato: 'green',
+  modificato: 'blue',
+  approvato: 'green',
+  rifiutato: 'red',
+  cancellato: 'red',
+  stato_cambiato: 'yellow',
+  eliminato: 'red',
+  verificato: 'green',
+  segnalato: 'red',
+}
+
+// Hex colors for PDF dossier generation (jsPDF needs raw hex)
+export const PDF_COLORS = {
+  primary: '#3296dc',
+  headerBg: '#e8f4fc',
+  text: '#374151',
+  section: '#1e3a5f',
+  altRow: '#f9fafb',
+  border: '#e5e7eb',
+  muted: '#9ca3af',
+  subtle: '#6b7280',
+  white: '#ffffff',
+}
+
 // Hex colors for recharts (Tailwind classes don't work in SVG fills)
 export const CHART_COLORS = {
   mikai: '#3296dc',
@@ -434,10 +543,20 @@ export const TIPO_EVENTO_CHART_COLOR = {
 }
 
 // ═══════════════════════════════════════════
-// Shared input/form styling constants
+// Shared UI styling constants
 // Each is a full, independent string literal — no concatenation.
 // Tailwind v4 static analysis requires complete class tokens visible in source.
 // ═══════════════════════════════════════════
+
+// Card & container patterns (used across all detail tabs)
+export const CARD_STYLE = 'bg-white rounded-xl border border-gray-200 p-4'
+export const CARD_HOVER_STYLE = 'bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all'
+export const CARD_ITEM_STYLE = 'rounded-xl border border-gray-200 p-4'
+export const FORM_CONTAINER_STYLE = 'bg-gray-50 rounded-xl p-4'
+export const SUMMARY_BAR_STYLE = 'bg-mikai-50 border border-mikai-200 rounded-xl px-4 py-3'
+export const GROUP_HEADING_STYLE = 'bg-gray-100 px-4 py-2 rounded-lg font-medium text-sm text-gray-700'
+
+// Input patterns
 export const INPUT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
 export const INPUT_ERROR_STYLE = 'w-full px-4 py-3 text-base border border-red-400 rounded-lg min-h-[48px] focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none bg-red-50'
 export const SELECT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none bg-white'

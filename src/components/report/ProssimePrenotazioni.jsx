@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 import { formatDateRange } from '../../lib/date-utils'
+import { CARD_STYLE } from '../../lib/constants'
 
 export function ProssimePrenotazioni({ bookings }) {
   if (!bookings?.length) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <p className="text-sm font-medium text-gray-500 mb-2">Prossime prenotazioni</p>
         <p className="text-gray-400 text-sm">Nessuna prenotazione in programma</p>
       </div>

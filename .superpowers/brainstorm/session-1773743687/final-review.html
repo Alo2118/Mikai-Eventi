@@ -1,0 +1,219 @@
+<h2>Recap Finale e Verifica</h2>
+<p class="subtitle">Analisi completa: requisiti, schema, problemi trovati</p>
+
+<!-- REQUISITI -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">📋 Requisiti raccolti</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;line-height:1.8;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <strong>Azienda</strong><br>
+        Mikai — dispositivi medici/ortopedia, ~50 persone<br>
+        Eventi: workshop, corsi, congressi, convegni, cadaver lab, live surgery
+      </div>
+      <div>
+        <strong>Utenti</strong><br>
+        Federica (segreteria org.) · Nicola (mktg/demo interni) · Ivan (spedizioni/demo esterni)<br>
+        Chiara (ordini/bolle) · Enrica (dir. commerciale) · Commerciali/agenti
+      </div>
+      <div>
+        <strong>Problemi da risolvere</strong><br>
+        ① Conflitti materiale demo (richieste simultanee)<br>
+        ② Marketing in ritardo<br>
+        ③ Nessuna tracciabilità materiale<br>
+        ④ Liste partecipanti non condivise<br>
+        ⑤ Commerciali non forniscono dati in tempo
+      </div>
+      <div>
+        <strong>Vincoli tecnici</strong><br>
+        Stack: React + Vite + Supabase → GitHub Pages<br>
+        Costo: zero (free tier)<br>
+        Accesso: ovunque (web + PWA mobile)<br>
+        Permessi: ufficio = completo, commerciali = limitato
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCHEMA COMPLETO -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">🗄️ Schema database — 16 tabelle</div>
+  <div class="mockup-body" style="padding:20px;font-size:12px;line-height:1.6;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+
+      <div style="border-left:3px solid #6366f1;padding-left:12px;">
+        <strong style="color:#6366f1;">CORE</strong><br><br>
+        <strong>users</strong><br>
+        id, email, nome, cognome, ruolo (admin|ufficio|commerciale), telefono, attivo<br><br>
+        <strong>events</strong><br>
+        id, titolo, tipo_evento, luogo, sede_dettaglio, data_inizio, data_fine, desk, n_postazioni, stato (proposto→concluso), parent_event_id, promotore_id, note, contributo_economico_only
+      </div>
+
+      <div style="border-left:3px solid #10b981;padding-left:12px;">
+        <strong style="color:#10b981;">MATERIALE</strong><br><br>
+        <strong>materials</strong><br>
+        id, nome, tipo, codice_inventario, quantita_totale, posizione_attuale, posizione_dettaglio, foto_url, note<br><br>
+        <strong>material_movements</strong><br>
+        id, material_id, event_id, tipo (uscita|rientro|trasferimento), da/a_posizione, date, responsabile_id, tracking<br><br>
+        <strong>event_materials</strong><br>
+        id, event_id, material_id, quantita_richiesta, stato (richiesto→rientrato), richiesto_da, date
+      </div>
+
+      <div style="border-left:3px solid #f59e0b;padding-left:12px;">
+        <strong style="color:#f59e0b;">PERSONE</strong><br><br>
+        <strong>event_staff</strong><br>
+        id, event_id, user_id, ruolo_evento (formatore|responsabile|staff|commerciale|relatore|ospite), confermato<br><br>
+        <strong>event_participants</strong><br>
+        id, event_id, nome, cognome, email, tel, ente, ruolo_medico, specializzazione, tipo (discente|relatore_ext|ospite|accompagnatore), stato_iscrizione
+      </div>
+
+      <div style="border-left:3px solid #ec4899;padding-left:12px;">
+        <strong style="color:#ec4899;">LOGISTICA</strong><br><br>
+        <strong>event_sub_activities</strong><br>
+        id, event_id, tipo (pranzo|cena|aperitivo|meeting|coffee_break), data_ora, luogo, n_pax, fornitore, costi*, confermata<br><br>
+        <strong>event_logistics</strong><br>
+        id, event_id, persona_id/nome, trasporto (tipo, da/a, date, compagnia, prenotazione), alloggio (hotel, check_in/out), costi*
+      </div>
+
+      <div style="border-left:3px solid #14b8a6;padding-left:12px;">
+        <strong style="color:#14b8a6;">WORKFLOW</strong><br><br>
+        <strong>workflow_actions</strong><br>
+        id, entita_tipo, entita_id, azione, eseguito_da, richiesto_a, date, commento, allegato<br><br>
+        <strong>event_deadlines</strong><br>
+        id, event_id, tipo, descrizione, data_scadenza, assegnato_a, completato, notifica_inviata
+      </div>
+
+      <div style="border-left:3px solid #a855f7;padding-left:12px;">
+        <strong style="color:#a855f7;">SUPPORTO</strong><br><br>
+        <strong>event_costs</strong>*<br>
+        id, event_id, categoria, descrizione, importo previsto/effettivo, fornitore, fattura, stato, approvato_da<br><br>
+        <strong>documents</strong><br>
+        id, event_id, material_id, tipo, nome_file, file_url, caricato_da, versione<br><br>
+        <strong>event_templates + checklist_items</strong><br>
+        template per tipo evento, genera scadenze automatiche<br><br>
+        <strong>event_report</strong><br>
+        id, event_id, partecipanti effettivi, no_show, feedback, materiale rientrato, costo*, note<br><br>
+        <strong>gadgets + event_gadgets</strong><br>
+        inventario gadget con soglia alert + richieste per evento
+      </div>
+
+    </div>
+    <p style="margin-top:12px;color:#f59e0b;font-size:11px;">* = tutti i campi costo sono opzionali</p>
+  </div>
+</div>
+
+<!-- PROBLEMI TROVATI -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header" style="background:rgba(239,68,68,0.15);color:#ef4444;">⚠️ 7 problemi trovati nella revisione</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+
+    <!-- PROBLEMA 1 -->
+    <div style="margin-bottom:20px;padding:16px;background:rgba(239,68,68,0.06);border-left:4px solid #ef4444;border-radius:0 8px 8px 0;">
+      <strong style="color:#ef4444;">1. Manca un'anagrafica contatti (medici/dottori)</strong><br>
+      <p>Se il Dr. Rossi partecipa a 5 eventi, oggi i suoi dati vengono duplicati 5 volte in <code>event_participants</code>. Nessuno storico centralizzato.</p>
+      <p style="margin:8px 0 0;padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+        <strong style="color:#10b981;">Fix:</strong> Aggiungere tabella <strong>contacts</strong> (nome, cognome, email, ente, specializzazione, note). <code>event_participants</code> punta a <code>contacts.id</code>. Utile anche per compliance MedTech — storico completo per medico.
+      </p>
+    </div>
+
+    <!-- PROBLEMA 2 -->
+    <div style="margin-bottom:20px;padding:16px;background:rgba(239,68,68,0.06);border-left:4px solid #ef4444;border-radius:0 8px 8px 0;">
+      <strong style="color:#ef4444;">2. event_logistics mischia trasporto e alloggio in un record</strong><br>
+      <p>Una persona può avere: treno andata + treno ritorno + hotel + transfer aeroporto. Con lo schema attuale serve un record per ognuno, ma i campi hotel restano vuoti sui record trasporto e viceversa. Tanti campi NULL.</p>
+      <p style="margin:8px 0 0;padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+        <strong style="color:#10b981;">Fix:</strong> Dividere in due tabelle: <strong>event_travel</strong> (ogni tratta è un record: andata, ritorno, transfer) e <strong>event_accommodation</strong> (ogni prenotazione hotel è un record). Più pulito, più flessibile.
+      </p>
+    </div>
+
+    <!-- PROBLEMA 3 -->
+    <div style="margin-bottom:20px;padding:16px;background:rgba(245,158,11,0.06);border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;">
+      <strong style="color:#f59e0b;">3. Manca il meccanismo notifiche</strong><br>
+      <p>Abbiamo detto "notifiche automatiche + dashboard" ma non c'è una tabella notifiche né un sistema definito. Come arrivano? Email? In-app? Push?</p>
+      <p style="margin:8px 0 0;padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+        <strong style="color:#10b981;">Fix:</strong> Aggiungere tabella <strong>notifications</strong> (user_id, tipo, titolo, messaggio, letta, link, created_at). In-app come base + email via Supabase Edge Functions per scadenze critiche. Push PWA come fase successiva.
+      </p>
+    </div>
+
+    <!-- PROBLEMA 4 -->
+    <div style="margin-bottom:20px;padding:16px;background:rgba(245,158,11,0.06);border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;">
+      <strong style="color:#f59e0b;">4. Nessun controllo conflitti materiale automatico</strong><br>
+      <p>Il problema #1 era "kit richiesti in contemporanea". Lo schema traccia le richieste ma non c'è logica di verifica automatica.</p>
+      <p style="margin:8px 0 0;padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+        <strong style="color:#10b981;">Fix:</strong> Logica applicativa (non tabella): quando si richiede materiale per un evento, il sistema verifica automaticamente se quel kit è già assegnato ad altro evento nelle stesse date. Se sì → alert di conflitto + suggerimento date alternative. Calendario visuale disponibilità materiale.
+      </p>
+    </div>
+
+    <!-- PROBLEMA 5 -->
+    <div style="margin-bottom:20px;padding:16px;background:rgba(245,158,11,0.06);border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;">
+      <strong style="color:#f59e0b;">5. Nessun alert per materiale non rientrato</strong><br>
+      <p><code>material_movements.data_rientro_prevista</code> esiste, ma chi controlla che il materiale torni davvero?</p>
+      <p style="margin:8px 0 0;padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+        <strong style="color:#10b981;">Fix:</strong> Job schedulato (Supabase cron): ogni giorno controlla i movimenti con data_rientro_prevista scaduta e senza rientro registrato → genera notifica a Ivan + dashboard "materiale in ritardo".
+      </p>
+    </div>
+
+    <!-- PROBLEMA 6 -->
+    <div style="margin-bottom:20px;padding:16px;background:rgba(107,114,128,0.06);border-left:4px solid #6b7280;border-radius:0 8px 8px 0;">
+      <strong style="color:#6b7280;">6. Nessuna anagrafica fornitori</strong><br>
+      <p>"Fornitore" appare in event_sub_activities, event_costs, gadgets — sempre come testo libero. Il ristorante X viene scritto in 3 modi diversi.</p>
+      <p style="margin:8px 0 0;padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+        <strong style="color:#10b981;">Fix:</strong> Opzionale per v1, ma utile: tabella <strong>suppliers</strong> (nome, tipo, contatto, note). Per ora basta un campo testo con autocompletamento dalle voci precedenti.
+      </p>
+    </div>
+
+    <!-- PROBLEMA 7 -->
+    <div style="margin-bottom:20px;padding:16px;background:rgba(107,114,128,0.06);border-left:4px solid #6b7280;border-radius:0 8px 8px 0;">
+      <strong style="color:#6b7280;">7. Gadget vs Material — distinzione chiara?</strong><br>
+      <p>I gadget (penne, borse) sono consumabili — si danno e non tornano. Il materiale demo (kit Stylo) è riutilizzabile — va e torna. Tabelle separate sono corrette?</p>
+      <p style="margin:8px 0 0;padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+        <strong style="color:#10b981;">Conferma:</strong> Sì, tabelle separate sono giuste. <strong>materials</strong> = beni tracciati singolarmente con movimentazione. <strong>gadgets</strong> = stock consumabile con solo quantità. Logiche diverse, tabelle diverse.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- SCHEMA CORRETTO FINALE -->
+<div style="padding:20px;background:rgba(16,185,129,0.06);border:2px solid rgba(16,185,129,0.3);border-radius:12px;">
+  <h3 style="margin:0 0 16px;color:#10b981;">✅ Schema corretto finale — 19 tabelle</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:13px;">
+    <div style="padding:8px;background:rgba(99,102,241,0.06);border-radius:6px;">
+      <strong>Core</strong><br>
+      👤 users<br>
+      📅 events<br>
+      📇 contacts 🆕
+    </div>
+    <div style="padding:8px;background:rgba(16,185,129,0.06);border-radius:6px;">
+      <strong>Materiale</strong><br>
+      📦 materials<br>
+      🔄 material_movements<br>
+      📋 event_materials<br>
+      🎁 gadgets<br>
+      🎁 event_gadgets
+    </div>
+    <div style="padding:8px;background:rgba(245,158,11,0.06);border-radius:6px;">
+      <strong>Persone</strong><br>
+      👥 event_staff<br>
+      📇 event_participants → contacts
+    </div>
+    <div style="padding:8px;background:rgba(236,72,153,0.06);border-radius:6px;">
+      <strong>Logistica</strong><br>
+      🍽️ event_sub_activities<br>
+      🚆 event_travel 🆕 (ex logistics)<br>
+      🏨 event_accommodation 🆕 (ex logistics)
+    </div>
+    <div style="padding:8px;background:rgba(168,85,247,0.06);border-radius:6px;">
+      <strong>Workflow</strong><br>
+      ⚡ workflow_actions<br>
+      ⏰ event_deadlines<br>
+      🔔 notifications 🆕
+    </div>
+    <div style="padding:8px;background:rgba(107,114,128,0.06);border-radius:6px;">
+      <strong>Supporto</strong><br>
+      💰 event_costs (opz.)<br>
+      📎 documents<br>
+      📝 event_templates + checklist<br>
+      📊 event_report
+    </div>
+  </div>
+</div>

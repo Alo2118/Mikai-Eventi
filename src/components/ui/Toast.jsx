@@ -4,10 +4,10 @@ import { TOAST_ICONS } from '../../lib/icons'
 
 export const useToastStore = create((set) => ({
   toasts: [],
-  add: (message, type = 'success') => {
+  add: (message, type = 'success', duration) => {
     const id = Date.now()
     set((s) => ({ toasts: [...s.toasts, { id, message, type }] }))
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter(t => t.id !== id) })), 4000)
+    setTimeout(() => set((s) => ({ toasts: s.toasts.filter(t => t.id !== id) })), duration || 4000)
   },
 }))
 

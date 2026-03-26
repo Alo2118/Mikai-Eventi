@@ -7,6 +7,7 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
+import { FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { TavoloCard } from './TavoloCard'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 
@@ -24,10 +25,10 @@ function ProductPicker({ products, onConfirm, onCancel }) {
   }
 
   return (
-    <div className="mt-3 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+    <div className={FORM_CONTAINER_STYLE + ' border border-gray-200 mt-3 space-y-3'}>
       <div className="flex items-center justify-between">
         <span className="font-medium text-sm">Seleziona prodotti da assegnare a tutti i tavoli</span>
-        <button onClick={toggleAll} className="text-sm text-mikai-400 hover:underline min-h-[36px] px-2">
+        <button onClick={toggleAll} className="text-sm text-mikai-400 hover:underline min-h-[48px] px-2">
           {selected.size === products.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
         </button>
       </div>
@@ -47,7 +48,7 @@ function ProductPicker({ products, onConfirm, onCancel }) {
           <p className="text-sm text-gray-400 col-span-2 py-2">Nessun prodotto disponibile</p>
         )}
       </div>
-      <div className="flex gap-2 justify-end">
+      <div className="flex gap-3 justify-end">
         <Button variant="ghost" size="sm" onClick={onCancel}>Annulla</Button>
         <Button size="sm" disabled={selected.size === 0} onClick={() => onConfirm([...selected])}>
           Conferma assegnazione
@@ -131,7 +132,7 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
   if (loading) return <LoadingSkeleton lines={4} />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {tavoli.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <ProgressIndicator
@@ -157,7 +158,7 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
 
       {/* Header actions */}
       {canEdit && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           <Button variant="secondary" size="sm" onClick={() => { setShowCreaForm(v => !v); setShowKitPicker(false) }}>
             <Icon icon={ACTION_ICONS.add} size={16} />
             <span className="ml-1">Crea tavoli</span>
@@ -171,7 +172,7 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
 
       {/* Crea tavoli inline form */}
       {showCreaForm && canEdit && (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <div className={FORM_CONTAINER_STYLE + ' border border-gray-200 flex items-center gap-3'}>
           <label htmlFor="count-tavoli" className="text-sm font-medium whitespace-nowrap">Numero tavoli</label>
           <input
             id="count-tavoli"

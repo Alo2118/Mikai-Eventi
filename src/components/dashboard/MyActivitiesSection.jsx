@@ -2,20 +2,18 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 import { EmptyState } from '../ui/EmptyState'
 import { CATEGORIA_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
-import { formatDate } from '../../lib/date-utils'
+import { formatDate, todayISO, subtractDays } from '../../lib/date-utils'
+import { CARD_STYLE } from '../../lib/constants'
 
 function urgencyGroup(activities) {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const in3 = new Date(today)
-  in3.setDate(today.getDate() + 3)
+  const today = todayISO()
+  const in3 = subtractDays(today, -3)
 
   const groups = { overdue: [], today: [], in3days: [] }
   for (const act of activities) {
     if (!act.deadline) continue
-    const d = new Date(act.deadline)
-    const dStr = d.toDateString()
-    if (dStr === today.toDateString()) groups.today.push(act)
+    const d = act.deadline.slice(0, 10)
+    if (d === today) groups.today.push(act)
     else if (d < today) groups.overdue.push(act)
     else if (d < in3) groups.in3days.push(act)
   }
@@ -45,7 +43,7 @@ export function MyActivitiesSection({ activities }) {
   const urgent = [...groups.overdue, ...groups.today, ...groups.in3days].slice(0, 5)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className={CARD_STYLE}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-lg">Attività urgenti</h3>
         <Link to="/mie-attivita" className="text-sm text-mikai-400 hover:underline min-h-[48px] flex items-center">

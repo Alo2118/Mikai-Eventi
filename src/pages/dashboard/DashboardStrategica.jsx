@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useActivitiesStore } from '../../hooks/useActivities'
@@ -18,16 +18,13 @@ import { BudgetBreakdownChart } from '../../components/dashboard/BudgetBreakdown
 import { ConfermaPartecipantiKpi } from '../../components/dashboard/ConfermaPartecipantiKpi'
 import { AttivitaInRitardoKpi } from '../../components/dashboard/AttivitaInRitardoKpi'
 import { MaterialeFuoriKpi } from '../../components/dashboard/MaterialeFuoriKpi'
-import { STATO_EVENTO, STATO_EVENTO_COLORE, TEXTAREA_STYLE } from '../../lib/constants'
+import { STATO_EVENTO, STATO_EVENTO_COLORE, TEXTAREA_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
 import { ACTION_ICONS } from '../../lib/icons'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
 import { formatDate, formatDateRange, formatDayISO } from '../../lib/date-utils'
-
-function budgetFormatted(val) {
-  if (!val) return '\u2014'
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)
-}
+import { formatCurrency } from '../../lib/format-utils'
 
 function currentQuarterBudget(events) {
   const now = new Date()
@@ -113,6 +110,7 @@ export function DashboardStrategica() {
   const [rejectingId, setRejectingId] = useState(null)
   const [rejectMotivo, setRejectMotivo] = useState('')
   const [approving, setApproving] = useState(null)
+  const [approvingId, setApprovingId] = useState(null)
   const [timeRange, setTimeRange] = useState(defaultTimeRange)
 
   const canApprove = permissions?.includes('approva_eventi')
@@ -142,28 +140,21 @@ export function DashboardStrategica() {
 
   useEffect(() => { fetchEvents() }, [])
 
-  useEffect(() => {
-    if (!events.length) return
-    const today = new Date()
-    const upcoming = events
-      .filter(e => new Date(e.data_inizio) >= today)
+  const upcomingEvents = useMemo(() => {
+    const now = new Date()
+    return events
+      .filter(e => new Date(e.data_inizio) >= now)
       .sort((a, b) => new Date(a.data_inizio) - new Date(b.data_inizio))
       .slice(0, 10)
-
-    if (!upcoming.length) return
-    const ids = upcoming.map(e => e.id)
-
-    fetchEventSemaphores(ids).then(result => setSemaphores(result))
   }, [events])
 
+  useEffect(() => {
+    if (!upcomingEvents.length) return
+    const ids = upcomingEvents.map(e => e.id)
+    fetchEventSemaphores(ids).then(result => setSemaphores(result))
+  }, [upcomingEvents])
+
   const proposti = events.filter(e => e.stato === 'proposto')
-
-  const today = new Date()
-  const upcomingEvents = events
-    .filter(e => new Date(e.data_inizio) >= today)
-    .sort((a, b) => new Date(a.data_inizio) - new Date(b.data_inizio))
-    .slice(0, 10)
-
   const quarterBudget = currentQuarterBudget(events)
   const attivi = events.filter(e => ['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(e.stato)).length
   const inAttesa = proposti.length
@@ -171,7 +162,7 @@ export function DashboardStrategica() {
 
   return (
     <div>
-      <div className="px-6 md:px-8 pt-4">
+      <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Dashboard Direzione' }]} />
       </div>
       <div className="md:hidden">
@@ -179,28 +170,28 @@ export function DashboardStrategica() {
       </div>
       <PageHeader title="Dashboard Direzione" subtitle="Panoramica strategica degli eventi" />
 
-      <div className="px-6 md:px-8 space-y-8 pb-8">
+      <div className="px-4 md:px-8 space-y-8 pb-8">
         {loading ? (
           <LoadingSkeleton lines={6} />
         ) : (
           <>
             {/* KPI Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">Eventi attivi</p>
                 <p className="text-3xl font-bold text-gray-900">{attivi}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">In attesa</p>
                 <p className={`text-3xl font-bold ${inAttesa > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>{inAttesa}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className={`${overdueCount > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} rounded-xl border p-4`}>
                 <p className="text-sm text-gray-500">Con ritardi</p>
                 <p className={`text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">Budget trimestre</p>
-                <p className="text-3xl font-bold text-mikai-400">{budgetFormatted(quarterBudget)}</p>
+                <p className="text-3xl font-bold text-mikai-400">{formatCurrency(quarterBudget)}</p>
               </div>
             </div>
 
@@ -229,7 +220,7 @@ export function DashboardStrategica() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <Link to={`/eventi/${event.id}`} className="flex-1 min-w-0 hover:underline">
-                          <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>
+                          <p className="text-base font-semibold text-gray-900 truncate" title={event.titolo}>{event.titolo}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
                             {event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : '\u2014'}
                             {event.data_inizio && ` \u00B7 ${formatDate(event.data_inizio)}`}
@@ -237,7 +228,7 @@ export function DashboardStrategica() {
                         </Link>
                         <div className="shrink-0 text-right">
                           {event.budget_previsto && (
-                            <p className="text-sm font-semibold text-gray-700">{budgetFormatted(event.budget_previsto)}</p>
+                            <p className="text-sm font-semibold text-gray-700">{formatCurrency(event.budget_previsto)}</p>
                           )}
                         </div>
                       </div>
@@ -247,7 +238,7 @@ export function DashboardStrategica() {
                             variant="primary"
                             size="sm"
                             loading={approving === event.id}
-                            onClick={() => handleApprove(event.id)}
+                            onClick={() => setApprovingId(event.id)}
                           >
                             <Icon icon={ACTION_ICONS.approve} size={16} className="mr-1" />
                             Approva
@@ -279,11 +270,11 @@ export function DashboardStrategica() {
                     <Link
                       key={event.id}
                       to={`/eventi/${event.id}`}
-                      className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all"
+                      className={'block ' + CARD_HOVER_STYLE}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>
+                          <p className="text-base font-semibold text-gray-900 truncate" title={event.titolo}>{event.titolo}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
                             {formatDateRange(event.data_inizio, event.data_fine)}
                           </p>
@@ -305,6 +296,15 @@ export function DashboardStrategica() {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!approvingId}
+        title="Approva evento"
+        message="Confermi l'approvazione di questo evento?"
+        confirmLabel="Approva"
+        onConfirm={() => { handleApprove(approvingId); setApprovingId(null) }}
+        onCancel={() => setApprovingId(null)}
+      />
 
       <Modal
         open={!!rejectingId}

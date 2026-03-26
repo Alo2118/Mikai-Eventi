@@ -6,8 +6,9 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS } from '../../lib/icons'
 import { formatDateTime } from '../../lib/date-utils'
-import { INPUT_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
+import { EmptyState } from '../ui/EmptyState'
 
 const EMPTY_FORM = { tipo_id: '', data_ora: '', durata_minuti: '', luogo: '', fornitore: '', fornitore_id: null, note: '' }
 
@@ -69,7 +70,7 @@ export function EventProgrammaTab({ event }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-lg">Programma</h3>
         {!showForm && (
@@ -81,7 +82,7 @@ export function EventProgrammaTab({ event }) {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+        <div className={CARD_STYLE + ' space-y-3'}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo <span className="text-red-500">*</span></label>
@@ -120,9 +121,9 @@ export function EventProgrammaTab({ event }) {
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {subActivities.map(sa => (
-          <div key={sa.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-start justify-between gap-3">
+          <div key={sa.id} className={CARD_STYLE + ' flex items-start justify-between gap-3'}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium">{sa.tipo_ref?.nome || '—'}</span>
@@ -141,13 +142,13 @@ export function EventProgrammaTab({ event }) {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => toggleConfirm(sa)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[36px] transition-colors ${sa.confermata ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[48px] transition-colors ${sa.confermata ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
               >
                 {sa.confermata ? 'Confermata' : 'Da confermare'}
               </button>
               <button
                 onClick={() => setDeleting(sa)}
-                className="text-red-400 hover:text-red-600 p-2 min-h-[36px] transition-colors"
+                className="text-red-400 hover:text-red-600 p-2 min-h-[48px] min-w-[48px] flex items-center justify-center transition-colors"
                 aria-label="Rimuovi attività"
               >
                 <Icon icon={ACTION_ICONS.close} size={16} />
@@ -156,15 +157,15 @@ export function EventProgrammaTab({ event }) {
           </div>
         ))}
         {subActivities.length === 0 && !loading && (
-          <div className="text-center py-8">
-            <p className="text-gray-400 mb-3">Nessuna attività in programma</p>
-            {!showForm && (
+          <EmptyState
+            title="Nessuna attività in programma"
+            action={!showForm ? (
               <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
                 <Icon icon={ACTION_ICONS.add} size={16} />
                 <span className="ml-1">Aggiungi la prima attività</span>
               </Button>
-            )}
-          </div>
+            ) : null}
+          />
         )}
         {loading && <LoadingSkeleton lines={3} />}
       </div>

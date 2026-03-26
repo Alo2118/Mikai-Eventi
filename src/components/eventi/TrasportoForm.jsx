@@ -3,7 +3,7 @@ import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { MEZZO_TRASPORTO, STATO_PRENOTAZIONE, INPUT_STYLE, SELECT_STYLE } from '../../lib/constants'
-import { toLocalDateTime } from '../../lib/date-utils'
+import { toLocalDateTime, toISO } from '../../lib/date-utils'
 
 
 export function TrasportoForm({ trasporto, eventId, personId, personType, direzione, onSave, onCancel }) {
@@ -32,9 +32,9 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
     const payload = {
       mezzo: mezzo || null,
       codice: codice || null,
-      orario: orario ? new Date(orario).toISOString() : null,
+      orario: toISO(orario),
       autista: autista || null,
-      orario_pickup: orarioPickup ? new Date(orarioPickup).toISOString() : null,
+      orario_pickup: toISO(orarioPickup),
       stato: stato || null,
       note: note || null,
     }
@@ -62,7 +62,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
         <div>
-          <label className="block text-base font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Mezzo <span className="text-red-500">*</span>
           </label>
           <select
@@ -79,7 +79,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
         </div>
 
         <div>
-          <label className="block text-base font-medium text-gray-700 mb-1">Stato</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Stato</label>
           <select
             value={stato}
             onChange={e => setStato(e.target.value)}
@@ -93,7 +93,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
 
         {showCodice && (
           <div>
-            <label className="block text-base font-medium text-gray-700 mb-1">Codice</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Codice</label>
             <input
               type="text"
               value={codice}
@@ -106,7 +106,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
 
         {showOrario && (
           <div>
-            <label className="block text-base font-medium text-gray-700 mb-1">Orario partenza</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Orario partenza</label>
             <input
               type="datetime-local"
               value={orario}
@@ -118,7 +118,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
 
         {showAutista && (
           <div>
-            <label className="block text-base font-medium text-gray-700 mb-1">Autista / Accompagnatore</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Autista / Accompagnatore</label>
             <input
               type="text"
               value={autista}
@@ -131,7 +131,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
 
         {showPickup && (
           <div>
-            <label className="block text-base font-medium text-gray-700 mb-1">Orario pick-up</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Orario pick-up</label>
             <input
               type="datetime-local"
               value={orarioPickup}
@@ -142,7 +142,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
         )}
 
         <div className="md:col-span-3">
-          <label className="block text-base font-medium text-gray-700 mb-1">Note</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
           <textarea
             value={note}
             onChange={e => setNote(e.target.value)}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useState, useEffect, lazy, Suspense } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
@@ -7,13 +7,7 @@ import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Tabs } from '../../components/ui/Tabs'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { EventInfoTab } from '../../components/eventi/EventInfoTab'
-import { EventMaterialList } from '../../components/eventi/EventMaterialList'
-import { EventPreparazioneTab } from '../../components/eventi/EventPreparazioneTab'
-import { EventPersoneTab } from '../../components/eventi/EventPersoneTab'
-import { EventProgrammaTab } from '../../components/eventi/EventProgrammaTab'
-import { EventLogisticaTab } from '../../components/eventi/EventLogisticaTab'
-import { EventCostiTab } from '../../components/eventi/EventCostiTab'
+import { todayISO } from '../../lib/date-utils'
 import { useAdminStore } from '../../hooks/useAdmin'
 import { useStaffStore } from '../../hooks/useStaff'
 import { useParticipantsStore } from '../../hooks/useParticipants'
@@ -22,18 +16,28 @@ import { useActivitiesStore } from '../../hooks/useActivities'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCostsStore } from '../../hooks/useCosts'
 import { useTavoliStore } from '../../hooks/useTavoli'
-import { EventTavoliTab } from '../../components/eventi/EventTavoliTab'
 import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
-import { ComingSoon } from '../../components/ui/ComingSoon'
-import { EventDocumentiTab } from '../../components/eventi/EventDocumentiTab'
-import { EventPackingList } from '../../components/eventi/EventPackingList'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { DOCUMENTO_ICONS } from '../../lib/icons'
 import { useToastStore } from '../../components/ui/Toast'
 import { generateEventDossier } from '../../lib/generate-dossier'
+
+// Lazy-loaded tabs — only the active tab is loaded
+const EventInfoTab = lazy(() => import('../../components/eventi/EventInfoTab').then(m => ({ default: m.EventInfoTab })))
+const EventMaterialList = lazy(() => import('../../components/eventi/EventMaterialList').then(m => ({ default: m.EventMaterialList })))
+const EventPreparazioneTab = lazy(() => import('../../components/eventi/EventPreparazioneTab').then(m => ({ default: m.EventPreparazioneTab })))
+// EventPersoneTab merged into EventLogisticaTab
+const EventProgrammaTab = lazy(() => import('../../components/eventi/EventProgrammaTab').then(m => ({ default: m.EventProgrammaTab })))
+const EventLogisticaTab = lazy(() => import('../../components/eventi/EventLogisticaTab').then(m => ({ default: m.EventLogisticaTab })))
+const EventCostiTab = lazy(() => import('../../components/eventi/EventCostiTab').then(m => ({ default: m.EventCostiTab })))
+const EventTavoliTab = lazy(() => import('../../components/eventi/EventTavoliTab').then(m => ({ default: m.EventTavoliTab })))
+const EventDocumentiTab = lazy(() => import('../../components/eventi/EventDocumentiTab').then(m => ({ default: m.EventDocumentiTab })))
+const EventComplianceTab = lazy(() => import('../../components/eventi/EventComplianceTab').then(m => ({ default: m.EventComplianceTab })))
+const EventPackingList = lazy(() => import('../../components/eventi/EventPackingList').then(m => ({ default: m.EventPackingList })))
+const ComingSoon = lazy(() => import('../../components/ui/ComingSoon').then(m => ({ default: m.ComingSoon })))
 
 function getVisibleTabs(event, profile, permissions) {
   const ruolo = profile?.ruolo
@@ -42,7 +46,6 @@ function getVisibleTabs(event, profile, permissions) {
 
   const tabs = [{ id: 'info', label: 'Info' }]
 
-  tabs.push({ id: 'persone', label: 'Persone' })
   if (TIPI_EVENTO_CON_TAVOLI.includes(event.tipo_evento)) {
     tabs.push({ id: 'tavoli', label: 'Tavoli' })
   }
@@ -50,12 +53,15 @@ function getVisibleTabs(event, profile, permissions) {
   if (modalita !== 'contributo') {
     tabs.push({ id: 'materiale', label: 'Materiale & Gadget' })
   }
-  tabs.push({ id: 'logistica', label: 'Logistica' })
+  tabs.push({ id: 'logistica', label: 'Persone' })
   if (permissions.includes('gestione_costi') || permissions.includes('approva_preventivi')) {
     tabs.push({ id: 'costi', label: 'Costi' })
   }
   tabs.push({ id: 'documenti', label: 'Documenti' })
   tabs.push({ id: 'preparazione', label: 'Preparazione' })
+  if (permissions.includes('compliance')) {
+    tabs.push({ id: 'compliance', label: 'Compliance' })
+  }
   if (isUfficio) {
     tabs.push({ id: 'report', label: 'Report' })
   }
@@ -64,15 +70,21 @@ function getVisibleTabs(event, profile, permissions) {
 }
 
 
+const VALID_TABS = ['info', 'tavoli', 'programma', 'materiale', 'logistica', 'costi', 'documenti', 'preparazione', 'compliance', 'report']
+
 export function EventiDetail() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const tabFromUrl = searchParams.get('tab')
   const fetchEvent = useEventsStore(s => s.fetchEvent)
   const profile = useAuthStore(s => s.profile)
   const permissions = useAuthStore(s => s.permissions)
   const users = useAdminStore(s => s.users)
   const fetchUsers = useAdminStore(s => s.fetchUsers)
   const staff = useStaffStore(s => s.staff)
+  const fetchEventStaff = useStaffStore(s => s.fetchEventStaff)
   const participants = useParticipantsStore(s => s.participants)
+  const fetchEventParticipants = useParticipantsStore(s => s.fetchEventParticipants)
   const hotels = useLogisticsStore(s => s.hotels)
   const trasporti = useLogisticsStore(s => s.trasporti)
   const fetchEventLogistics = useLogisticsStore(s => s.fetchEventLogistics)
@@ -87,7 +99,8 @@ export function EventiDetail() {
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [activeTab, setActiveTab] = useState('info')
+  const initialTab = (tabFromUrl && VALID_TABS.includes(tabFromUrl)) ? tabFromUrl : 'info'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [eventMaterials, setEventMaterials] = useState([])
   const [showPackingList, setShowPackingList] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -98,6 +111,10 @@ export function EventiDetail() {
       setEvent(data)
       setError(error)
       setLoading(false)
+      // Auto-select Preparazione tab for events in preparation (only if no tab specified in URL)
+      if (!tabFromUrl && data && ['in_preparazione', 'pronto'].includes(data.stato)) {
+        setActiveTab('preparazione')
+      }
     })
   }, [id])
 
@@ -105,6 +122,8 @@ export function EventiDetail() {
 
   useEffect(() => {
     if (event?.id) {
+      fetchEventStaff(event.id)
+      fetchEventParticipants(event.id)
       fetchEventLogistics(event.id)
       fetchEventActivities(event.id)
       fetchEventTavoli(event.id)
@@ -121,13 +140,6 @@ export function EventiDetail() {
   function computeTabStatus() {
     const statuses = {}
 
-    // Persone
-    if (staff.length > 0 || participants.length > 0) {
-      const staffConfirmed = staff.every(s => s.confermato)
-      const partConfirmed = participants.every(p => p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente')
-      statuses.persone = (staffConfirmed && partConfirmed) ? 'complete' : 'warning'
-    }
-
     // Tavoli (solo per eventi con tavoli)
     if (TIPI_EVENTO_CON_TAVOLI.includes(event.tipo_evento) && tavoli.length > 0) {
       const allPeople = [...participants, ...staff]
@@ -139,14 +151,17 @@ export function EventiDetail() {
       statuses.tavoli = assignedIds.size >= allPeople.length ? 'complete' : 'warning'
     }
 
-    // Logistica
+    // Persone & Logistica (merged tab)
     const totalPeople = staff.length + participants.length
     if (totalPeople > 0) {
+      const staffConfirmed = staff.every(s => s.confermato)
+      const partConfirmed = participants.every(p => p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente')
       const hotelConfirmed = hotels.filter(h => h.stato === 'confermato').length
       const andataConfirmed = trasporti.filter(t => t.direzione === 'andata' && t.stato === 'confermato').length
       const ritornoConfirmed = trasporti.filter(t => t.direzione === 'ritorno' && t.stato === 'confermato').length
-      const allDone = hotelConfirmed >= totalPeople && andataConfirmed >= totalPeople && ritornoConfirmed >= totalPeople
-      statuses.logistica = allDone ? 'complete' : (hotels.length > 0 || trasporti.length > 0) ? 'warning' : undefined
+      const peopleOk = staffConfirmed && partConfirmed
+      const logisticsOk = hotelConfirmed >= totalPeople && andataConfirmed >= totalPeople && ritornoConfirmed >= totalPeople
+      statuses.logistica = (peopleOk && logisticsOk) ? 'complete' : 'warning'
     }
 
     // Materiale
@@ -194,12 +209,12 @@ export function EventiDetail() {
       const [matRes, subActRes] = await Promise.all([
         fetchEventMaterialList(event.id),
         useSubActivitiesStore.getState().fetchEventSubActivities(event.id),
-        useStaffStore.getState().fetchEventStaff(event.id),
-        useParticipantsStore.getState().fetchEventParticipants(event.id),
+        fetchEventStaff(event.id),
+        fetchEventParticipants(event.id),
         fetchEventLogistics(event.id),
         fetchEventPreventivi(event.id),
       ])
-      // Read fresh data from stores after parallel fetch
+      // Read fresh data from stores
       const freshStaff = useStaffStore.getState().staff
       const freshParticipants = useParticipantsStore.getState().participants
       const freshHotels = useLogisticsStore.getState().hotels
@@ -218,7 +233,7 @@ export function EventiDetail() {
         activities: eventActivities,
         permissions,
       })
-      doc.save(`dossier_${event.titolo.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`)
+      doc.save(`dossier_${event.titolo.replace(/\s+/g, '_')}_${todayISO()}.pdf`)
       addToast('Dossier PDF generato', 'success')
     } catch {
       addToast('Errore nella generazione del dossier', 'error')
@@ -257,26 +272,28 @@ export function EventiDetail() {
       </div>
 
       {showPackingList ? (
-        <div className="px-4 md:px-8 py-5">
+        <div className="px-4 md:px-8 py-3 md:py-5">
           <EventPackingList event={event} onBack={() => setShowPackingList(false)} />
         </div>
       ) : (
         <>
-          <div className="mt-4 px-4 md:px-8">
+          <div className="sticky top-[73px] md:static z-20 bg-white px-4 md:px-8 mt-4 md:mt-4">
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
           </div>
 
-          <div className="px-4 md:px-8 py-5">
-            {activeTab === 'info' && <EventInfoTab event={event} onUpdate={refreshEvent} />}
-            {activeTab === 'persone' && <EventPersoneTab event={event} users={users} />}
-            {activeTab === 'tavoli' && <EventTavoliTab event={event} staff={staff} participants={participants} />}
-            {activeTab === 'programma' && <EventProgrammaTab event={event} />}
-            {activeTab === 'materiale' && <EventMaterialList event={event} />}
-            {activeTab === 'logistica' && <EventLogisticaTab event={event} />}
-            {activeTab === 'costi' && <EventCostiTab event={event} />}
-            {activeTab === 'documenti' && <EventDocumentiTab event={event} onShowPackingList={() => setShowPackingList(true)} />}
-            {activeTab === 'preparazione' && <EventPreparazioneTab event={event} onShowPackingList={() => setShowPackingList(true)} />}
-            {activeTab === 'report' && <ComingSoon title="Report post-evento" description="I report saranno disponibili nella prossima versione." />}
+          <div className="px-4 md:px-8 py-3 md:py-5">
+            <Suspense fallback={<LoadingSkeleton lines={5} />}>
+              {activeTab === 'info' && <EventInfoTab event={event} onUpdate={refreshEvent} />}
+              {activeTab === 'tavoli' && <EventTavoliTab event={event} staff={staff} participants={participants} />}
+              {activeTab === 'programma' && <EventProgrammaTab event={event} />}
+              {activeTab === 'materiale' && <EventMaterialList event={event} onShowPackingList={() => setShowPackingList(true)} onUpdate={refreshEvent} />}
+              {activeTab === 'logistica' && <EventLogisticaTab event={event} users={users} />}
+              {activeTab === 'costi' && <EventCostiTab event={event} />}
+              {activeTab === 'documenti' && <EventDocumentiTab event={event} onShowPackingList={() => setShowPackingList(true)} />}
+              {activeTab === 'compliance' && <EventComplianceTab event={event} />}
+              {activeTab === 'preparazione' && <EventPreparazioneTab event={event} onShowPackingList={() => setShowPackingList(true)} />}
+              {activeTab === 'report' && <ComingSoon title="Report post-evento" description="I report saranno disponibili nella prossima versione." />}
+            </Suspense>
           </div>
         </>
       )}

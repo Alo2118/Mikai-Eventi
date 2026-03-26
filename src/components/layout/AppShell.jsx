@@ -5,15 +5,17 @@ import { BottomBar } from './BottomBar'
 import { ToastContainer } from '../ui/Toast'
 import { GlobalSearch } from '../ui/GlobalSearch'
 import { NotificationBell } from '../ui/NotificationBell'
+import { OfflineIndicator } from '../ui/OfflineIndicator'
+import { InstallPrompt } from '../ui/InstallPrompt'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useNotificationsStore } from '../../hooks/useNotifications'
-import { supabase } from '../../lib/supabase'
 
 export function AppShell() {
   const profile = useAuthStore(s => s.profile)
   const fetchUnreadCount = useNotificationsStore(s => s.fetchUnreadCount)
   const fetchNotifications = useNotificationsStore(s => s.fetchNotifications)
   const subscribeRealtime = useNotificationsStore(s => s.subscribeRealtime)
+  const unsubscribeRealtime = useNotificationsStore(s => s.unsubscribeRealtime)
   const channelRef = useRef(null)
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export function AppShell() {
 
     return () => {
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
+        unsubscribeRealtime(channelRef.current)
         channelRef.current = null
       }
       clearInterval(pollInterval)
@@ -45,7 +47,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="flex-1 pb-20 md:pb-0 overflow-x-hidden">
         <Outlet />
       </main>
       <BottomBar />
@@ -55,6 +57,8 @@ export function AppShell() {
         <NotificationBell />
       </div>
 
+      <OfflineIndicator />
+      <InstallPrompt />
       <ToastContainer />
       <GlobalSearch />
     </div>

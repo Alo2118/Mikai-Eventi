@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import { Icon } from './Icon'
 import { ACTION_ICONS, TIPO_EVENTO_ICONS, NAV_ICONS } from '../../lib/icons'
-import { TIPO_EVENTO, STATO_EVENTO } from '../../lib/constants'
+import { useGlobalSearchStore } from '../../hooks/useGlobalSearch'
 
 function ResultItem({ item, active, onClick }) {
   const iconMap = {
@@ -34,11 +33,13 @@ function ResultItem({ item, active, onClick }) {
 export function GlobalSearch() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef(null)
   const navigate = useNavigate()
+  const results = useGlobalSearchStore(s => s.results)
+  const loading = useGlobalSearchStore(s => s.loading)
+  const search = useGlobalSearchStore(s => s.search)
+  const clearResults = useGlobalSearchStore(s => s.clearResults)
 
   // Cmd+K / Ctrl+K to open
   useEffect(() => {
@@ -59,7 +60,7 @@ export function GlobalSearch() {
   useEffect(() => {
     if (open) {
       setQuery('')
-      setResults([])
+      clearResults()
       setActiveIndex(0)
       setTimeout(() => inputRef.current?.focus(), 50)
     }
@@ -68,84 +69,17 @@ export function GlobalSearch() {
   // Search with debounce
   useEffect(() => {
     if (!query.trim() || query.trim().length < 2) {
-      setResults([])
+      clearResults()
       return
     }
 
     const timer = setTimeout(() => {
-      performSearch(query.trim())
+      search(query.trim())
+      setActiveIndex(0)
     }, 250)
 
     return () => clearTimeout(timer)
   }, [query])
-
-  const performSearch = useCallback(async (q) => {
-    setLoading(true)
-    const searchPattern = `%${q}%`
-
-    const [eventsRes, contactsRes, materialsRes] = await Promise.all([
-      supabase
-        .from('events')
-        .select('id, titolo, tipo_evento, stato, luogo')
-        .or(`titolo.ilike.${searchPattern},luogo.ilike.${searchPattern}`)
-        .order('data_inizio', { ascending: false })
-        .limit(5),
-      supabase
-        .from('contacts')
-        .select('id, nome, cognome, azienda, tipo_contatto')
-        .eq('attivo', true)
-        .or(`nome.ilike.${searchPattern},cognome.ilike.${searchPattern},azienda.ilike.${searchPattern}`)
-        .order('cognome')
-        .limit(5),
-      supabase
-        .from('materials')
-        .select('id, nome, codice')
-        .eq('attivo', true)
-        .or(`nome.ilike.${searchPattern},codice.ilike.${searchPattern}`)
-        .order('nome')
-        .limit(5),
-    ])
-
-    const items = []
-
-    for (const e of eventsRes.data || []) {
-      items.push({
-        id: e.id,
-        category: 'evento',
-        categoryLabel: 'Evento',
-        title: e.titolo,
-        subtitle: [TIPO_EVENTO[e.tipo_evento], STATO_EVENTO[e.stato], e.luogo].filter(Boolean).join(' · '),
-        tipo: e.tipo_evento,
-        path: `/eventi/${e.id}`,
-      })
-    }
-
-    for (const c of contactsRes.data || []) {
-      items.push({
-        id: c.id,
-        category: 'contatto',
-        categoryLabel: 'Contatto',
-        title: `${c.cognome} ${c.nome}`,
-        subtitle: c.azienda || c.tipo_contatto,
-        path: `/contatti/${c.id}`,
-      })
-    }
-
-    for (const m of materialsRes.data || []) {
-      items.push({
-        id: m.id,
-        category: 'materiale',
-        categoryLabel: 'Materiale',
-        title: m.nome,
-        subtitle: m.codice,
-        path: `/materiale/${m.id}`,
-      })
-    }
-
-    setResults(items)
-    setActiveIndex(0)
-    setLoading(false)
-  }, [])
 
   function handleSelect(item) {
     setOpen(false)

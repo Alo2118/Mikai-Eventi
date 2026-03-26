@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { INPUT_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 const PROVINCE = [
@@ -129,7 +129,7 @@ export function AdminZone() {
       <div className="px-4 md:px-8 pb-8">
         {editing ? (
           <div className="space-y-6 max-w-2xl">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
+            <div className={CARD_STYLE + ' md:p-6 space-y-4'}>
               <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica zona' : 'Nuova zona'}</h2>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
@@ -144,7 +144,7 @@ export function AdminZone() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+            <div className={CARD_STYLE + ' md:p-6'}>
               <h3 className="text-base font-semibold text-gray-900 mb-1">Province ({selectedProvinces.length} selezionate)</h3>
               <p className="text-sm text-gray-500 mb-3">Seleziona le province che fanno parte di questa zona</p>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-2">

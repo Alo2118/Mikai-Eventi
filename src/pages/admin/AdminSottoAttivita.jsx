@@ -7,7 +7,7 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { useToastStore } from '../../components/ui/Toast'
-import { INPUT_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 
 export function AdminSottoAttivita() {
   const types = useSubActivitiesStore(s => s.types)
@@ -58,7 +58,7 @@ export function AdminSottoAttivita() {
 
       <div className="px-4 md:px-8 pb-8">
         {editing !== null ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 max-w-lg space-y-4">
+          <div className={CARD_STYLE + ' md:p-6 max-w-lg space-y-4'}>
             <h2 className="text-lg font-semibold text-gray-900">{editing?.id ? 'Modifica tipo' : 'Nuovo tipo sotto-attività'}</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>

@@ -1,18 +1,12 @@
 import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, isSameMonth, isToday
-} from 'date-fns'
-import { formatDayISO, formatDayNumber } from '../../lib/date-utils'
+  formatDayISO, formatDayNumber, getMonthDays, isSameMonthAs, isTodayDate, getWeekdayLabels
+} from '../../lib/date-utils'
 import { CalendarEventPill } from './CalendarEventPill'
 
-const dayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
+const dayNames = getWeekdayLabels()
 
 export function CalendarGrid({ date, events }) {
-  const monthStart = startOfMonth(date)
-  const monthEnd = endOfMonth(date)
-  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const days = eachDayOfInterval({ start: calStart, end: calEnd })
+  const days = getMonthDays(date)
 
   const getEventsForDay = (day) => {
     const dayStr = formatDayISO(day)
@@ -35,13 +29,13 @@ export function CalendarGrid({ date, events }) {
       <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-b-lg overflow-hidden">
         {days.map((day) => {
           const dayEvents = getEventsForDay(day)
-          const inMonth = isSameMonth(day, date)
+          const inMonth = isSameMonthAs(day, date)
           return (
             <div
-              key={day.toISOString()}
+              key={formatDayISO(day)}
               className={`bg-white min-h-[80px] md:min-h-[100px] p-1 ${!inMonth ? 'opacity-40' : ''}`}
             >
-              <div className={`text-sm font-medium mb-1 ${isToday(day) ? 'bg-mikai-400 text-white w-7 h-7 rounded-full flex items-center justify-center' : 'text-gray-700 px-1'}`}>
+              <div className={`text-sm font-medium mb-1 ${isTodayDate(day) ? 'bg-mikai-400 text-white w-7 h-7 rounded-full flex items-center justify-center' : 'text-gray-700 px-1'}`}>
                 {formatDayNumber(day)}
               </div>
               <div className="space-y-0.5">

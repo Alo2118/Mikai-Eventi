@@ -1,5 +1,5 @@
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
-import { CHART_COLORS } from '../../lib/constants'
+import { CHART_COLORS, CARD_STYLE } from '../../lib/constants'
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
@@ -20,7 +20,7 @@ export function TopMaterialiChart({ data, productNames }) {
 
   if (!chartData.length) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <p className="text-sm font-medium text-gray-500 mb-2">Materiale più utilizzato</p>
         <p className="text-gray-400 text-sm">Nessun dato disponibile</p>
       </div>

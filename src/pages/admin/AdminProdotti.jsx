@@ -9,7 +9,7 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Icon } from '../../components/ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
-import { TIPO_PRODOTTO, INPUT_STYLE } from '../../lib/constants'
+import { TIPO_PRODOTTO, INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminProdotti() {
@@ -143,7 +143,7 @@ export function AdminProdotti() {
       <div className="px-4 md:px-8 pb-8">
         {editing ? (
           <div className="space-y-6 max-w-2xl">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
+            <div className={CARD_STYLE + ' md:p-6 space-y-4'}>
               <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica prodotto' : 'Nuovo prodotto'}</h2>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
@@ -183,7 +183,7 @@ export function AdminProdotti() {
             </div>
 
             {/* Body sections */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+            <div className={CARD_STYLE + ' md:p-6'}>
               <h3 className="text-base font-semibold text-gray-900 mb-3">Distretti anatomici</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {bodySections.filter(bs => bs.attivo).map(bs => (
@@ -197,7 +197,7 @@ export function AdminProdotti() {
 
             {/* Kit contents — only for existing products */}
             {editing.id && (
-              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+              <div className={CARD_STYLE + ' md:p-6'}>
                 <h3 className="text-base font-semibold text-gray-900 mb-3">Contenuto kit</h3>
                 {kitContents.length > 0 && (
                   <div className="overflow-x-auto mb-4">

@@ -1,0 +1,236 @@
+<h2>Sezione 3: Flussi Operativi</h2>
+<p class="subtitle">Come si muovono i dati tra le persone — dal proposta evento al post-evento</p>
+
+<!-- FLUSSO 1: CICLO DI VITA EVENTO -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">📅 Flusso 1 — Ciclo di vita di un evento</div>
+  <div class="mockup-body" style="padding:24px;font-size:13px;">
+
+    <div style="display:flex;flex-direction:column;gap:4px;">
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:140px;text-align:right;color:#a855f7;font-weight:600;">Commerciale</div>
+        <div style="flex:1;padding:12px 16px;background:rgba(168,85,247,0.08);border-radius:8px;border-left:4px solid #a855f7;">
+          <strong>1. Propone evento</strong> — compila form (tipo, date, luogo, n. partecipanti, medico referente, note)
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">notifica automatica</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:140px;text-align:right;color:#ef4444;font-weight:600;">Enrica</div>
+        <div style="flex:1;padding:12px 16px;background:rgba(239,68,68,0.08);border-radius:8px;border-left:4px solid #ef4444;">
+          <strong>2. Valida e approva</strong> — vede la proposta, approva / richiede modifiche / rifiuta. Se approva → stato passa a "confermato"
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">genera checklist da template</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:140px;text-align:right;color:#6366f1;font-weight:600;">Federica</div>
+        <div style="flex:1;padding:12px 16px;background:rgba(99,102,241,0.08);border-radius:8px;border-left:4px solid #6366f1;">
+          <strong>3. Pianifica</strong> — completa i dettagli (logistica, catering, iscrizioni, sotto-attività). Assegna task a Nicola, Ivan, Chiara. Stato → "in_preparazione"
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">notifiche ai responsabili</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:140px;text-align:right;font-weight:600;">
+          <span style="color:#0ea5e9;">Nicola</span> ·
+          <span style="color:#f59e0b;">Ivan</span> ·
+          <span style="color:#10b981;">Chiara</span>
+        </div>
+        <div style="flex:1;padding:12px 16px;background:rgba(14,165,233,0.08);border-radius:8px;border-left:4px solid #0ea5e9;">
+          <strong>4. Preparano in parallelo</strong><br>
+          <span style="color:#0ea5e9;">Nicola:</span> prepara locandina, depliant, video → carica documenti<br>
+          <span style="color:#f59e0b;">Ivan:</span> prepara kit demo, spedisce → registra movimento materiale<br>
+          <span style="color:#10b981;">Chiara:</span> ordina materiale mancante, prepara bolle → registra costi<br>
+          Ognuno segna "completato" sulla propria checklist
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">tutti i task completati</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:140px;text-align:right;color:#6366f1;font-weight:600;">Federica</div>
+        <div style="flex:1;padding:12px 16px;background:rgba(16,185,129,0.08);border-radius:8px;border-left:4px solid #16a34a;">
+          <strong>5. Verifica finale</strong> — checklist tutta verde? Materiale spedito? Logistica confermata? → Stato "pronto"
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">date evento</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:140px;text-align:right;color:#6b7280;font-weight:600;">Automatico</div>
+        <div style="flex:1;padding:12px 16px;background:rgba(107,114,128,0.08);border-radius:8px;border-left:4px solid #6b7280;">
+          <strong>6. Evento in corso</strong> — stato automatico basato sulle date
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">data_fine passata</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:140px;text-align:right;font-weight:600;">
+          <span style="color:#f59e0b;">Ivan</span> ·
+          <span style="color:#6366f1;">Federica</span>
+        </div>
+        <div style="flex:1;padding:12px 16px;background:rgba(245,158,11,0.08);border-radius:8px;border-left:4px solid #f59e0b;">
+          <strong>7. Post-evento</strong><br>
+          <span style="color:#f59e0b;">Ivan:</span> verifica rientro materiale demo, segnala danni<br>
+          <span style="color:#6366f1;">Federica:</span> compila report (partecipanti effettivi, feedback, note)<br>
+          Stato → "concluso"
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- FLUSSO 2: MATERIALE DEMO -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">📦 Flusso 2 — Richiesta e movimentazione materiale demo</div>
+  <div class="mockup-body" style="padding:24px;font-size:13px;">
+
+    <div style="display:flex;flex-direction:column;gap:4px;">
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:120px;text-align:right;color:#6366f1;font-weight:600;">Federica</div>
+        <div style="flex:1;padding:12px;background:rgba(99,102,241,0.08);border-radius:8px;">
+          <strong>1. Richiede materiale</strong> — seleziona kit dal catalogo, indica quantità e date
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓</div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:120px;text-align:right;color:#6b7280;font-weight:600;">Sistema</div>
+        <div style="flex:1;padding:12px;border-radius:8px;" style="display:flex;gap:8px;">
+          <div style="flex:1;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;">
+            ✅ <strong>Disponibile</strong> — il kit è libero in quelle date → procedi
+          </div>
+          <div style="flex:1;padding:12px;background:rgba(239,68,68,0.08);border-radius:8px;margin-top:4px;">
+            ⚠️ <strong>Conflitto</strong> — il kit è assegnato a "Congresso SIOT 15-17 ott"<br>
+            <span style="font-size:11px;">Suggerimento: disponibile dal 18 ott, oppure usa Kit #2</span>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓</div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:120px;text-align:right;color:#f59e0b;font-weight:600;">Ivan</div>
+        <div style="flex:1;padding:12px;background:rgba(245,158,11,0.08);border-radius:8px;">
+          <strong>2. Prepara e spedisce</strong> — riceve notifica, prepara il pacco, inserisce tracking, segna "spedito"
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓</div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:120px;text-align:right;color:#6b7280;font-weight:600;">Staff evento</div>
+        <div style="flex:1;padding:12px;background:rgba(16,185,129,0.08);border-radius:8px;">
+          <strong>3. Conferma ricezione</strong> — chi è in loco segna "consegnato"
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">dopo evento</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:120px;text-align:right;color:#f59e0b;font-weight:600;">Ivan</div>
+        <div style="flex:1;padding:12px;background:rgba(245,158,11,0.08);border-radius:8px;">
+          <strong>4. Verifica rientro</strong> — materiale tornato? Integro? → segna "rientrato" o "danneggiato"
+        </div>
+      </div>
+      <div style="text-align:center;color:#6b7280;font-size:18px;">↓ <span style="font-size:11px;">se rientro in ritardo</span></div>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="min-width:120px;text-align:right;color:#6b7280;font-weight:600;">Sistema</div>
+        <div style="flex:1;padding:12px;background:rgba(239,68,68,0.08);border-radius:8px;">
+          <strong>5. Alert automatico</strong> — "Kit Stylo #3 doveva rientrare il 19/03, ancora fuori" → notifica a Ivan + Federica
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- FLUSSO 3: SCADENZE E NOTIFICHE -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">⏰ Flusso 3 — Scadenze, notifiche e responsabilizzazione</div>
+  <div class="mockup-body" style="padding:24px;font-size:13px;">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+      <div>
+        <h3 style="margin:0 0 12px;">Generazione automatica scadenze</h3>
+        <div style="line-height:2;">
+          1. Evento approvato da Enrica<br>
+          2. Sistema carica template per tipo evento<br>
+          3. Calcola date reali (evento 17/03 → scadenza -14gg = 03/03)<br>
+          4. Crea record in event_deadlines<br>
+          5. Assegna a ruoli di default dal template<br>
+          6. Federica può modificare assegnazioni
+        </div>
+      </div>
+
+      <div>
+        <h3 style="margin:0 0 12px;">Escalation notifiche</h3>
+        <div style="line-height:1.8;">
+          <div style="padding:8px;background:rgba(14,165,233,0.08);border-radius:6px;margin-bottom:4px;">
+            <strong>-7 giorni:</strong> Notifica in-app al responsabile<br>
+            <span style="font-size:11px;">"Ricorda: prepara locandina per Corso Poloso (scadenza 10/03)"</span>
+          </div>
+          <div style="padding:8px;background:rgba(245,158,11,0.08);border-radius:6px;margin-bottom:4px;">
+            <strong>-3 giorni:</strong> Notifica in-app + email<br>
+            <span style="font-size:11px;">"Urgente: locandina Corso Poloso non ancora caricata (scadenza 10/03)"</span>
+          </div>
+          <div style="padding:8px;background:rgba(239,68,68,0.08);border-radius:6px;margin-bottom:4px;">
+            <strong>Scaduta:</strong> Notifica in-app + email a responsabile + Federica + Enrica<br>
+            <span style="font-size:11px;">"SCADUTO: locandina Corso Poloso — Nicola non ha completato il task"</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:20px;padding:16px;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.2);border-radius:8px;">
+      <h3 style="margin:0 0 8px;color:#a855f7;">Responsabilizzazione commerciali</h3>
+      <div style="line-height:1.8;">
+        Quando un commerciale propone un evento, alcune informazioni sono <strong>obbligatorie subito</strong> (tipo, date, luogo) e altre hanno <strong>scadenza</strong> (lista partecipanti, esigenze specifiche).<br><br>
+        Se il commerciale non completa i dati entro la scadenza:<br>
+        → Notifica al commerciale<br>
+        → Dopo 3gg: escalation a Enrica con evidenza in dashboard "Commerciali in ritardo"<br>
+        → L'evento non può passare a "in_preparazione" finché i dati non sono completi
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FLUSSO 4: AUTENTICAZIONE -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">🔐 Flusso 4 — Autenticazione e permessi</div>
+  <div class="mockup-body" style="padding:24px;font-size:13px;">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+      <div>
+        <h3 style="margin:0 0 12px;">Creazione account (solo admin)</h3>
+        <div style="line-height:2;">
+          1. Admin (Federica/Enrica) va su Impostazioni → Utenti<br>
+          2. Crea nuovo utente: nome, email, ruolo<br>
+          3. Sistema invia email con link per impostare password<br>
+          4. Utente clicca link, sceglie password, accede
+        </div>
+      </div>
+
+      <div>
+        <h3 style="margin:0 0 12px;">Permessi per ruolo</h3>
+        <div style="font-size:12px;">
+          <div style="padding:8px;background:rgba(239,68,68,0.06);border-radius:6px;margin-bottom:4px;">
+            <strong>Admin</strong> — tutto + gestione utenti + template
+          </div>
+          <div style="padding:8px;background:rgba(99,102,241,0.06);border-radius:6px;margin-bottom:4px;">
+            <strong>Ufficio</strong> — tutto tranne gestione utenti
+          </div>
+          <div style="padding:8px;background:rgba(168,85,247,0.06);border-radius:6px;">
+            <strong>Commerciale</strong> — solo: proponi evento, vedi i miei eventi e loro stato, completa dati richiesti, notifiche
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>

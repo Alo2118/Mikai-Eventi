@@ -120,13 +120,15 @@ export function NotifichePage() {
         )}
 
         {/* Load more */}
-        {notifications.length > 0 && notifications.length % PAGE_SIZE === 0 && (
+        {notifications.length > 0 && notifications.length % PAGE_SIZE === 0 ? (
           <div className="mt-4 text-center">
             <Button variant="secondary" onClick={handleLoadMore} loading={loading}>
               Carica altre notifiche
             </Button>
           </div>
-        )}
+        ) : notifications.length > 0 ? (
+          <p className="text-center text-sm text-gray-400 py-4">Nessun'altra notifica</p>
+        ) : null}
       </div>
     </div>
   )

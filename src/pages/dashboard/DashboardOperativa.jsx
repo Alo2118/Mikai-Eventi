@@ -8,7 +8,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { CATEGORIA_ATTIVITA } from '../../lib/constants'
+import { CATEGORIA_ATTIVITA, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
 import { CATEGORIA_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { formatDate } from '../../lib/date-utils'
 
@@ -43,7 +43,7 @@ function ActivityGroup({ title, activities, colorClass, iconClass }) {
           <Link
             key={act.id}
             to={`/eventi/${act.evento?.id}`}
-            className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all"
+            className={'block ' + CARD_HOVER_STYLE}
           >
             <div className="flex items-start gap-3">
               <Icon icon={CATEGORIA_ICONS[act.categoria] || FEEDBACK_ICONS.info} size={20} className={`mt-0.5 shrink-0 ${iconClass}`} />
@@ -98,7 +98,7 @@ export function DashboardOperativa({ warehouseOnly = false }) {
 
   return (
     <div>
-      <div className="px-6 md:px-8 pt-4">
+      <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: title }]} />
       </div>
       <div className="md:hidden">
@@ -106,18 +106,18 @@ export function DashboardOperativa({ warehouseOnly = false }) {
       </div>
       <PageHeader title={title} subtitle="Attività in corso su tutti gli eventi" />
 
-      <div className="px-6 md:px-8">
+      <div className="px-4 md:px-8">
         {/* KPI Summary */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">Attività aperte</p>
             <p className="text-3xl font-bold text-gray-900">{totalOpen}</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">In ritardo</p>
             <p className={`text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">Scadono oggi</p>
             <p className={`text-3xl font-bold ${todayCount > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>{todayCount}</p>
           </div>

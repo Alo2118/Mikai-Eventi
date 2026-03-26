@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ACTION_ICONS } from '../../lib/icons'
 import { useTavoliStore } from '../../hooks/useTavoli'
-import { SELECT_STYLE } from '../../lib/constants'
+import { SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 
 function AssignmentSection({ title, items, renderItem, options, optionLabel, optionValue, onAdd, onRemove, canEdit }) {
   const [selected, setSelected] = useState('')
@@ -49,7 +49,7 @@ function AssignmentSection({ title, items, renderItem, options, optionLabel, opt
                 <button
                   onClick={() => onRemove(item.id)}
                   aria-label="Rimuovi"
-                  className="min-h-[32px] min-w-[32px] flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                  className="min-h-[48px] min-w-[48px] flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
                 >
                   <Icon icon={ACTION_ICONS.close} size={16} />
                 </button>
@@ -81,7 +81,7 @@ export function TavoloCard({ tavolo, eventId, availableProducts, canEdit }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+    <div className={CARD_STYLE + ' space-y-4'}>
       {/* Header */}
       <div className="flex items-center gap-3">
         <span className="font-bold text-gray-900 whitespace-nowrap">Tavolo {tavolo.numero}</span>
@@ -91,7 +91,7 @@ export function TavoloCard({ tavolo, eventId, availableProducts, canEdit }) {
             onChange={e => setNome(e.target.value)}
             onBlur={handleNomeBlur}
             placeholder="Nome opzionale"
-            className="flex-1 px-3 py-1.5 text-base border border-gray-200 rounded-lg min-h-[40px] focus:ring-2 focus:ring-mikai-400 outline-none text-gray-700"
+            className="flex-1 px-3 py-1.5 text-base border border-gray-200 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 outline-none text-gray-700"
           />
         ) : (
           nome && <span className="flex-1 text-gray-600">{nome}</span>
@@ -100,7 +100,7 @@ export function TavoloCard({ tavolo, eventId, availableProducts, canEdit }) {
           <button
             onClick={() => setShowDelete(true)}
             aria-label="Elimina tavolo"
-            className="min-h-[40px] min-w-[40px] flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+            className="min-h-[48px] min-w-[48px] flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
           >
             <Icon icon={ACTION_ICONS.close} size={18} />
           </button>

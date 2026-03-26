@@ -4,6 +4,7 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
 import { useToastStore } from '../ui/Toast'
+import { FORM_CONTAINER_STYLE } from '../../lib/constants'
 
 export function VenueAutocomplete({ value, onChange, onSelect, onBlur, error }) {
   const [query, setQuery] = useState(value || '')
@@ -89,7 +90,7 @@ export function VenueAutocomplete({ value, onChange, onSelect, onBlur, error }) 
       )}
 
       {showNewForm && (
-        <div className="mt-3 bg-gray-50 rounded-xl p-4 space-y-3">
+        <div className={'mt-3 ' + FORM_CONTAINER_STYLE + ' space-y-3'}>
           <h4 className="text-base font-semibold text-gray-900">Nuova sede</h4>
           <input type="text" value={newVenue.nome} onChange={(e) => setNewVenue({ ...newVenue, nome: e.target.value })}
             placeholder="Nome sede" className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400" />

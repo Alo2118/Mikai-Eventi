@@ -10,7 +10,7 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS, NAV_ICONS } from '../../lib/icons'
-import { RUOLO_EVENTO, TIPO_PARTECIPANTE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, SELECT_STYLE } from '../../lib/constants'
+import { RUOLO_EVENTO, TIPO_PARTECIPANTE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 import { EventChecklistView } from './EventChecklistView'
 
@@ -112,7 +112,7 @@ export function EventPersoneTab({ event, users = [] }) {
       </div>
 
       {/* === STAFF === */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-lg">Staff interno</h3>
           {canEditStaff && !staffForm && (
@@ -141,7 +141,7 @@ export function EventPersoneTab({ event, users = [] }) {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {staff.map(s => (
             <div key={s.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 min-h-[48px]">
               <div>
@@ -152,13 +152,13 @@ export function EventPersoneTab({ event, users = [] }) {
                 {canEditStaff && (
                   <button
                     onClick={() => updateStaff(s.id, { confermato: !s.confermato })}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[36px] ${s.confermato ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[48px] ${s.confermato ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
                   >
                     {s.confermato ? 'Confermato' : 'Da confermare'}
                   </button>
                 )}
                 {canEditStaff && (
-                  <button onClick={() => setDeleting({ type: 'staff', id: s.id, name: `${s.user?.cognome} ${s.user?.nome}` })} className="text-red-500 p-2 min-h-[36px]">
+                  <button onClick={() => setDeleting({ type: 'staff', id: s.id, name: `${s.user?.cognome} ${s.user?.nome}` })} className="text-red-500 p-2 min-h-[48px] min-w-[48px] flex items-center justify-center" aria-label={`Rimuovi ${s.user?.cognome} ${s.user?.nome}`}>
                     <Icon icon={ACTION_ICONS.close} size={16} />
                   </button>
                 )}
@@ -170,7 +170,7 @@ export function EventPersoneTab({ event, users = [] }) {
       </div>
 
       {/* === PARTECIPANTI === */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-lg">Partecipanti</h3>
           {canEditPart && !partForm && (
@@ -202,7 +202,7 @@ export function EventPersoneTab({ event, users = [] }) {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {participants.map(p => (
             <div key={p.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 min-h-[48px]">
               <div>
@@ -215,14 +215,14 @@ export function EventPersoneTab({ event, users = [] }) {
                   <select
                     value={p.stato_iscrizione}
                     onChange={e => updateParticipant(p.id, { stato_iscrizione: e.target.value })}
-                    className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 min-h-[36px]"
+                    className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 min-h-[48px]"
                   >
                     {Object.entries(STATO_ISCRIZIONE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 )}
                 {!canEditPart && <StatusBadge stato={p.stato_iscrizione} labels={STATO_ISCRIZIONE} colors={STATO_ISCRIZIONE_COLORE} />}
                 {canEditPart && (
-                  <button onClick={() => setDeleting({ type: 'participant', id: p.id, name: `${p.contact?.cognome} ${p.contact?.nome}` })} className="text-red-500 p-2 min-h-[36px]">
+                  <button onClick={() => setDeleting({ type: 'participant', id: p.id, name: `${p.contact?.cognome} ${p.contact?.nome}` })} className="text-red-500 p-2 min-h-[48px] min-w-[48px] flex items-center justify-center" aria-label={`Rimuovi ${p.contact?.cognome} ${p.contact?.nome}`}>
                     <Icon icon={ACTION_ICONS.close} size={16} />
                   </button>
                 )}

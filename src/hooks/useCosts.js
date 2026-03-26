@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { nowISO } from '../lib/date-utils'
 
 export const useCostsStore = create((set, get) => ({
   preventivi: [],
@@ -52,7 +53,7 @@ export const useCostsStore = create((set, get) => ({
     return get().updatePreventivo(id, {
       stato: 'approvato',
       approvato_da: userId,
-      data_approvazione: new Date().toISOString(),
+      data_approvazione: nowISO(),
       nota_approvazione: nota || null,
     })
   },
@@ -61,7 +62,7 @@ export const useCostsStore = create((set, get) => ({
     return get().updatePreventivo(id, {
       stato: 'rifiutato',
       approvato_da: userId,
-      data_approvazione: new Date().toISOString(),
+      data_approvazione: nowISO(),
       nota_approvazione: nota,
     })
   },

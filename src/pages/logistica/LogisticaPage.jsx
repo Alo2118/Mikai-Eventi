@@ -11,7 +11,7 @@ import { LogisticaInventario } from './LogisticaInventario'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { exportToExcelMultiSheet } from '../../lib/export-utils'
 import { STATO_PRENOTAZIONE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO } from '../../lib/constants'
-import { formatDate } from '../../lib/date-utils'
+import { formatDate, todayISO } from '../../lib/date-utils'
 import { useToastStore } from '../../components/ui/Toast'
 
 const TABS = [
@@ -69,7 +69,7 @@ export function LogisticaPage() {
         setExporting(false)
         return
       }
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayISO()
       await exportToExcelMultiSheet({
         sheets: [
           { name: 'Hotel', columns: EXPORT_COLUMNS_HOTEL, rows: hotels },

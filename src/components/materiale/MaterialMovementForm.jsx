@@ -6,6 +6,7 @@ import { FormField } from '../ui/FormField'
 import { DatePicker } from '../ui/DatePicker'
 import { useToastStore } from '../ui/Toast'
 import { MODALITA_MOVIMENTO, POSIZIONE_MATERIALE, SELECT_STYLE } from '../../lib/constants'
+import { nowISO } from '../../lib/date-utils'
 
 export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', allMaterialIds, onDone, material }) {
   const [modalita, setModalita] = useState('')
@@ -47,7 +48,7 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
       da_posizione: material?.posizione_attuale || (tipo === 'rientro' ? 'presso_evento' : 'in_magazzino'),
       a_magazzino_id: aPos === 'in_magazzino' ? targetMagazzino || null : null,
       a_utente_id: aPos === 'magazzino_agente' ? targetUtente || null : null,
-      data_movimento: new Date().toISOString(),
+      data_movimento: nowISO(),
       data_rientro_prevista: rientro || null,
       responsabile_id: user.id,
       tracking_spedizione: tracking || null,

@@ -8,7 +8,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { CATEGORIA_ATTIVITA } from '../../lib/constants'
+import { CATEGORIA_ATTIVITA, CARD_HOVER_STYLE } from '../../lib/constants'
 import { CATEGORIA_ICONS, ATTIVITA_STATO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { formatDate } from '../../lib/date-utils'
 
@@ -32,7 +32,7 @@ function ActivityCard({ act }) {
   return (
     <Link
       to={`/eventi/${act.evento?.id}`}
-      className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all"
+      className={'block ' + CARD_HOVER_STYLE}
     >
       <div className="flex items-start gap-3">
         <Icon
@@ -45,14 +45,14 @@ function ActivityCard({ act }) {
           <p className="text-sm text-gray-500 truncate mt-0.5">{act.evento?.titolo}</p>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             {act.categoria && (
-              <span className="text-xs text-gray-400">{CATEGORIA_ATTIVITA[act.categoria]}</span>
+              <span className="text-sm text-gray-500">{CATEGORIA_ATTIVITA[act.categoria]}</span>
             )}
             {act.deadline && (
-              <span className={`text-xs font-medium ${urgency?.colorClass || 'text-gray-400'}`}>
+              <span className={`text-sm font-medium ${urgency?.colorClass || 'text-gray-500'}`}>
                 {urgency ? urgency.text + ' · ' : ''}{formatDate(act.deadline)}
               </span>
             )}
-            <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="flex items-center gap-1 text-sm text-gray-500">
               <Icon icon={ATTIVITA_STATO_ICONS[stato] || ATTIVITA_STATO_ICONS.da_fare} size={13} />
               {stato === 'da_fare' ? 'Da fare' : stato === 'in_corso' ? 'In corso' : stato}
             </span>
@@ -81,7 +81,7 @@ export function MieAttivitaPage() {
 
   return (
     <div>
-      <div className="px-6 md:px-8 pt-4">
+      <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Le mie attività' }]} />
       </div>
       <div className="md:hidden">
@@ -91,7 +91,7 @@ export function MieAttivitaPage() {
         title="Le mie attività"
         subtitle="Attività assegnate a te, ordinate per urgenza"
       />
-      <div className="px-6 md:px-8 pb-8">
+      <div className="px-4 md:px-8 pb-8">
         {loading ? (
           <LoadingSkeleton lines={5} />
         ) : myActivities.length === 0 ? (

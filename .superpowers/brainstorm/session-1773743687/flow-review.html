@@ -1,0 +1,163 @@
+<h2>Revisione flussi — Lacune e migliorie</h2>
+<p class="subtitle">Analisi critica di tutti i flussi progettati</p>
+
+<!-- PROBLEMA 1 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(239,68,68,0.15);color:#ef4444;">🔴 1 — Nessun flusso per modifica o cancellazione evento</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Cosa succede se dopo l'approvazione cambiano le date, il luogo, o l'evento viene cancellato del tutto? Oggi probabilmente un messaggio WhatsApp. Tutti quelli che stavano lavorando (Ivan ha gia' spedito il materiale, Federica ha prenotato il ristorante) devono saperlo.</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong><br>
+      <strong>Modifica significativa</strong> (date, luogo, n. partecipanti) → notifica automatica a tutti gli assegnati + log nel workflow. Se materiale gia' spedito → alert a Ivan.<br>
+      <strong>Cancellazione</strong> → stato "cancellato" + motivo obbligatorio + notifica a tutti + alert rientro materiale se gia' uscito. L'evento resta visibile (non cancellato dal DB) per storico.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 2 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(239,68,68,0.15);color:#ef4444;">🔴 2 — Materiale portato a mano vs spedito</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Il flusso materiale assume sempre "Ivan prepara e spedisce". Ma a volte il materiale lo porta direttamente chi va all'evento (un commerciale, Roberto, Paolo...). Oppure e' gia' presso un agente da un evento precedente.</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> In <code>material_movements</code> aggiungere <strong>modalita'</strong>:<br>
+      <code>spedizione | mano | gia_in_loco | trasferimento_da_altro_evento</code><br>
+      Se "mano" → il responsabile e' chi lo porta, non Ivan. Se "gia' in loco" → nessuna spedizione, solo conferma che c'e'.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 3 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(239,68,68,0.15);color:#ef4444;">🔴 3 — Nessun flusso per il materiale marketing</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Nicola prepara locandine, depliant, video. Ma da dove arriva il brief? Chi approva la locandina finita? Chi la invia ai partecipanti? Oggi questo e' probabilmente un giro di email/WhatsApp con 5 versioni del file.</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> Nella sezione <strong>Documenti</strong> dell'evento, il flusso per materiale marketing diventa:<br>
+      1. Federica/commerciale inseriscono le info base (brief) nella scheda evento<br>
+      2. Nicola riceve scadenza "Prepara locandina" dalla checklist<br>
+      3. Nicola carica il file come documento con stato <strong>bozza</strong><br>
+      4. Chi deve validare (Federica? Enrica?) segna <strong>approvato</strong> o chiede modifiche<br>
+      5. Versione finale → stato <strong>definitivo</strong>, scaricabile da tutti<br>
+      La tabella <code>documents</code> ha gia' il campo versione — basta aggiungere <strong>stato: bozza | in_revisione | approvato | definitivo</strong>
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 4 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(245,158,11,0.15);color:#f59e0b;">🟡 4 — Eventi ricorrenti e clonazione</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Guardando il vostro Excel, alcuni eventi si ripetono: "Corso MMC" appare 3 volte, "WS MMC" pure. Ogni anno ci saranno gli stessi congressi (SIOT, SICM, EFORT...). Ricreare tutto da zero ogni volta e' lavoro inutile.</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> Funzione <strong>"Clona evento"</strong> — prende un evento passato e ne crea uno nuovo copiando: tipo, luogo, note, staff tipici, materiale tipico, sotto-attivita'. Le date restano da compilare. Non serve una tabella nuova, e' solo logica applicativa.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 5 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(245,158,11,0.15);color:#f59e0b;">🟡 5 — Rientro parziale e materiale danneggiato</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Il flusso materiale prevede "rientrato si/no". Ma se un kit di 5 pezzi torna con 4? O se torna rotto e serve manutenzione?</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> In <code>material_movements</code> (rientro) aggiungere:<br>
+      <strong>stato_rientro:</strong> <code>integro | parziale | danneggiato</code><br>
+      <strong>quantita_rientrata</strong> (se diversa da quella uscita)<br>
+      <strong>note_danni</strong> (testo libero + possibilita' di allegare foto)<br>
+      In <code>materials</code> lo stato può diventare <strong>in_manutenzione</strong> se danneggiato, e torna "disponibile" quando riparato.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 6 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(245,158,11,0.15);color:#f59e0b;">🟡 6 — Il commerciale non vede lo stato di avanzamento</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Il commerciale propone un evento, poi cosa vede? Nel flusso attuale ha accesso limitato. Ma ha bisogno di sapere: e' stato approvato? Il materiale e' pronto? La locandina c'e'?</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> Il commerciale vede una <strong>scheda stato semplificata</strong> dei propri eventi:<br>
+      <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;">
+        <span style="padding:6px 10px;background:rgba(16,185,129,0.15);border-radius:12px;font-size:11px;">✅ Approvato</span>
+        <span style="padding:6px 10px;background:rgba(16,185,129,0.15);border-radius:12px;font-size:11px;">✅ Logistica confermata</span>
+        <span style="padding:6px 10px;background:rgba(245,158,11,0.15);border-radius:12px;font-size:11px;">⏳ Materiale demo in preparazione</span>
+        <span style="padding:6px 10px;background:rgba(239,68,68,0.15);border-radius:12px;font-size:11px;">❌ Locandina non pronta</span>
+        <span style="padding:6px 10px;background:rgba(16,185,129,0.15);border-radius:12px;font-size:11px;">✅ Gadget pronti</span>
+      </div>
+      Senza dettagli interni (chi sta facendo cosa), solo lo stato macro. Read-only.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 7 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(245,158,11,0.15);color:#f59e0b;">🟡 7 — Nessun flusso gadget</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Abbiamo le tabelle gadget ma nessun flusso operativo. Chi decide quanti gadget servono? Chi li prepara? Chi controlla le scorte?</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> Flusso semplificato (no approvazione, i gadget sono meno critici):<br>
+      1. Federica (o chi pianifica) indica i gadget necessari nella scheda evento<br>
+      2. Ivan/Chiara preparano il pacco gadget insieme al materiale demo<br>
+      3. Quando la scorta scende sotto la soglia minima → alert automatico a Chiara per riordino<br>
+      Nessuna movimentazione singola — solo quantita' consumate per evento.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 8 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(14,165,233,0.15);color:#0ea5e9;">🔵 8 — Integrazione calendario esterno</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Lo staff e i commerciali hanno gia' i loro calendari (Outlook, Google Calendar). Se gli eventi non compaiono li', rischiano di dimenticarli.</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix (v2, non essenziale al lancio):</strong> Export <strong>iCal (.ics)</strong> per singolo evento o feed calendario. Cliccando "Aggiungi al calendario" l'evento finisce su Outlook/Google. Implementazione semplice, grande impatto pratico.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 9 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(14,165,233,0.15);color:#0ea5e9;">🔵 9 — Import dati iniziali da Excel</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Avete gia' un Excel con 44 eventi. Quando l'app parte, inserirli tutti a mano e' un lavoro enorme. E l'inventario materiale?</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> Funzione di <strong>import CSV/Excel</strong> per:<br>
+      — Eventi esistenti (migrazione iniziale)<br>
+      — Anagrafica materiale demo (inventario iniziale)<br>
+      — Contatti medici (se avete una lista)<br>
+      — Utenti (creazione batch)<br>
+      Utile al lancio, poi si usa l'app.
+    </p>
+  </div>
+</div>
+
+<!-- PROBLEMA 10 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header" style="background:rgba(14,165,233,0.15);color:#0ea5e9;">🔵 10 — Stampe operative</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Ivan potrebbe aver bisogno di stampare una packing list (cosa mettere nel pacco). Federica potrebbe voler stampare la lista partecipanti. Serve un export stampabile?</p>
+    <p style="padding:8px;background:rgba(16,185,129,0.1);border-radius:4px;">
+      <strong style="color:#10b981;">Fix:</strong> Per le viste critiche (scheda evento riepilogativa, packing list materiale, lista partecipanti) prevedere un <strong>pulsante "Stampa/PDF"</strong> con layout pulito. Non serve una libreria PDF complessa — basta un CSS print-friendly.
+    </p>
+  </div>
+</div>
+
+<!-- RIEPILOGO -->
+<div style="margin-top:24px;padding:20px;background:rgba(99,102,241,0.06);border:2px solid rgba(99,102,241,0.2);border-radius:12px;">
+  <h3 style="margin:0 0 16px;">Riepilogo: 10 problemi trovati</h3>
+  <div style="display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;font-size:13px;align-items:center;">
+    <span style="color:#ef4444;">🔴</span><span>Flusso modifica/cancellazione evento</span><span>Da aggiungere al design</span>
+    <span style="color:#ef4444;">🔴</span><span>Materiale portato a mano vs spedito</span><span>Campo in material_movements</span>
+    <span style="color:#ef4444;">🔴</span><span>Flusso materiale marketing (brief → bozza → approvazione)</span><span>Stato su documents</span>
+    <span style="color:#f59e0b;">🟡</span><span>Clonazione eventi ricorrenti</span><span>Logica applicativa</span>
+    <span style="color:#f59e0b;">🟡</span><span>Rientro parziale / materiale danneggiato</span><span>Campi in material_movements</span>
+    <span style="color:#f59e0b;">🟡</span><span>Vista stato semplificata per commerciali</span><span>UI read-only</span>
+    <span style="color:#f59e0b;">🟡</span><span>Flusso operativo gadget</span><span>Semplificato, no approvazione</span>
+    <span style="color:#0ea5e9;">🔵</span><span>Export calendario iCal</span><span>v2</span>
+    <span style="color:#0ea5e9;">🔵</span><span>Import iniziale da Excel</span><span>Al lancio</span>
+    <span style="color:#0ea5e9;">🔵</span><span>Stampe operative (packing list, partecipanti)</span><span>CSS print</span>
+  </div>
+  <div style="margin-top:12px;font-size:12px;color:#6b7280;">
+    🔴 = lacuna critica (senza questo un flusso si blocca) · 🟡 = miglioria importante · 🔵 = nice-to-have (v2 o post-lancio)
+  </div>
+</div>

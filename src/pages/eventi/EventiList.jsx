@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
+import { useExportHandler } from '../../hooks/useExportHandler'
 import { EventCard } from '../../components/eventi/EventCard'
 import { EventFilters } from '../../components/eventi/EventFilters'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -13,10 +14,8 @@ import { ExportButton } from '../../components/ui/ExportButton'
 import { NAV_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { AlertBanner } from '../../components/dashboard/AlertBanner'
-import { exportToExcel } from '../../lib/export-utils'
 import { TIPO_EVENTO, STATO_EVENTO } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
-import { useToastStore } from '../../components/ui/Toast'
 
 const EXPORT_COLUMNS_EVENTI = [
   { key: 'titolo', label: 'Titolo', width: 30 },
@@ -41,36 +40,16 @@ export function EventiList() {
   const user = useAuthStore(s => s.user)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const ruolo = useAuthStore(s => s.profile?.ruolo)
-  const addToast = useToastStore(s => s.add)
-  const [exporting, setExporting] = useState(false)
+  const { exporting, handleExport } = useExportHandler()
 
   useEffect(() => {
-    if (user && ruolo) {
-      setRoleFilter(user.id, ruolo)
-    } else {
-      fetchEvents()
-    }
-  }, [user?.id, ruolo])
-
-  const handleExport = async () => {
-    if (events.length === 0) { addToast('Nessun dato da esportare', 'warning'); return }
-    setExporting(true)
-    try {
-      const today = new Date().toISOString().slice(0, 10)
-      await exportToExcel({
-        columns: EXPORT_COLUMNS_EVENTI,
-        rows: events,
-        filename: `eventi_${today}.xlsx`,
-        sheetName: 'Eventi',
-      })
-      addToast('File esportato', 'success')
-    } catch { addToast('Errore durante l\'esportazione', 'error') }
-    setExporting(false)
-  }
+    if (!user || !profile) return // Wait for auth to fully load
+    setRoleFilter(user.id, ruolo)
+  }, [user?.id, profile?.id])
 
   return (
     <div>
-      <div className="px-6 md:px-8 pt-4">
+      <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Eventi' }]} />
       </div>
       <PageHeader
@@ -94,7 +73,7 @@ export function EventiList() {
                 {showAll ? 'I miei eventi' : 'Mostra tutti gli eventi'}
               </Button>
             )}
-            <ExportButton onClick={handleExport} loading={exporting} />
+            <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: events, filename: 'eventi', sheetName: 'Eventi' })} loading={exporting} />
             <Link to="/eventi/calendario">
               <Button variant="secondary">
                 <Icon icon={NAV_ICONS.calendario} size={18} className="mr-2" />
@@ -112,7 +91,7 @@ export function EventiList() {
       />
       {(ruolo === 'commerciale' || ruolo === 'area_manager') && <AlertBanner />}
       <EventFilters />
-      <div className="px-6 md:px-8 py-4">
+      <div className="px-4 md:px-8 py-4">
         {loading ? (
           <LoadingSkeleton lines={5} />
         ) : error ? (

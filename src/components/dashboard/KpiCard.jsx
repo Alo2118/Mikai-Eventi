@@ -1,7 +1,13 @@
-export function KpiCard({ title, value, subtitle, valueColor, children }) {
+import { CARD_STYLE } from '../../lib/constants'
+import { Icon } from '../ui/Icon'
+
+export function KpiCard({ title, value, subtitle, valueColor, icon, className = '', children }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
-      <p className="text-sm font-medium text-gray-500">{title}</p>
+    <div className={CARD_STYLE + ' space-y-2' + (className ? ' ' + className : '')}>
+      <p className="text-sm font-medium text-gray-500 flex items-center gap-1.5">
+        {icon && <Icon icon={icon} size={14} className="text-gray-400" />}
+        {title}
+      </p>
       {value !== undefined && value !== null && (
         <p className={`text-3xl font-bold ${valueColor || 'text-gray-900'}`}>
           {value}

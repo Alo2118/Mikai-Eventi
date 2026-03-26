@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { STATO_ATTIVITA, CATEGORIA_ATTIVITA, STATO_ATTIVITA_COLORE, CATEGORIA_ATTIVITA_COLORE } from '../../lib/constants'
-import { ATTIVITA_STATO_ICONS, CATEGORIA_ICONS } from '../../lib/icons'
+import { ATTIVITA_STATO_ICONS, CATEGORIA_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { formatDate } from '../../lib/date-utils'
 
 const COLOR_CLASSES = {
@@ -41,7 +42,8 @@ function StatoBadge({ displayStato }) {
   )
 }
 
-export function ActivityCard({ activity, onStart, onComplete, onAssign, currentUserId }) {
+export function ActivityCard({ activity, onStart, onComplete, onAssign, onDisable, currentUserId }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const now = new Date()
   const deadline = activity.deadline ? new Date(activity.deadline) : null
   const isOverdue = ['da_fare', 'in_corso'].includes(activity.stato) && deadline && deadline < now
@@ -87,6 +89,15 @@ export function ActivityCard({ activity, onStart, onComplete, onAssign, currentU
             </span>
           )}
           <StatoBadge displayStato={displayStato} />
+          {onDisable && activity.stato !== 'completata' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
+              className="text-gray-400 hover:text-red-500 p-1.5 min-h-[48px] min-w-[48px] flex items-center justify-center transition-colors"
+              aria-label="Rimuovi attività"
+            >
+              <Icon icon={ACTION_ICONS.close} size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -145,6 +156,16 @@ export function ActivityCard({ activity, onStart, onComplete, onAssign, currentU
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Rimuovi attività"
+        message={`Vuoi rimuovere "${activity.descrizione}" dalla preparazione?`}
+        confirmLabel="Rimuovi"
+        onConfirm={() => { setShowDeleteConfirm(false); onDisable(activity.id) }}
+        onCancel={() => setShowDeleteConfirm(false)}
+        danger
+      />
     </div>
   )
 }

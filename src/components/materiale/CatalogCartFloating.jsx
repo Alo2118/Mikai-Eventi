@@ -1,12 +1,13 @@
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { ACTION_ICONS, CATALOGO_ICONS } from '../../lib/icons'
+import { CARD_STYLE } from '../../lib/constants'
 
 function CartItem({ item, onUpdateQuantity, onUpdateNote }) {
   const { product, quantity, note } = item
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+    <div className={CARD_STYLE + ' space-y-3'}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="font-medium text-gray-900 text-base leading-snug">{product.nome}</p>
@@ -112,7 +113,7 @@ export function CatalogCartFloating({
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Icon icon={CATALOGO_ICONS.cart} size={40} className="text-gray-300 mb-3" />
+                  <Icon icon={CATALOGO_ICONS.cart} size={40} className="text-gray-400 mb-3" />
                   <p className="text-gray-500 font-medium">Nessun prodotto nel carrello</p>
                   <p className="text-gray-400 text-sm mt-1">Aggiungi prodotti dal catalogo</p>
                 </div>

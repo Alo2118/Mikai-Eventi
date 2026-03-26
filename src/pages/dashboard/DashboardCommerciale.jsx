@@ -26,7 +26,7 @@ export function DashboardCommerciale() {
 
   return (
     <div>
-      <div className="px-6 md:px-8 pt-4">
+      <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Dashboard' }]} />
       </div>
       <div className="md:hidden">
@@ -36,7 +36,7 @@ export function DashboardCommerciale() {
         title={`Ciao, ${profile?.nome || ''}`}
         subtitle="La tua area di lavoro"
       />
-      <div className="px-6 md:px-8 space-y-6 pb-8">
+      <div className="px-4 md:px-8 space-y-6 pb-8">
         {loading ? <LoadingSkeleton lines={8} /> : (
           <>
             <QuickActions />

@@ -1,0 +1,132 @@
+<h2>Sezione 1 (v2): Modello Dati Aggiornato</h2>
+<p class="subtitle">Aggiunte: logistica trasporti/alloggi, sotto-eventi, postazioni</p>
+
+<div class="mockup">
+  <div class="mockup-header">Esempio reale — Come si modella il tuo evento</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;line-height:1.7;">
+    <div style="background:rgba(16,185,129,0.08);border-left:4px solid #10b981;padding:16px;border-radius:0 8px 8px 0;margin-bottom:16px;">
+      <strong style="font-size:15px;">📅 Evento principale</strong><br>
+      Corso Fissatore Poloso — 17-18 mar 2026 — Sede produttiva Mikai (interno)<br>
+      Formatore: Paolo Montresor · Postazioni: 5 · Discenti: 30 · Commerciali: 3
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="background:rgba(99,102,241,0.08);border-left:4px solid #6366f1;padding:12px;border-radius:0 8px 8px 0;">
+        <strong>📋 Materiale richiesto</strong><br>
+        5x Kit demo Stylo → stato: richiesto<br>
+        5x Kit demo MiniStylo → stato: richiesto
+      </div>
+      <div style="background:rgba(168,85,247,0.08);border-left:4px solid #a855f7;padding:12px;border-radius:0 8px 8px 0;">
+        <strong>👥 Staff & Partecipanti</strong><br>
+        Paolo Montresor (formatore)<br>
+        3 commerciali (staff)<br>
+        30 discenti (partecipanti)
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="background:rgba(245,158,11,0.08);border-left:4px solid #f59e0b;padding:12px;border-radius:0 8px 8px 0;">
+        <strong>🍽️ Sotto-eventi</strong><br>
+        17 mar 12:30 — Pranzo (ristorante X, 35 pax)<br>
+        17 mar 20:00 — Cena (ristorante Y, 20 pax)<br>
+        18 mar 12:30 — Pranzo (ristorante X, 35 pax)
+      </div>
+      <div style="background:rgba(14,165,233,0.08);border-left:4px solid #0ea5e9;padding:12px;border-radius:0 8px 8px 0;">
+        <strong>🚆 Logistica trasporti/alloggi</strong><br>
+        Paolo M. — Treno MI→VR 16 mar, Hotel Verona 2 notti<br>
+        Discente Dr. Rossi — Aereo NA→VR, transfer aeroporto→sede<br>
+        Commerciale Bianchi — Auto propria
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:32px;">
+  <div class="mockup">
+    <div class="mockup-header">Schema Database — Tabelle Nuove e Modificate</div>
+    <div class="mockup-body" style="padding:24px;font-family:monospace;font-size:13px;line-height:1.6;">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+        <!-- EVENTS aggiornato -->
+        <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:16px;">
+          <h3 style="margin:0 0 8px;color:#10b981;">📅 events <span style="font-size:11px;background:#10b981;color:white;padding:2px 6px;border-radius:4px;">AGGIORNATO</span></h3>
+          <div>id, titolo, tipo_evento</div>
+          <div>luogo, sede_dettaglio</div>
+          <div>data_inizio, data_fine</div>
+          <div>desk_richiesto, <strong>n_postazioni</strong></div>
+          <div>stato: proposto → confermato → in_preparazione → in_corso → concluso</div>
+          <div><strong>parent_event_id → events (NULL se principale)</strong></div>
+          <div>promotore_id → users</div>
+          <div>note, contributo_economico_only</div>
+        </div>
+
+        <!-- SUB-EVENTS -->
+        <div style="background:rgba(245,158,11,0.08);border:2px solid rgba(245,158,11,0.5);border-radius:8px;padding:16px;">
+          <h3 style="margin:0 0 8px;color:#f59e0b;">🍽️ event_sub_activities <span style="font-size:11px;background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;">NUOVO</span></h3>
+          <div>id, event_id → events</div>
+          <div>tipo: <strong>pranzo | cena | aperitivo | meeting | coffee_break | altro</strong></div>
+          <div>data_ora, durata_minuti</div>
+          <div>luogo, indirizzo</div>
+          <div>n_partecipanti_previsti</div>
+          <div>fornitore (ristorante, catering...)</div>
+          <div>costo_previsto, costo_effettivo</div>
+          <div>prenotazione_confermata: si/no</div>
+          <div>note</div>
+        </div>
+
+        <!-- LOGISTICS -->
+        <div style="background:rgba(14,165,233,0.08);border:2px solid rgba(14,165,233,0.5);border-radius:8px;padding:16px;">
+          <h3 style="margin:0 0 8px;color:#0ea5e9;">🚆 event_logistics <span style="font-size:11px;background:#0ea5e9;color:white;padding:2px 6px;border-radius:4px;">NUOVO</span></h3>
+          <div>id, event_id → events</div>
+          <div>persona_id → users (o partecipante esterno)</div>
+          <div>persona_nome (se non è un user)</div>
+          <div><strong>— TRASPORTO —</strong></div>
+          <div>tipo_trasporto: <strong>treno | aereo | auto | transfer | bus | altro | nessuno</strong></div>
+          <div>da_luogo, a_luogo</div>
+          <div>data_ora_partenza, data_ora_arrivo</div>
+          <div>compagnia, codice_prenotazione</div>
+          <div>prenotato: si/no</div>
+          <div><strong>— ALLOGGIO —</strong></div>
+          <div>hotel_nome, hotel_indirizzo</div>
+          <div>check_in, check_out, n_notti</div>
+          <div>prenotazione_hotel_confermata: si/no</div>
+          <div><strong>— COSTI —</strong></div>
+          <div>costo_trasporto, costo_alloggio</div>
+          <div>note</div>
+        </div>
+
+        <!-- EVENT_STAFF aggiornato -->
+        <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);border-radius:8px;padding:16px;">
+          <h3 style="margin:0 0 8px;color:#a855f7;">👥 event_staff <span style="font-size:11px;background:#a855f7;color:white;padding:2px 6px;border-radius:4px;">AGGIORNATO</span></h3>
+          <div>id, event_id → events</div>
+          <div>user_id → users</div>
+          <div>ruolo_evento: <strong>formatore | responsabile | staff | commerciale | relatore | ospite</strong></div>
+          <div>confermato: si/no</div>
+        </div>
+
+        <!-- PARTICIPANTS aggiornato -->
+        <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.25);border-radius:8px;padding:16px;">
+          <h3 style="margin:0 0 8px;color:#14b8a6;">📇 event_participants <span style="font-size:11px;background:#14b8a6;color:white;padding:2px 6px;border-radius:4px;">AGGIORNATO</span></h3>
+          <div>id, event_id → events</div>
+          <div>nome, cognome, email, telefono</div>
+          <div>ente_ospedaliero, ruolo_medico, specializzazione</div>
+          <div>tipo: <strong>discente | relatore_esterno | ospite | accompagnatore</strong></div>
+          <div>stato_iscrizione: invitato → confermato → presente → assente</div>
+          <div>note</div>
+        </div>
+
+        <!-- Tabelle invariate -->
+        <div style="background:rgba(107,114,128,0.05);border:1px solid rgba(107,114,128,0.2);border-radius:8px;padding:16px;">
+          <h3 style="margin:0 0 8px;color:#6b7280;">Invariate</h3>
+          <div>👤 <strong>users</strong> — utenti e ruoli</div>
+          <div>📦 <strong>materials</strong> — inventario materiale</div>
+          <div>🔄 <strong>material_movements</strong> — storico movimenti</div>
+          <div>📋 <strong>event_materials</strong> — materiale per evento</div>
+          <div>⏰ <strong>event_deadlines</strong> — scadenze e notifiche</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

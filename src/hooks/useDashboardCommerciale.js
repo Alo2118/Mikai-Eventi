@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { toISO } from '../lib/date-utils'
 
 export const useDashboardCommercialeStore = create((set, get) => ({
   myEvents: [],
@@ -59,10 +60,10 @@ export const useDashboardCommercialeStore = create((set, get) => ({
     const [events, newContacts] = await Promise.all([
       supabase.from('events').select('stato')
         .in('promotore_id', userIds)
-        .gte('data_inizio', qStart.toISOString()),
+        .gte('data_inizio', toISO(qStart)),
       supabase.from('contacts').select('id', { count: 'exact', head: true })
         .eq('proprietario_id', userId)
-        .gte('created_at', oneMonthAgo.toISOString()),
+        .gte('created_at', toISO(oneMonthAgo)),
     ])
 
     const eventiByStato = (events.data || []).reduce((acc, e) => {

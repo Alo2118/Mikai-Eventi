@@ -55,6 +55,7 @@ import {
 
   // Status/feedback
   AlertTriangle,
+  Inbox,
   CircleDot,
   Circle,
   CheckCircle2,
@@ -111,8 +112,11 @@ import {
   Clipboard,
   Euro,
   Hotel,
+  Mail,
+  Phone,
   Plane,
   Receipt,
+  Repeat,
   TrainFront,
   UserCheck,
   UserPlus,
@@ -139,6 +143,21 @@ import {
   TrendingUp,
   TrendingDown,
   CalendarPlus,
+
+  // PWA / Connectivity
+  Wifi,
+  WifiOff,
+  MonitorSmartphone,
+
+  // Compliance
+  Shield,
+  Scale,
+  ScrollText,
+  History,
+  Fingerprint,
+  BadgeCheck,
+  FileWarning,
+  Gavel,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -210,6 +229,7 @@ export const NAV_ICONS = {
   costi: Euro,
   checklist: ClipboardCheck,
   report: BarChart3,
+  altro: LayoutGrid,
 }
 
 // ═══════════════════════════════════════════
@@ -317,6 +337,7 @@ export const FEEDBACK_ICONS = {
   info: Info,
   success: CheckCircle,
   error: XCircle,
+  empty: Inbox,
 }
 
 // ═══════════════════════════════════════════
@@ -348,6 +369,13 @@ export const CONTATTI_ICONS = {
   medico: UserCheck,
   fornitore: Receipt,
   aggiungi: UserPlus,
+  email: Mail,
+  telefono: Phone,
+  azienda: Building2,
+  zona: MapPin,
+  ruolo: UserCheck,
+  specializzazione: GraduationCap,
+  proprietario: User,
 }
 
 // ═══════════════════════════════════════════
@@ -358,6 +386,19 @@ export const LOGISTICA_PERSONE_ICONS = {
   trasporto: Plane,
   bus: Bus,
   bed: Bed,
+}
+
+// ═══════════════════════════════════════════
+// Info evento (EventInfoTab rows)
+// ═══════════════════════════════════════════
+export const INFO_EVENTO_ICONS = {
+  luogo: MapPin,
+  sede: Building,
+  desk: LayoutGrid,
+  postazioni: LayoutGrid,
+  note: FileText,
+  ricorrenza: Repeat,
+  cancellazione: XCircle,
 }
 
 // ═══════════════════════════════════════════
@@ -443,4 +484,29 @@ export const DASHBOARD_ICONS = {
   trendDown: TrendingDown,
   newEvent: CalendarPlus,
   newContact: UserPlus,
+}
+
+// ═══════════════════════════════════════════
+// PWA / Connectivity
+// ═══════════════════════════════════════════
+export const PWA_ICONS = {
+  wifiOff: WifiOff,
+  online: Wifi,
+  install: MonitorSmartphone,
+}
+
+// ═══════════════════════════════════════════
+// Compliance
+// ═══════════════════════════════════════════
+export const COMPLIANCE_ICONS = {
+  compliance: Shield,
+  hcp: UserCheck,
+  tov: Scale,
+  interazione: ScrollText,
+  audit: History,
+  privacy: Fingerprint,
+  verificato: BadgeCheck,
+  segnalato: FileWarning,
+  registrato: Clock,
+  gavel: Gavel,
 }

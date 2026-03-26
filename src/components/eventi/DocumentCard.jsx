@@ -1,4 +1,4 @@
-import { TIPO_DOCUMENTO, TIPO_DOCUMENTO_COLORE } from '../../lib/constants'
+import { TIPO_DOCUMENTO, TIPO_DOCUMENTO_COLORE, CARD_HOVER_STYLE } from '../../lib/constants'
 import { DOCUMENTO_ICONS } from '../../lib/icons'
 import { formatDate } from '../../lib/date-utils'
 import { formatFileSize } from '../../lib/format-utils'
@@ -24,7 +24,7 @@ export function DocumentCard({ doc, canDelete, onPreview, onDownload, onDelete }
     : 'Sconosciuto'
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all">
+    <div className={CARD_HOVER_STYLE}>
       <div className="flex items-start gap-3">
         <div className="shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
           <Icon icon={DocIcon} size={20} className="text-gray-600" />

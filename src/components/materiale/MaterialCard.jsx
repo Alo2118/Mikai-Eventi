@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
-import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE } from '../../lib/constants'
+import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, CARD_HOVER_STYLE } from '../../lib/constants'
 
 export function MaterialCard({ material, linkTo }) {
   const Wrapper = linkTo ? Link : 'div'
@@ -9,7 +9,7 @@ export function MaterialCard({ material, linkTo }) {
   return (
     <Wrapper
       {...wrapperProps}
-      className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all"
+      className={'block ' + CARD_HOVER_STYLE}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">

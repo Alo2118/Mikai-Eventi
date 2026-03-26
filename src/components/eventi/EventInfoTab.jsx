@@ -1,20 +1,24 @@
 import { useState } from 'react'
-import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE } from '../../lib/constants'
-import { formatDateRange } from '../../lib/date-utils'
+import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { formatDateRange, formatDate } from '../../lib/date-utils'
 import { EventStatusFlow } from './EventStatusFlow'
 import { EventApprovalBar } from './EventApprovalBar'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, TIPO_EVENTO_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS } from '../../lib/icons'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
+import { formatCurrency } from '../../lib/format-utils'
 
-function InfoRow({ label, value }) {
+function InfoRow({ label, icon, value }) {
   if (!value) return null
   return (
     <div className="py-3 border-b border-gray-100">
-      <dt className="text-sm text-gray-500">{label}</dt>
+      <dt className="text-sm text-gray-500 flex items-center gap-1.5">
+        {icon && <Icon icon={icon} size={14} className="text-gray-400" />}
+        {label}
+      </dt>
       <dd className="mt-0.5 text-base text-gray-900">{value}</dd>
     </div>
   )
@@ -46,6 +50,10 @@ export function EventInfoTab({ event, onUpdate }) {
       budget_previsto: event.budget_previsto ?? '',
       indirizzo_spedizione: event.indirizzo_spedizione || '',
       note: event.note || '',
+      deadline_preparazione: event.deadline_preparazione || '',
+      deadline_partecipanti: event.deadline_partecipanti || '',
+      data_consegna_prevista: event.data_consegna_prevista || '',
+      data_spedizione_prevista: event.data_spedizione_prevista || '',
     })
     setEditing(true)
   }
@@ -56,6 +64,10 @@ export function EventInfoTab({ event, onUpdate }) {
       ...fields,
       budget_previsto: fields.budget_previsto !== '' ? Number(fields.budget_previsto) : null,
       data_fine: fields.data_fine || fields.data_inizio,
+      deadline_preparazione: fields.deadline_preparazione || null,
+      deadline_partecipanti: fields.deadline_partecipanti || null,
+      data_consegna_prevista: fields.data_consegna_prevista || null,
+      data_spedizione_prevista: fields.data_spedizione_prevista || null,
     }
     const { error } = await updateEvent(event.id, payload)
     setSaving(false)
@@ -85,7 +97,7 @@ export function EventInfoTab({ event, onUpdate }) {
       )}
 
       {editing ? (
-        <div className="space-y-4">
+        <div className={FORM_CONTAINER_STYLE + ' border border-gray-200 space-y-4'}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Titolo <span className="text-red-500">*</span></label>
             <input className={INPUT_STYLE} value={fields.titolo} onChange={set('titolo')} />
@@ -116,6 +128,24 @@ export function EventInfoTab({ event, onUpdate }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Indirizzo spedizione</label>
             <input className={INPUT_STYLE} value={fields.indirizzo_spedizione} onChange={set('indirizzo_spedizione')} />
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scadenza preparazione</label>
+              <input type="date" className={INPUT_STYLE} value={fields.deadline_preparazione} onChange={set('deadline_preparazione')} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scadenza spedizione</label>
+              <input type="date" className={INPUT_STYLE} value={fields.data_spedizione_prevista} onChange={set('data_spedizione_prevista')} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Consegna prevista</label>
+              <input type="date" className={INPUT_STYLE} value={fields.data_consegna_prevista} onChange={set('data_consegna_prevista')} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scadenza iscrizioni</label>
+              <input type="date" className={INPUT_STYLE} value={fields.deadline_partecipanti} onChange={set('deadline_partecipanti')} />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
             <textarea className={`${INPUT_STYLE} min-h-[80px]`} value={fields.note} onChange={set('note')} />
@@ -130,32 +160,46 @@ export function EventInfoTab({ event, onUpdate }) {
         </div>
       ) : (
         <dl className="divide-y divide-gray-100">
-          <InfoRow label="Tipo evento" value={TIPO_EVENTO[event.tipo_evento]} />
-          <InfoRow label="Modalita'" value={MODALITA_EVENTO[event.modalita]} />
-          <InfoRow label="Date" value={formatDateRange(event.data_inizio, event.data_fine)} />
-          <InfoRow label="Luogo" value={event.luogo} />
-          <InfoRow label="Dettaglio sede" value={event.sede_dettaglio} />
+          <InfoRow label="Tipo evento" icon={TIPO_EVENTO_ICONS[event.tipo_evento]} value={TIPO_EVENTO[event.tipo_evento]} />
+          <InfoRow label="Modalità" icon={MODALITA_ICONS[event.modalita]} value={MODALITA_EVENTO[event.modalita]} />
+          <InfoRow label="Date" icon={NAV_ICONS.eventi} value={formatDateRange(event.data_inizio, event.data_fine)} />
+          <InfoRow label="Luogo" icon={INFO_EVENTO_ICONS.luogo} value={event.luogo} />
+          <InfoRow label="Dettaglio sede" icon={INFO_EVENTO_ICONS.sede} value={event.sede_dettaglio} />
           <InfoRow
             label="Promotore"
+            icon={NAV_ICONS.profilo}
             value={event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : null}
           />
           <InfoRow
             label="Area Manager"
+            icon={NAV_ICONS.profilo}
             value={event.manager ? `${event.manager.nome} ${event.manager.cognome}` : null}
           />
-          <InfoRow label="Desk richiesto" value={event.desk_richiesto ? 'Si' : 'No'} />
+          <InfoRow label="Desk richiesto" icon={INFO_EVENTO_ICONS.desk} value={event.desk_richiesto ? 'Sì' : 'No'} />
           {event.desk_richiesto && (
-            <InfoRow label="N. postazioni" value={event.n_postazioni} />
+            <InfoRow label="N. postazioni" icon={INFO_EVENTO_ICONS.postazioni} value={event.n_postazioni} />
           )}
           <InfoRow
             label="Budget previsto"
-            value={event.budget_previsto ? `\u20AC ${Number(event.budget_previsto).toLocaleString('it-IT')}` : null}
+            icon={COSTI_ICONS.costo}
+            value={event.budget_previsto ? formatCurrency(event.budget_previsto) : null}
           />
-          <InfoRow label="Indirizzo spedizione" value={event.indirizzo_spedizione} />
-          <InfoRow label="Ricorrenza" value={event.ricorrenza} />
-          <InfoRow label="Note" value={event.note} />
+          <InfoRow label="Indirizzo spedizione" icon={NAV_ICONS.logistica} value={event.indirizzo_spedizione} />
+          <InfoRow label="Ricorrenza" icon={INFO_EVENTO_ICONS.ricorrenza} value={event.ricorrenza} />
+          <InfoRow label="Note" icon={INFO_EVENTO_ICONS.note} value={event.note} />
+          {(event.deadline_preparazione || event.data_spedizione_prevista || event.data_consegna_prevista || event.deadline_partecipanti) && (
+            <div className="pt-4">
+              <h3 className="font-semibold text-lg mb-2">Scadenze</h3>
+              <dl className="divide-y divide-gray-100">
+                <InfoRow label="Scadenza preparazione" icon={FEEDBACK_ICONS.warning} value={event.deadline_preparazione ? formatDate(event.deadline_preparazione) : null} />
+                <InfoRow label="Scadenza spedizione" icon={MATERIALE_ICONS.uscita} value={event.data_spedizione_prevista ? formatDate(event.data_spedizione_prevista) : null} />
+                <InfoRow label="Consegna prevista" icon={ACTION_ICONS.check} value={event.data_consegna_prevista ? formatDate(event.data_consegna_prevista) : null} />
+                <InfoRow label="Scadenza iscrizioni" icon={NAV_ICONS.contatti} value={event.deadline_partecipanti ? formatDate(event.deadline_partecipanti) : null} />
+              </dl>
+            </div>
+          )}
           {event.motivo_cancellazione && (
-            <InfoRow label="Motivo annullamento" value={event.motivo_cancellazione} />
+            <InfoRow label="Motivo annullamento" icon={INFO_EVENTO_ICONS.cancellazione} value={event.motivo_cancellazione} />
           )}
         </dl>
       )}

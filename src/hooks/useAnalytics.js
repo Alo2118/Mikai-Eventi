@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { formatDateShort } from '../lib/date-utils'
+import { formatDateShort, nowISO } from '../lib/date-utils'
 
 function toMonthKey(dateStr) {
   if (!dateStr) return null
@@ -132,7 +132,7 @@ export const useAnalyticsStore = create((set, get) => ({
       .select('id')
       .in('stato', ['da_fare', 'in_corso'])
       .eq('obbligatoria', true)
-      .lt('deadline', new Date().toISOString())
+      .lt('deadline', nowISO())
     return { count: (data || []).length, trend: 0 }
   },
 

@@ -26,7 +26,7 @@ export const useContactsStore = create((set, get) => ({
     if (filters.tipo) query = query.eq('tipo_contatto', filters.tipo)
     if (filters.zoneId) query = query.eq('zone_id', filters.zoneId)
 
-    const { data, error } = await query
+    const { data, error } = await query.limit(300)
     set({ contacts: data || [], loading: false, error: error?.message })
     return { data, error }
   },

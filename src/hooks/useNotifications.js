@@ -12,7 +12,7 @@ export const useNotificationsStore = create((set, get) => ({
     set({ loading: true, error: null })
     const { data, error } = await supabase
       .from('notifications')
-      .select('*')
+      .select('id, user_id, tipo, titolo, messaggio, letta, created_at, link, link_label, entity_type, entity_id, gruppo')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -140,6 +140,12 @@ export const useNotificationsStore = create((set, get) => ({
       .subscribe()
 
     return channel
+  },
+
+  unsubscribeRealtime: (channel) => {
+    if (channel) {
+      supabase.removeChannel(channel)
+    }
   },
 
   fetchPreferences: async () => {

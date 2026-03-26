@@ -1,24 +1,56 @@
 import { useState } from 'react'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS } from '../../lib/icons'
-import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE } from '../../lib/constants'
+import { ACTION_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE } from '../../lib/constants'
 import { StatusBadge } from '../ui/StatusBadge'
+import { Button } from '../ui/Button'
 
-export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation }) {
+const TIPO_ICON = {
+  demo_kit: { icon: MATERIALE_ICONS.package, bg: 'bg-blue-100', text: 'text-blue-600', label: 'Kit' },
+  strumentario: { icon: MATERIALE_ICONS.package_open, bg: 'bg-purple-100', text: 'text-purple-600', label: 'Strum.' },
+  montaggio: { icon: MATERIALE_ICONS.manutenzione, bg: 'bg-orange-100', text: 'text-orange-600', label: 'Mont.' },
+  pezzo_sfuso: { icon: MATERIALE_ICONS.package, bg: 'bg-gray-100', text: 'text-gray-600', label: 'Sfuso' },
+  gadget: { icon: MATERIALE_ICONS.gadget, bg: 'bg-pink-100', text: 'text-pink-600', label: 'Gadget' },
+}
+
+// Uniform action button style — same for all states
+const ACTION_BTN = 'w-9 h-9 rounded-lg flex items-center justify-center transition-colors flex-shrink-0'
+
+export function MaterialListRow({ row, availability, canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation }) {
   const [expanded, setExpanded] = useState(false)
   const isPending = row.stato === 'richiesto'
   const isConfirmed = row.stato === 'approvato'
   const isRejected = row.stato === 'rifiutato'
   const isInPrep = row.stato === 'in_preparazione'
   const product = row.product
+  const [localQty, setLocalQty] = useState(row.quantita || 1)
   const [showConfirmForm, setShowConfirmForm] = useState(false)
   const [confirmQty, setConfirmQty] = useState(row.quantita || 1)
   const [confirmNote, setConfirmNote] = useState('')
 
-  // Per-row editability: editable if pending or confirmed (not in_preparazione)
-  const rowEditable = canEdit && (isPending || isConfirmed) && !isInPrep
-  // Removable only if pending
+  // Editable in ALL states except rejected (including in_preparazione)
+  const closedStates = ['rifiutato']
+  const rowEditable = canEdit && !closedStates.includes(row.stato)
   const rowRemovable = canEdit && isPending
+
+  const tipo = TIPO_ICON[product?.tipo] || TIPO_ICON.demo_kit
+
+  // Availability
+  const qtyRequested = row.quantita || 1
+  const avail = availability || null
+  const inMagazzino = avail?.inMagazzino ?? null
+  const pressoEvento = avail?.pressoEvento ?? 0
+  const pressoAgente = avail?.pressoAgente ?? 0
+  const totaleEsemplari = avail?.totale ?? null
+  const hasAvailability = avail != null
+  const isInsufficient = hasAvailability && inMagazzino < qtyRequested
+
+  // Commit quantity to server (on blur, Enter, or +/- buttons)
+  const commitQty = (val) => {
+    const qty = Math.max(1, parseInt(val) || 1)
+    setLocalQty(qty)
+    if (qty !== (row.quantita || 1)) onUpdate(row.id, { quantita: qty })
+  }
 
   return (
     <div className={`rounded-xl border overflow-hidden transition-all ${
@@ -28,103 +60,167 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
       'border-gray-200 bg-white'
     }`}>
       <div
-        className="flex items-center gap-3 p-4 cursor-pointer"
+        className="p-3 md:p-4 cursor-pointer"
         onClick={() => setExpanded(!expanded)}
         role="button"
         aria-expanded={expanded}
       >
-        {/* Status indicator bar */}
-        <div className={`w-2 h-10 rounded-full flex-shrink-0 ${
-          isInPrep ? 'bg-mikai-400' :
-          isConfirmed ? 'bg-green-400' :
-          isRejected ? 'bg-red-400' :
-          'bg-gray-300'
-        }`} />
+        <div className="flex items-center gap-3">
+          {/* Type icon */}
+          <div className={`w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${tipo.bg}`}>
+            <Icon icon={tipo.icon} size={18} className={tipo.text} />
+          </div>
 
-        {/* Product info */}
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-medium text-gray-900 truncate">{product?.nome}</p>
-          <p className="text-sm text-gray-500">{product?.brand?.nome}</p>
-        </div>
+          {/* Name + meta */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm md:text-base font-medium text-gray-900 truncate">{product?.nome}</p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className={`text-xs font-medium ${tipo.text}`}>{tipo.label}</span>
+              {product?.brand?.nome && <span className="text-xs text-gray-400">· {product.brand.nome}</span>}
+              <span className="md:hidden">
+                {isConfirmed && row.quantita_approvata != null && row.quantita_approvata < (row.quantita || 1) ? (
+                  <span className="px-2 py-0.5 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full">Parziale</span>
+                ) : (
+                  <StatusBadge stato={row.stato} labels={STATO_MATERIALE_LISTA} colors={STATO_MATERIALE_LISTA_COLORE} />
+                )}
+              </span>
+              {hasAvailability && (
+                isInsufficient ? (
+                  <span className="text-xs font-medium text-red-600 flex items-center gap-0.5">
+                    <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+                    {inMagazzino}/{qtyRequested}
+                  </span>
+                ) : (
+                  <span className="text-xs text-green-600">{inMagazzino} disp.</span>
+                )
+              )}
+            </div>
+          </div>
 
-        {/* Quantity — editable with +/- if row is editable */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Quantity + actions + badge — inline on desktop */}
+          <div className="flex items-center gap-2 flex-shrink-0">
           {rowEditable ? (
-            <>
+            <div className="flex items-center gap-1">
               <button
-                onClick={(e) => { e.stopPropagation(); onUpdate(row.id, { quantita: Math.max(1, (row.quantita || 1) - 1) }) }}
-                className="w-12 h-12 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
+                onClick={(e) => { e.stopPropagation(); commitQty(localQty - 1) }}
+                className={ACTION_BTN + ' bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold'}
                 aria-label="Diminuisci"
-              >
-                −
-              </button>
-              <span className="w-8 text-center text-base font-bold text-gray-900">{row.quantita || 1}</span>
+              >−</button>
+              <input
+                type="number"
+                min={1}
+                value={localQty}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setLocalQty(e.target.value)}
+                onBlur={(e) => commitQty(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur() } }}
+                className="w-14 h-9 text-center text-base font-bold text-gray-900 border border-gray-200 rounded-lg focus:ring-2 focus:ring-mikai-400 outline-none"
+              />
               <button
-                onClick={(e) => { e.stopPropagation(); onUpdate(row.id, { quantita: (row.quantita || 1) + 1 }) }}
-                className="w-12 h-12 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
+                onClick={(e) => { e.stopPropagation(); commitQty(localQty + 1) }}
+                className={ACTION_BTN + ' bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold'}
                 aria-label="Aumenta"
-              >
-                +
-              </button>
-            </>
+              >+</button>
+            </div>
           ) : (
-            <div className="text-right">
+            <div>
               {isConfirmed && row.quantita_approvata != null && row.quantita_approvata < (row.quantita || 1) ? (
-                <div>
+                <span>
                   <span className="text-sm text-gray-400 line-through">{row.quantita}</span>
                   <span className="text-base font-bold text-yellow-700 ml-1">{row.quantita_approvata}</span>
-                </div>
+                </span>
               ) : (
                 <span className="text-base text-gray-600 font-medium">×{row.quantita_approvata || row.quantita || 1}</span>
               )}
             </div>
           )}
+
+          {/* Status badge */}
+          <div className="flex-shrink-0 hidden md:block">
+            {isConfirmed && row.quantita_approvata != null && row.quantita_approvata < (row.quantita || 1) ? (
+              <span className="px-2 py-0.5 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full">Parziale</span>
+            ) : (
+              <StatusBadge stato={row.stato} labels={STATO_MATERIALE_LISTA} colors={STATO_MATERIALE_LISTA_COLORE} />
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-1">
+            {canApprove && isPending && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onConfirm(row.id, row.quantita || 1, '') }}
+                  className={ACTION_BTN + ' bg-green-100 hover:bg-green-200'}
+                  aria-label={`Conferma ${product?.nome}`}
+                >
+                  <Icon icon={ACTION_ICONS.approve} size={16} className="text-green-700" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onReject(row.id, product?.nome) }}
+                  className={ACTION_BTN + ' bg-red-100 hover:bg-red-200'}
+                  aria-label={`Rifiuta ${product?.nome}`}
+                >
+                  <Icon icon={ACTION_ICONS.reject} size={16} className="text-red-700" />
+                </button>
+              </>
+            )}
+            {canApprove && isConfirmed && onStartPreparation && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onStartPreparation(row.id) }}
+                className={ACTION_BTN + ' bg-mikai-100 hover:bg-mikai-200'}
+                aria-label="Avvia preparazione"
+              >
+                <Icon icon={ACTION_ICONS.forward} size={16} className="text-mikai-700" />
+              </button>
+            )}
+            {rowRemovable && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemove(row.id) }}
+                className={ACTION_BTN + ' bg-gray-100 hover:bg-red-100'}
+                aria-label={`Rimuovi ${product?.nome}`}
+              >
+                <Icon icon={ACTION_ICONS.close} size={16} className="text-gray-400 hover:text-red-500" />
+              </button>
+            )}
+          </div>
         </div>
-
-        {/* Status badge — override for partial approval */}
-        {isConfirmed && row.quantita_approvata != null && row.quantita_approvata < (row.quantita || 1) ? (
-          <span className="px-3 py-1 text-sm font-medium text-yellow-700 bg-yellow-100 rounded-full whitespace-nowrap">
-            Approvato parziale
-          </span>
-        ) : (
-          <StatusBadge
-            stato={row.stato}
-            labels={STATO_MATERIALE_LISTA}
-            colors={STATO_MATERIALE_LISTA_COLORE}
-          />
-        )}
-
-        {/* Remove button — only pending rows */}
-        {rowRemovable && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onRemove(row.id) }}
-            className="min-h-[48px] min-w-[48px] flex items-center justify-center text-gray-400 hover:text-red-500"
-            aria-label={`Rimuovi ${product?.nome}`}
-          >
-            <Icon icon={ACTION_ICONS.close} size={20} />
-          </button>
-        )}
+        </div>
       </div>
 
       {/* Expanded details */}
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
-          {/* Info: if confirmed row is modified, it goes back to pending */}
-          {isConfirmed && canEdit && (
+          {hasAvailability && (
+            <div className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${
+              isInsufficient ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+            }`}>
+              <Icon icon={isInsufficient ? FEEDBACK_ICONS.warning : ACTION_ICONS.check} size={16} className="flex-shrink-0" />
+              <span>
+                <strong>{inMagazzino}</strong> in magazzino
+                {pressoEvento > 0 && ` · ${pressoEvento} presso eventi`}
+                {pressoAgente > 0 && ` · ${pressoAgente} presso agenti`}
+                {` · ${totaleEsemplari} totali`}
+                {isInsufficient && <strong> — richiesti {qtyRequested}, insufficienti</strong>}
+              </span>
+            </div>
+          )}
+
+          {(isConfirmed || isInPrep) && canEdit && (
             <p className="text-sm text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2">
               Se modifichi la quantità, la riga tornerà in attesa di conferma.
             </p>
           )}
 
-          {/* Commerciale notes */}
-          {rowEditable && isPending ? (
+          {/* Notes */}
+          {rowEditable && (isPending || isInPrep) ? (
             <div>
               <label className="block text-sm font-medium text-gray-500 mb-1">Le tue note</label>
               <input
                 type="text"
                 value={row.note_commerciale || ''}
                 onChange={(e) => onUpdate(row.id, { note_commerciale: e.target.value })}
-                className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+                onClick={(e) => e.stopPropagation()}
+                className={INPUT_STYLE}
                 placeholder="Es. Il chirurgo lo richiede specificamente..."
               />
             </div>
@@ -135,7 +231,6 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
             </div>
           ) : null}
 
-          {/* Office notes */}
           {row.note_ufficio && (
             <div>
               <p className="text-sm font-medium text-gray-500">Note ufficio</p>
@@ -143,7 +238,6 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
             </div>
           )}
 
-          {/* Rejection reason */}
           {isRejected && row.motivo_rifiuto && (
             <div className="bg-red-50 rounded-lg p-3" role="alert">
               <p className="text-sm font-medium text-red-600">Motivo rifiuto</p>
@@ -151,98 +245,54 @@ export function MaterialListRow({ row, canEdit, canApprove, onUpdate, onRemove, 
             </div>
           )}
 
-          {/* In preparazione notice */}
-          {isInPrep && (
-            <div className="bg-mikai-50 rounded-lg p-3">
-              <p className="text-base font-medium text-mikai-700">Materiale in preparazione — non modificabile</p>
-            </div>
-          )}
-
-          {/* Approval actions for ufficio */}
+          {/* Approval with different quantity */}
           {canApprove && isPending && !showConfirmForm && (
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => { setConfirmQty(row.quantita || 1); setConfirmNote(''); setShowConfirmForm(true) }}
-                className="flex items-center gap-2 px-5 py-3 bg-green-100 hover:bg-green-200 rounded-xl text-base font-medium text-green-800 min-h-[48px] transition-colors"
-                aria-label="Conferma"
-              >
-                <Icon icon={ACTION_ICONS.approve} size={18} /> Conferma
-              </button>
-              <button
-                onClick={() => onReject(row.id, product?.nome)}
-                className="flex items-center gap-2 px-5 py-3 bg-red-100 hover:bg-red-200 rounded-xl text-base font-medium text-red-800 min-h-[48px] transition-colors"
-                aria-label="Rifiuta"
-              >
-                <Icon icon={ACTION_ICONS.reject} size={18} /> Rifiuta
-              </button>
-            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); setConfirmQty(row.quantita || 1); setConfirmNote(''); setShowConfirmForm(true) }}
+            >
+              Conferma con quantità diversa
+            </Button>
           )}
 
           {canApprove && isPending && showConfirmForm && (
-            <div className="bg-green-50 rounded-xl p-4 space-y-3">
-              <p className="text-sm font-medium text-green-800">Conferma materiale</p>
-
+            <div className="bg-green-50 rounded-xl p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-3 flex-wrap">
-                <label className="text-sm text-gray-600">Quantita approvata</label>
+                <label className="text-sm text-gray-600">Quantità</label>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setConfirmQty(q => Math.max(1, q - 1))}
-                    className="w-12 h-12 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
-                    aria-label="Diminuisci approvati"
-                  >
-                    −
-                  </button>
-                  <span className="w-10 text-center text-lg font-bold text-gray-900">{confirmQty}</span>
-                  <button
-                    onClick={() => setConfirmQty(q => Math.min(row.quantita || 1, q + 1))}
-                    className="w-12 h-12 rounded-lg bg-white border border-gray-200 hover:bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-600 transition-colors"
-                    aria-label="Aumenta approvati"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => setConfirmQty(q => Math.max(1, q - 1))} className={ACTION_BTN + ' bg-white border border-gray-200 hover:bg-gray-100 font-bold text-gray-600'} aria-label="Diminuisci">−</button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={row.quantita || 999}
+                    value={confirmQty}
+                    onChange={(e) => setConfirmQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-14 h-9 text-center text-base font-bold text-gray-900 border border-gray-200 rounded-lg focus:ring-2 focus:ring-mikai-400 outline-none"
+                  />
+                  <button onClick={() => setConfirmQty(q => Math.min(row.quantita || 999, q + 1))} className={ACTION_BTN + ' bg-white border border-gray-200 hover:bg-gray-100 font-bold text-gray-600'} aria-label="Aumenta">+</button>
                 </div>
                 <span className="text-sm text-gray-400">/ {row.quantita || 1} richiesti</span>
               </div>
-
               {confirmQty < (row.quantita || 1) && (
                 <p className="text-sm text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2">
                   Approvazione parziale: {confirmQty} su {row.quantita || 1}
                 </p>
               )}
-
               <input
                 type="text"
                 value={confirmNote}
                 onChange={(e) => setConfirmNote(e.target.value)}
                 placeholder="Nota ufficio (opzionale)"
-                className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+                className={INPUT_STYLE}
               />
-
               <div className="flex gap-3">
-                <button
-                  onClick={() => { onConfirm(row.id, confirmQty, confirmNote); setShowConfirmForm(false) }}
-                  className="flex items-center gap-2 px-5 py-3 bg-green-600 hover:bg-green-700 rounded-xl text-base font-medium text-white min-h-[48px] transition-colors"
-                >
-                  <Icon icon={ACTION_ICONS.approve} size={18} /> Conferma {confirmQty}
-                </button>
-                <button
-                  onClick={() => setShowConfirmForm(false)}
-                  className="px-5 py-3 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-base font-medium text-gray-600 min-h-[48px] transition-colors"
-                >
-                  Annulla
-                </button>
+                <Button onClick={() => { onConfirm(row.id, confirmQty, confirmNote); setShowConfirmForm(false) }}>
+                  Conferma {confirmQty}
+                </Button>
+                <Button variant="secondary" onClick={() => setShowConfirmForm(false)}>Annulla</Button>
               </div>
             </div>
-          )}
-
-          {/* Start preparation button for ufficio on confirmed rows */}
-          {canApprove && isConfirmed && onStartPreparation && (
-            <button
-              onClick={() => onStartPreparation(row.id)}
-              className="flex items-center gap-2 px-5 py-3 bg-mikai-100 hover:bg-mikai-200 rounded-xl text-base font-medium text-mikai-700 min-h-[48px] transition-colors"
-            >
-              <Icon icon={ACTION_ICONS.forward} size={18} /> Avvia preparazione
-            </button>
           )}
         </div>
       )}

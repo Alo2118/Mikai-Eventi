@@ -1,0 +1,252 @@
+<h2>Sezione 3 (v2): Flussi corretti</h2>
+<p class="subtitle">Eventi interni vs esterni · Approvazioni · Notifiche intelligenti</p>
+
+<!-- EVENTI INTERNI vs ESTERNI -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">📅 Distinzione eventi interni vs esterni</div>
+  <div class="mockup-body" style="padding:24px;font-size:13px;">
+
+    <div class="split">
+      <div style="flex:1;padding:16px;background:rgba(99,102,241,0.06);border-radius:8px;">
+        <h3 style="margin:0 0 12px;color:#6366f1;">Evento INTERNO</h3>
+        <p style="font-size:12px;color:#6b7280;">Workshop in sede, corsi con ospiti, cadaver lab</p>
+        <div style="line-height:2;margin-top:12px;">
+          ✅ Lista partecipanti (discenti, ospiti) — <strong>gestita</strong><br>
+          ✅ Logistica completa (viaggi, hotel, transfer)<br>
+          ✅ Sotto-attività (pranzi, cene)<br>
+          ✅ Postazioni di lavoro<br>
+          ✅ Materiale demo + marketing + gadget<br>
+          ✅ Checklist completa da template
+        </div>
+        <div style="margin-top:12px;padding:8px;background:rgba(99,102,241,0.1);border-radius:6px;font-size:12px;">
+          <strong>Esempio:</strong> Corso Fissatore Poloso in sede Mikai — 30 discenti, 5 postazioni, 2 giorni, pranzi e cene da organizzare
+        </div>
+      </div>
+
+      <div style="flex:1;padding:16px;background:rgba(245,158,11,0.06);border-radius:8px;">
+        <h3 style="margin:0 0 12px;color:#f59e0b;">Evento ESTERNO</h3>
+        <p style="font-size:12px;color:#6b7280;">Congressi, fiere, eventi di terzi dove Mikai partecipa</p>
+        <div style="line-height:2;margin-top:12px;">
+          ❌ Lista partecipanti — <strong>non gestita</strong> (non la controllate voi)<br>
+          ✅ Staff Mikai presente<br>
+          ✅ Desk sì/no<br>
+          ✅ Materiale demo + marketing + gadget<br>
+          ✅ Logistica staff (viaggi, hotel)<br>
+          ⚪ Sotto-attività — opzionali (cena aziendale?)<br>
+          ✅ Checklist ridotta da template
+        </div>
+        <div style="margin-top:12px;padding:8px;background:rgba(245,158,11,0.1);border-radius:6px;font-size:12px;">
+          <strong>Esempio:</strong> Congresso SIOT a Milano — desk Mikai, 3 staff, kit demo da spedire, hotel per lo staff
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:8px;">
+      <strong>Come funziona:</strong> Quando crei un evento scegli <strong>interno/esterno</strong>. L'interfaccia mostra/nasconde le sezioni rilevanti. Il template checklist cambia di conseguenza. Nessun campo inutile per gli eventi esterni.
+      <br><br>
+      <strong>Terza opzione: "Solo contributo economico"</strong> — nessuna logistica, solo tracciamento sponsorizzazione e costi. Minimo di campi.
+    </div>
+
+  </div>
+</div>
+
+<!-- APPROVAZIONI -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">✅ Catena approvazioni corretta</div>
+  <div class="mockup-body" style="padding:24px;font-size:13px;">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+      <div style="padding:16px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.15);border-radius:8px;">
+        <h3 style="margin:0 0 12px;color:#ef4444;">Approvazione eventi</h3>
+        <div style="line-height:2;">
+          Chi propone: <strong>chiunque</strong> (commerciale, ufficio)<br>
+          Chi approva: <strong>Enrica</strong> o <strong>Giovanni (CEO)</strong><br><br>
+          → Basta UNA approvazione dei due<br>
+          → L'altro vede che è stato approvato e da chi<br>
+          → Possono anche rifiutare con motivazione
+        </div>
+      </div>
+
+      <div style="padding:16px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.15);border-radius:8px;">
+        <h3 style="margin:0 0 12px;color:#f59e0b;">Approvazione materiale demo</h3>
+        <div style="line-height:2;">
+          Chi richiede: <strong>chiunque</strong><br>
+          Chi approva: <strong>Federica</strong>, <strong>Enrica</strong> o <strong>Giovanni</strong><br><br>
+          → Basta UNA approvazione dei tre<br>
+          → Dopo approvazione → notifica a Ivan per preparazione<br>
+          → Il sistema verifica conflitti PRIMA dell'approvazione
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:16px;padding:12px;background:rgba(99,102,241,0.06);border-radius:8px;">
+      <strong>Implementazione:</strong> Nella tabella <code>users</code> aggiungiamo un campo <strong>permessi_approvazione</strong> (array: <code>["eventi", "materiale", "costi"]</code>). Così se in futuro cambia chi approva, basta modificare il permesso senza toccare il codice.
+    </div>
+
+  </div>
+</div>
+
+<!-- NOTIFICHE INTELLIGENTI -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header">🔔 Sistema notifiche intelligente</div>
+  <div class="mockup-body" style="padding:24px;font-size:13px;">
+
+    <div style="margin-bottom:20px;">
+      <h3 style="margin:0 0 8px;">Il problema</h3>
+      <p>Giovanni ed Enrica non possono ricevere 40 notifiche al giorno. Ivan non ha bisogno di sapere delle cene. Nicola non ha bisogno degli alert spedizioni.</p>
+    </div>
+
+    <!-- CANALI -->
+    <div style="margin-bottom:20px;">
+      <h3 style="margin:0 0 12px;">3 canali di notifica</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div style="padding:12px;background:rgba(16,185,129,0.06);border-radius:8px;text-align:center;">
+          <div style="font-size:24px;">🔔</div>
+          <strong>In-app</strong>
+          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Badge nell'app, lista notifiche. Sempre attivo per tutti.</div>
+        </div>
+        <div style="padding:12px;background:rgba(99,102,241,0.06);border-radius:8px;text-align:center;">
+          <div style="font-size:24px;">📧</div>
+          <strong>Email</strong>
+          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Per scadenze urgenti e escalation. Configurabile per utente.</div>
+        </div>
+        <div style="padding:12px;background:rgba(245,158,11,0.06);border-radius:8px;text-align:center;">
+          <div style="font-size:24px;">📊</div>
+          <strong>Digest</strong>
+          <div style="font-size:11px;color:#6b7280;margin-top:4px;">Riepilogo giornaliero/settimanale. Ideale per CEO e direzione.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORIE -->
+    <div style="margin-bottom:20px;">
+      <h3 style="margin:0 0 12px;">Categorie di notifica (sottoscrivibili per utente)</h3>
+      <div style="font-family:monospace;font-size:12px;line-height:1.6;padding:16px;background:rgba(255,255,255,0.03);border-radius:8px;">
+        <strong>notification_preferences</strong><br>
+        id, user_id → users<br>
+        categoria, canale (in_app | email | digest | off)<br>
+      </div>
+
+      <table style="width:100%;margin-top:12px;font-size:12px;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+            <th style="text-align:left;padding:8px;">Categoria</th>
+            <th style="text-align:center;padding:8px;">Federica</th>
+            <th style="text-align:center;padding:8px;">Ivan</th>
+            <th style="text-align:center;padding:8px;">Nicola</th>
+            <th style="text-align:center;padding:8px;">Chiara</th>
+            <th style="text-align:center;padding:8px;">Enrica</th>
+            <th style="text-align:center;padding:8px;">Giovanni</th>
+            <th style="text-align:center;padding:8px;">Commerciale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;">📅 Nuovi eventi proposti</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">🔔</td>
+            <td style="text-align:center;">📊</td>
+            <td style="text-align:center;">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;">✅ Approvazioni in attesa</td>
+            <td style="text-align:center;">🔔</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">🔔</td>
+            <td style="text-align:center;">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;">📦 Richieste materiale</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">📊</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;">⚠️ Conflitti materiale</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">🔔</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;">⏰ Mie scadenze</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">🔔</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">🔔📧</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;">🔴 Scadenze scadute (altrui)</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">📊</td>
+            <td style="text-align:center;">📊</td>
+            <td style="text-align:center;">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:8px;">📦 Rientro materiale scaduto</td>
+            <td style="text-align:center;">🔔</td>
+            <td style="text-align:center;">🔔📧</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;">📊 Digest settimanale</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">—</td>
+            <td style="text-align:center;">📧</td>
+            <td style="text-align:center;">📧</td>
+            <td style="text-align:center;">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font-size:11px;color:#6b7280;">
+        🔔 = in-app · 📧 = email immediata · 📊 = nel digest · — = off<br>
+        Questi sono i DEFAULT. Ogni utente può modificare le proprie preferenze nelle impostazioni.
+      </div>
+    </div>
+
+    <!-- DIGEST -->
+    <div style="padding:16px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:8px;">
+      <h3 style="margin:0 0 8px;color:#6366f1;">📊 Il Digest — la soluzione per CEO e direzione</h3>
+      <p>Un'email riepilogativa (giornaliera o settimanale, a scelta) con:</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+        <div style="padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">
+          <strong>Settimana prossima</strong><br>
+          <span style="font-size:12px;">3 eventi in programma<br>2 approvazioni in attesa<br>1 evento non ancora pronto</span>
+        </div>
+        <div style="padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">
+          <strong>Attenzione richiesta</strong><br>
+          <span style="font-size:12px;">Commerciale Rossi: 2 eventi con dati incompleti<br>Kit Stylo #3 non rientrato da 5gg<br>Budget Congresso SIOT: superato del 15%</span>
+        </div>
+      </div>
+      <p style="margin-top:8px;font-size:12px;color:#6b7280;">Giovanni riceve 1 email a settimana invece di 40 notifiche. Enrica può scegliere digest giornaliero.</p>
+    </div>
+
+  </div>
+</div>

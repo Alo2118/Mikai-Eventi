@@ -4,8 +4,9 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
-import { INPUT_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
+import { formatCurrency, formatPercentage } from '../../lib/format-utils'
 
 function deltaColor(approvato, effettivo) {
   if (effettivo == null || effettivo === '') return 'gray'
@@ -13,11 +14,6 @@ function deltaColor(approvato, effettivo) {
   if (diff <= 0) return 'green'
   const pct = approvato > 0 ? (diff / approvato) * 100 : 100
   return pct > 10 ? 'red' : 'yellow'
-}
-
-function formatCurrency(n) {
-  if (n == null) return '—'
-  return n.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €'
 }
 
 function ConsuntivoRow({ preventivo, canManage }) {
@@ -43,7 +39,7 @@ function ConsuntivoRow({ preventivo, canManage }) {
     const effettivo = form.importo_effettivo !== '' ? parseFloat(form.importo_effettivo) : null
     if (effettivo != null && preventivo.importo > 0) {
       const pct = ((effettivo - preventivo.importo) / preventivo.importo) * 100
-      if (pct > 10) addToast(`Attenzione: consuntivo supera il preventivo del ${pct.toFixed(0)}%`, 'warning')
+      if (pct > 10) addToast(`Attenzione: consuntivo supera il preventivo del ${formatPercentage(pct)}`, 'warning')
     }
     const { error } = await updateConsuntivo(preventivo.id, {
       importo_effettivo: effettivo,
@@ -65,7 +61,7 @@ function ConsuntivoRow({ preventivo, canManage }) {
   const colorMap = { green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600', gray: 'text-gray-400' }
 
   return (
-    <div className="p-3 rounded-lg border border-gray-100 space-y-2">
+    <div className="p-4 rounded-xl border border-gray-200 space-y-2">
       <div className="flex items-center justify-between">
         <div>
           <span className="font-medium">{preventivo.descrizione}</span>
@@ -115,7 +111,7 @@ function ConsuntivoRow({ preventivo, canManage }) {
       <div className="flex items-center justify-between">
         <span className={`text-sm font-medium ${colorMap[color]}`}>
           {delta != null
-            ? `${delta >= 0 ? '+' : ''}${formatCurrency(delta)} (${deltaPct != null ? (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%' : ''})`
+            ? `${delta >= 0 ? '+' : ''}${formatCurrency(delta)} (${deltaPct != null ? (deltaPct >= 0 ? '+' : '') + formatPercentage(deltaPct, 1) : ''})`
             : 'Da rendicontare'}
         </span>
         {canManage && dirty && (
@@ -138,7 +134,7 @@ export function ConsuntivoSection({ preventivi, canManage }) {
   const daRendicontare = preventivi.length - filled.length
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className={CARD_STYLE}>
       <div className="flex items-center gap-2 mb-4">
         <Icon icon={COSTI_ICONS.costo} size={20} className="text-mikai-400" />
         <h3 className="font-semibold text-lg">Consuntivo</h3>
@@ -159,7 +155,7 @@ export function ConsuntivoSection({ preventivi, canManage }) {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {preventivi.map(p => (
           <ConsuntivoRow key={p.id} preventivo={p} canManage={canManage} />
         ))}

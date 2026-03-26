@@ -5,13 +5,14 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FEEDBACK_ICONS } from '../../lib/icons'
+import { SUMMARY_BAR_STYLE } from '../../lib/constants'
 
-// Maps current stato → next stato + button label
+// Maps current stato → next stato + button label + human-readable name
 const NEXT_STATE = {
-  confermato: { stato: 'in_preparazione', label: 'Avvia preparazione' },
-  in_preparazione: { stato: 'pronto', label: 'Segna come pronto' },
-  pronto: { stato: 'in_corso', label: 'Avvia evento' },
-  in_corso: { stato: 'concluso', label: 'Concludi evento' },
+  confermato: { stato: 'in_preparazione', label: 'Avvia preparazione', nome: 'in preparazione' },
+  in_preparazione: { stato: 'pronto', label: 'Segna come pronto', nome: 'pronto' },
+  pronto: { stato: 'in_corso', label: 'Avvia evento', nome: 'in corso' },
+  in_corso: { stato: 'concluso', label: 'Concludi evento', nome: 'concluso' },
 }
 
 export function ActivityGateBar({ event, activities }) {
@@ -58,41 +59,50 @@ export function ActivityGateBar({ event, activities }) {
   }
 
   return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-gray-700">Prossimo stato</p>
-          {!canAdvance && (
-            <p className="mt-1 text-sm text-gray-500">
-              {mandatoryIncomplete.length} {mandatoryIncomplete.length === 1 ? 'attività obbligatoria' : 'attività obbligatorie'} da completare prima di procedere
-            </p>
-          )}
-        </div>
-        <Button
-          variant="primary"
-          size="md"
-          disabled={!canAdvance || loading}
-          onClick={handleAdvanceClick}
-        >
-          {next.label}
-        </Button>
-      </div>
-
-      {!canAdvance && mandatoryIncomplete.length > 0 && (
-        <div className="space-y-1">
-          {mandatoryIncomplete.slice(0, 5).map(a => (
-            <div key={a.id} className="flex items-center gap-2 text-sm text-red-600">
-              <Icon icon={FEEDBACK_ICONS.warning} size={14} className="shrink-0" />
-              <span>{a.descrizione}</span>
-            </div>
-          ))}
-          {mandatoryIncomplete.length > 5 && (
-            <p className="text-sm text-gray-500 pl-5">
-              + altri {mandatoryIncomplete.length - 5}
-            </p>
-          )}
+    <div className="space-y-3">
+      {/* Gate blocker banner — visible when mandatory activities are incomplete */}
+      {mandatoryIncomplete.length > 0 && (
+        <div className={SUMMARY_BAR_STYLE + ' flex flex-col gap-2'}>
+          <p className="text-sm font-medium text-mikai-700">
+            Per passare a &ldquo;{next.nome}&rdquo; {mandatoryIncomplete.length === 1
+              ? 'manca 1 attività obbligatoria'
+              : `mancano ${mandatoryIncomplete.length} attività obbligatorie`}:
+          </p>
+          <ul className="text-sm text-mikai-600 space-y-1">
+            {mandatoryIncomplete.slice(0, 5).map(a => (
+              <li key={a.id} className="flex items-center gap-2">
+                <Icon icon={FEEDBACK_ICONS.warning} size={14} className="text-yellow-500 flex-shrink-0" />
+                {a.descrizione}
+              </li>
+            ))}
+            {mandatoryIncomplete.length > 5 && (
+              <li className="text-mikai-400">...e altre {mandatoryIncomplete.length - 5}</li>
+            )}
+          </ul>
         </div>
       )}
+
+      {/* Advance state bar */}
+      <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-700">Prossimo stato</p>
+            {!canAdvance && (
+              <p className="mt-1 text-sm text-gray-500">
+                Completa le attività obbligatorie prima di procedere
+              </p>
+            )}
+          </div>
+          <Button
+            variant="primary"
+            size="md"
+            disabled={!canAdvance || loading}
+            onClick={handleAdvanceClick}
+          >
+            {next.label}
+          </Button>
+        </div>
+      </div>
 
       <ConfirmDialog
         open={showConfirm}

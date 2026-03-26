@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { todayISO } from '../lib/date-utils'
 
 // Sync tavoli products → event_materials (auto-request)
 async function syncTavoliToMaterialList(eventId, tavoli) {
@@ -78,7 +79,7 @@ async function notifyTavoliMaterialChange(eventId, changeType, count) {
       titolo: `Materiale tavoli aggiornato`,
       messaggio: `${titolo}: ${messages[changeType]}`,
       link: `/eventi/${eventId}`,
-      gruppo: `tavoli_mat_${eventId}_${new Date().toISOString().slice(0, 10)}`,
+      gruppo: `tavoli_mat_${eventId}_${todayISO()}`,
     })
   }
 }

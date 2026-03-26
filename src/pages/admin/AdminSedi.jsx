@@ -8,7 +8,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Tabs } from '../../components/ui/Tabs'
-import { INPUT_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 
 const TABS = [
   { id: 'sedi', label: 'Sedi' },
@@ -118,7 +118,7 @@ export function AdminSedi() {
 
         {tab === 'sedi' && (
           editing ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 max-w-lg space-y-4">
+            <div className={CARD_STYLE + ' md:p-6 max-w-lg space-y-4'}>
               <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica sede' : 'Nuova sede'}</h2>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
@@ -180,7 +180,7 @@ export function AdminSedi() {
 
         {tab === 'corrieri' && (
           editing ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 max-w-lg space-y-4">
+            <div className={CARD_STYLE + ' md:p-6 max-w-lg space-y-4'}>
               <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica corriere' : 'Nuovo corriere'}</h2>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>

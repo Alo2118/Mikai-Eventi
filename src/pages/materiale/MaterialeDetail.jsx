@@ -9,7 +9,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Button } from '../../components/ui/Button'
 import { MaterialMovementForm } from '../../components/materiale/MaterialMovementForm'
 import { MovementHistory } from '../../components/materiale/MovementHistory'
-import { TIPO_MATERIALE, POSIZIONE_MATERIALE } from '../../lib/constants'
+import { TIPO_MATERIALE, POSIZIONE_MATERIALE, CARD_STYLE } from '../../lib/constants'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { POSIZIONE_MATERIALE_COLORE } from '../../lib/constants'
 
@@ -54,7 +54,7 @@ export function MaterialeDetail() {
       </div>
 
       <div className="px-4 md:px-8 py-5 space-y-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+        <div className={`${CARD_STYLE} space-y-3`}>
           <div className="flex items-center justify-between">
             <span className="text-base text-gray-500">Tipo</span>
             <span className="text-base font-medium">{TIPO_MATERIALE[material.tipo]}</span>
@@ -78,7 +78,7 @@ export function MaterialeDetail() {
         </div>
 
         {material.product && (
-          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+          <div className={`${CARD_STYLE} space-y-3`}>
             <h3 className="text-base font-semibold text-gray-700">Prodotto</h3>
             <div className="flex items-center justify-between">
               <span className="text-base text-gray-500">Azienda</span>

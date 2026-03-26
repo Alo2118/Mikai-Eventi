@@ -7,8 +7,9 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
-import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE } from '../../lib/constants'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE, CARD_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
+import { formatCurrency } from '../../lib/format-utils'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ConsuntivoSection } from './ConsuntivoSection'
@@ -96,26 +97,26 @@ export function EventCostiTab({ event }) {
       )}
 
       {/* Budget bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <h3 className="font-semibold text-lg mb-3">Budget</h3>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span>Previsto</span>
-            <span className="font-medium">{budgetPrevisto.toLocaleString('it-IT')} €</span>
+            <span className="font-medium">{formatCurrency(budgetPrevisto)}</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-mikai-400 rounded-full" style={{ width: `${Math.min((budgetPrevisto / maxBudget) * 100, 100)}%` }} />
           </div>
           <div className="flex justify-between text-sm">
             <span>Approvato</span>
-            <span className={`font-medium ${costiApprovati > budgetPrevisto ? 'text-red-600' : 'text-green-600'}`}>{costiApprovati.toLocaleString('it-IT')} €</span>
+            <span className={`font-medium ${costiApprovati > budgetPrevisto ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(costiApprovati)}</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div className={`h-full rounded-full ${costiApprovati > budgetPrevisto ? 'bg-red-400' : 'bg-green-400'}`} style={{ width: `${Math.min((costiApprovati / maxBudget) * 100, 100)}%` }} />
           </div>
           <div className="flex justify-between text-sm">
             <span>Effettivo</span>
-            <span className="font-medium">{costiEffettivi.toLocaleString('it-IT')} €</span>
+            <span className="font-medium">{formatCurrency(costiEffettivi)}</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-blue-400 rounded-full" style={{ width: `${Math.min((costiEffettivi / maxBudget) * 100, 100)}%` }} />
@@ -124,7 +125,7 @@ export function EventCostiTab({ event }) {
       </div>
 
       {/* Preventivi */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-lg">Preventivi</h3>
           {canManage && !showForm && (
@@ -136,7 +137,7 @@ export function EventCostiTab({ event }) {
         </div>
 
         {showForm && (
-          <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className={FORM_CONTAINER_STYLE + ' space-y-3 mb-4'}>
             <input className={INPUT_STYLE} value={form.descrizione} onChange={e => setField('descrizione', e.target.value)} placeholder="Descrizione (es. Catering pranzo 20 pax)" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input type="number" step="0.01" className={INPUT_STYLE} value={form.importo} onChange={e => setField('importo', e.target.value)} placeholder="Importo €" />
@@ -149,16 +150,16 @@ export function EventCostiTab({ event }) {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {preventivi.map(p => (
-            <div key={p.id} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-medium">{p.descrizione}</span>
-                  {p.fornitore_nome && <span className="text-gray-500 ml-2">— {p.fornitore_nome}</span>}
+            <div key={p.id} className="p-4 rounded-xl border border-gray-200 hover:bg-gray-50">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="font-medium truncate block">{p.descrizione}</span>
+                  {p.fornitore_nome && <span className="text-gray-500 text-sm truncate block">— {p.fornitore_nome}</span>}
                 </div>
                 <div className="flex items-center gap-3">
-                  {p.importo != null && <span className="font-semibold">{p.importo.toLocaleString('it-IT')} €</span>}
+                  {p.importo != null && <span className="font-semibold">{formatCurrency(p.importo)}</span>}
                   <StatusBadge stato={p.stato} labels={STATO_PREVENTIVO} colors={STATO_PREVENTIVO_COLORE} />
                 </div>
               </div>
@@ -166,7 +167,7 @@ export function EventCostiTab({ event }) {
               {p.approvatore && <p className="text-xs text-gray-400 mt-1">{p.approvatore.cognome} {p.approvatore.nome} — {p.data_approvazione ? formatDate(p.data_approvazione) : ''}</p>}
 
               {canApprove && p.stato === 'in_attesa' && (
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-3 mt-2">
                   <Button size="sm" onClick={() => setActionDialog({ type: 'approve', preventivo: p, nota: '' })}>Approva</Button>
                   <Button variant="danger" size="sm" onClick={() => setActionDialog({ type: 'reject', preventivo: p, nota: '' })}>Rifiuta</Button>
                   <Button variant="secondary" size="sm" onClick={() => setActionDialog({ type: 'revision', preventivo: p, nota: '' })}>Revisione</Button>
@@ -201,7 +202,7 @@ export function EventCostiTab({ event }) {
           title={actionDialog.type === 'approve' ? 'Approva preventivo' : actionDialog.type === 'reject' ? 'Rifiuta preventivo' : 'Richiedi revisione'}
           message={
             <div className="space-y-2">
-              <p>{actionDialog.preventivo.descrizione} — {actionDialog.preventivo.importo?.toLocaleString('it-IT')} €</p>
+              <p>{actionDialog.preventivo.descrizione} — {formatCurrency(actionDialog.preventivo.importo)}</p>
               <textarea
                 className={INPUT_STYLE + ' min-h-[80px]'}
                 value={actionDialog.nota}

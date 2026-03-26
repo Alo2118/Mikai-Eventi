@@ -1,0 +1,101 @@
+<h2>Sezione 1: Modello Dati</h2>
+<p class="subtitle">Le tabelle principali e le relazioni tra di loro</p>
+
+<div class="mockup">
+  <div class="mockup-header">Schema Database — Entità Principali</div>
+  <div class="mockup-body" style="padding:24px;font-family:monospace;font-size:13px;line-height:1.6;">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#6366f1;">👤 users</h3>
+        <div>id, email, nome, cognome</div>
+        <div>ruolo: <strong>admin | ufficio | commerciale</strong></div>
+        <div>telefono, avatar_url</div>
+        <div>attivo: si/no</div>
+      </div>
+
+      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#10b981;">📅 events</h3>
+        <div>id, titolo, tipo_evento</div>
+        <div><em>(workshop|corso|congresso|convegno|cadlab|live_surgery)</em></div>
+        <div>luogo, data_inizio, data_fine</div>
+        <div>desk_richiesto: si/no</div>
+        <div>stato: <strong>proposto → confermato → in_preparazione → in_corso → concluso</strong></div>
+        <div>note, contributo_economico_only</div>
+        <div>promotore_id → users</div>
+        <div>created_by → users</div>
+      </div>
+
+      <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#f59e0b;">📦 materials</h3>
+        <div>id, nome, tipo</div>
+        <div><em>(demo_kit|montaggio|locandina|depliant|video|vela|altro)</em></div>
+        <div>codice_inventario, quantita_totale</div>
+        <div>posizione_attuale: <strong>magazzino | evento | agente | cliente | spedito | manutenzione</strong></div>
+        <div>posizione_dettaglio (testo libero)</div>
+        <div>foto_url, note</div>
+      </div>
+
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#ef4444;">🔄 material_movements</h3>
+        <div>id, material_id → materials</div>
+        <div>event_id → events (opzionale)</div>
+        <div>tipo: <strong>uscita | rientro | trasferimento</strong></div>
+        <div>da_posizione, a_posizione</div>
+        <div>data_movimento, data_rientro_prevista</div>
+        <div>responsabile_id → users</div>
+        <div>tracking_spedizione, note</div>
+      </div>
+
+      <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#a855f7;">👥 event_staff</h3>
+        <div>id, event_id → events</div>
+        <div>user_id → users</div>
+        <div>ruolo_evento: <em>(responsabile|staff|relatore|ospite)</em></div>
+        <div>confermato: si/no</div>
+      </div>
+
+      <div style="background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#ec4899;">📋 event_materials</h3>
+        <div>id, event_id → events</div>
+        <div>material_id → materials</div>
+        <div>quantita_richiesta</div>
+        <div>stato: <strong>richiesto → approvato → preparato → spedito → consegnato → rientrato</strong></div>
+        <div>richiesto_da → users</div>
+        <div>data_richiesta, note</div>
+      </div>
+
+      <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#14b8a6;">📇 event_participants</h3>
+        <div>id, event_id → events</div>
+        <div>nome, cognome, email</div>
+        <div>ente_ospedaliero, ruolo_medico</div>
+        <div>stato_iscrizione: <strong>invitato → confermato → presente → assente</strong></div>
+        <div>note</div>
+      </div>
+
+      <div style="background:rgba(107,114,128,0.08);border:1px solid rgba(107,114,128,0.25);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;color:#6b7280;">⏰ event_deadlines</h3>
+        <div>id, event_id → events</div>
+        <div>tipo: <em>(dati_evento|materiale_marketing|iscrizioni|logistica)</em></div>
+        <div>descrizione, data_scadenza</div>
+        <div>assegnato_a → users</div>
+        <div>completato: si/no, completato_il</div>
+        <div>notifica_inviata: si/no</div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<div style="margin-top:24px;">
+  <h3>Relazioni chiave</h3>
+  <div style="font-size:14px;line-height:2;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">
+    <div>📅 Evento → ha molti 👥 Staff, 📋 Materiali richiesti, 📇 Partecipanti, ⏰ Scadenze</div>
+    <div>📦 Materiale → ha molti 🔄 Movimenti (storico completo di dove è stato)</div>
+    <div>👤 Utente → può essere promotore di eventi, staff, responsabile movimenti</div>
+    <div>🔄 Movimento → collega un materiale a un evento con date uscita/rientro</div>
+  </div>
+</div>

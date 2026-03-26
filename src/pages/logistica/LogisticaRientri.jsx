@@ -5,23 +5,11 @@ import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { MATERIALE_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
-import { formatDate } from '../../lib/date-utils'
-import { parseISO, differenceInDays, isValid } from 'date-fns'
-
-function daysOverdue(dataRientro) {
-  if (!dataRientro) return 0
-  try {
-    const d = parseISO(dataRientro)
-    if (!isValid(d)) return 0
-    return Math.max(0, differenceInDays(new Date(), d))
-  } catch {
-    return 0
-  }
-}
+import { formatDate, daysFromToday } from '../../lib/date-utils'
 
 function RientroCard({ movement, onNavigate }) {
   const { materiale, evento, responsabile, data_rientro_prevista } = movement
-  const giorni = daysOverdue(data_rientro_prevista)
+  const giorni = daysFromToday(data_rientro_prevista)
   const urgente = giorni >= 7
 
   return (
@@ -44,7 +32,7 @@ function RientroCard({ movement, onNavigate }) {
               {materiale?.nome || 'Materiale sconosciuto'}
             </p>
             {materiale?.codice_inventario && (
-              <p className="text-xs text-gray-400">{materiale.codice_inventario}</p>
+              <p className="text-sm text-gray-500">{materiale.codice_inventario}</p>
             )}
             <p className="text-sm text-gray-500 truncate mt-0.5">{evento?.titolo || '—'}</p>
             {responsabile && (
@@ -58,10 +46,10 @@ function RientroCard({ movement, onNavigate }) {
           <span className={`text-sm font-bold ${urgente ? 'text-red-600' : 'text-yellow-600'}`}>
             +{giorni} gg
           </span>
-          <span className="text-xs text-gray-400">in ritardo</span>
+          <span className="text-sm text-red-600 font-medium">in ritardo</span>
         </div>
       </div>
-      <p className="mt-2 text-xs text-gray-400">
+      <p className="mt-2 text-sm text-gray-500">
         Rientro previsto: {formatDate(data_rientro_prevista)}
       </p>
     </button>

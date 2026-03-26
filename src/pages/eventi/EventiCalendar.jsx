@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { addMonths, subMonths, getMonth, getYear } from 'date-fns'
 import { useEventsStore } from '../../hooks/useEvents'
 import { CalendarGrid } from '../../components/eventi/CalendarGrid'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -8,7 +7,7 @@ import { Icon } from '../../components/ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
-import { formatMonth } from '../../lib/date-utils'
+import { formatMonth, addOneMonth, subtractOneMonth, getMonthIndex, getFullYear } from '../../lib/date-utils'
 import { Link } from 'react-router-dom'
 
 export function EventiCalendar() {
@@ -18,7 +17,7 @@ export function EventiCalendar() {
   const setFilter = useEventsStore(s => s.setFilter)
 
   useEffect(() => {
-    setFilter('mese', { year: getYear(currentDate), month: getMonth(currentDate) + 1 })
+    setFilter('mese', { year: getFullYear(currentDate), month: getMonthIndex(currentDate) + 1 })
   }, [currentDate])
 
   const monthLabel = formatMonth(currentDate)
@@ -35,11 +34,11 @@ export function EventiCalendar() {
 
       <div className="px-4 md:px-8">
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" onClick={() => setCurrentDate(subMonths(currentDate, 1))} aria-label="Mese precedente">
+          <Button variant="ghost" onClick={() => setCurrentDate(subtractOneMonth(currentDate))} aria-label="Mese precedente">
             <Icon icon={ACTION_ICONS.chevron_left} size={20} />
           </Button>
           <h2 className="text-lg font-semibold text-gray-900 capitalize">{monthLabel}</h2>
-          <Button variant="ghost" onClick={() => setCurrentDate(addMonths(currentDate, 1))} aria-label="Mese successivo">
+          <Button variant="ghost" onClick={() => setCurrentDate(addOneMonth(currentDate))} aria-label="Mese successivo">
             <Icon icon={ACTION_ICONS.chevron_right} size={20} />
           </Button>
         </div>

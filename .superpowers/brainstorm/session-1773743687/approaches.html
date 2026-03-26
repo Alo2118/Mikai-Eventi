@@ -1,0 +1,92 @@
+<h2>3 Approcci Architetturali</h2>
+<p class="subtitle">Clicca sull'approccio che preferisci</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>React SPA + Supabase</h3>
+      <p><strong>Frontend:</strong> React + Vite + TailwindCSS → GitHub Pages</p>
+      <p><strong>Backend:</strong> Supabase (PostgreSQL + Auth + Realtime + Storage)</p>
+      <p><strong>Mobile:</strong> PWA (installabile da browser, offline-capable)</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pro</h4>
+          <ul>
+            <li>Zero costi — tutto free tier</li>
+            <li>Supabase gestisce auth, DB, notifiche push, storage file</li>
+            <li>Realtime integrato (liste aggiornate live)</li>
+            <li>PWA funziona come app nativa su mobile</li>
+            <li>Row Level Security per permessi ufficio vs commerciali</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Contro</h4>
+          <ul>
+            <li>Dipendenza da servizio esterno (Supabase)</li>
+            <li>Free tier: DB pausa dopo 1 settimana inattività (si riattiva)</li>
+            <li>React ha curva di apprendimento se dovete manutenere</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top:12px;padding:8px;background:rgba(99,102,241,0.1);border-radius:6px;font-weight:600;">⭐ RACCOMANDATO — miglior rapporto funzionalità/costo/semplicità</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Next.js Full-Stack + Supabase</h3>
+      <p><strong>Frontend + API:</strong> Next.js (SSR) → Vercel free tier</p>
+      <p><strong>Backend:</strong> Supabase per DB e Auth</p>
+      <p><strong>Mobile:</strong> PWA</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pro</h4>
+          <ul>
+            <li>Server-side rendering (SEO, performance)</li>
+            <li>API routes integrate nel progetto</li>
+            <li>Vercel free tier generoso</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Contro</h4>
+          <ul>
+            <li>Più complesso da sviluppare e deployare</li>
+            <li>Vercel free ha limiti su serverless functions</li>
+            <li>Over-engineering per un'app interna aziendale</li>
+            <li>Non gira su GitHub Pages (serve Vercel)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Vue.js + Firebase</h3>
+      <p><strong>Frontend:</strong> Vue 3 + Vite → GitHub Pages</p>
+      <p><strong>Backend:</strong> Firebase (Firestore + Auth + Cloud Messaging)</p>
+      <p><strong>Mobile:</strong> PWA</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pro</h4>
+          <ul>
+            <li>Vue più semplice da imparare di React</li>
+            <li>Firebase ha push notifications native</li>
+            <li>Free tier generoso (Spark plan)</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Contro</h4>
+          <ul>
+            <li>Firestore è NoSQL — meno adatto per query relazionali (eventi↔materiale↔staff)</li>
+            <li>Costi imprevedibili se superi il free tier</li>
+            <li>Vendor lock-in Google più forte</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

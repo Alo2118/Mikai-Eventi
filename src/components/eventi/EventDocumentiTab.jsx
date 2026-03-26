@@ -148,7 +148,7 @@ export function EventDocumentiTab({ event, onShowPackingList }) {
   if (loading) return <LoadingSkeleton lines={5} />
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {onShowPackingList && (
         <div className="flex justify-end">
           <Button variant="secondary" size="sm" onClick={onShowPackingList}>

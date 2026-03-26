@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
+import { CARD_STYLE } from '../../lib/constants'
 
 function SortHeader({ label, field, sortBy, sortDir, onSort }) {
   const active = sortBy === field
@@ -43,7 +44,7 @@ export function MetricheMaterialeTable({ analytics, productNames }) {
 
   if (!analytics) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <p className="text-sm font-medium text-gray-500">Metriche materiale</p>
         <p className="text-gray-400 text-sm mt-2">Nessun dato disponibile</p>
       </div>
@@ -66,7 +67,7 @@ export function MetricheMaterialeTable({ analytics, productNames }) {
   })
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className={CARD_STYLE}>
       <p className="text-sm font-medium text-gray-500 mb-4">Metriche materiale</p>
 
       {/* Desktop table */}
@@ -108,15 +109,15 @@ export function MetricheMaterialeTable({ analytics, productNames }) {
             <p className="font-medium text-gray-900 truncate">{row.name}</p>
             <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
               <div>
-                <p className="text-gray-400 text-xs">Uso/anno</p>
+                <p className="text-gray-400 text-sm">Uso/anno</p>
                 <p className="font-medium">{row.count}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-xs">Gg medi</p>
+                <p className="text-gray-400 text-sm">Gg medi</p>
                 <p className="font-medium">{row.avgDays != null ? row.avgDays : '\u2014'}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-xs">Puntuale</p>
+                <p className="text-gray-400 text-sm">Puntuale</p>
                 <p className={`font-medium ${rateColor(row.onTime)}`}>
                   {row.onTime != null ? `${row.onTime}%` : '\u2014'}
                 </p>

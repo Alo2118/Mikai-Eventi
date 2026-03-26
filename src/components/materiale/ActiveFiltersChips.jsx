@@ -10,7 +10,7 @@ export function ActiveFiltersChips({ filters, onRemove, onClearAll }) {
         <button
           key={f.id}
           onClick={() => onRemove(f.id)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-mikai-50 text-mikai-700 rounded-full text-sm font-medium hover:bg-mikai-100 transition-colors min-h-[36px]"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-mikai-50 text-mikai-700 rounded-full text-sm font-medium hover:bg-mikai-100 transition-colors min-h-[48px]"
           aria-label={`Rimuovi filtro ${f.label}`}
         >
           {f.label}
@@ -19,7 +19,7 @@ export function ActiveFiltersChips({ filters, onRemove, onClearAll }) {
       ))}
       <button
         onClick={onClearAll}
-        className="text-sm text-gray-500 hover:text-gray-700 min-h-[36px] px-2"
+        className="text-sm text-gray-500 hover:text-gray-700 min-h-[48px] px-2"
       >
         Cancella filtri
       </button>

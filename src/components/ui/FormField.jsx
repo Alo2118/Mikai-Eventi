@@ -25,7 +25,7 @@ export function FormField({ label, required, error, hint, children, className = 
         <p className="text-sm text-red-600 mt-1" role="alert" id={`error-${label}`}>{error}</p>
       )}
       {!error && hint && (
-        <p className="text-xs text-gray-400 mt-1">{hint}</p>
+        <p className="text-sm text-gray-500 mt-1">{hint}</p>
       )}
     </div>
   )

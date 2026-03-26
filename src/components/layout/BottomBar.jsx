@@ -5,10 +5,11 @@ import { Icon } from '../ui/Icon'
 import { NAV_ICONS } from '../../lib/icons'
 
 const items = [
+  { to: '/dashboard', label: 'Home', icon: NAV_ICONS.riepilogo },
   { to: '/eventi', label: 'Eventi', icon: NAV_ICONS.eventi },
-  { to: '/eventi/nuovo', label: 'Nuovo evento', icon: NAV_ICONS.nuovo },
+  { to: '/contatti', label: 'Rubrica', icon: NAV_ICONS.contatti },
   { to: '/notifiche', label: 'Notifiche', icon: NAV_ICONS.notifiche },
-  { to: '/dashboard', label: 'Dashboard', icon: NAV_ICONS.riepilogo },
+  { to: '/altro', label: 'Altro', icon: NAV_ICONS.altro },
 ]
 
 export function BottomBar() {
@@ -31,7 +32,7 @@ export function BottomBar() {
           <NavLink
             key={item.to}
             to={item.to}
-            aria-label={item.to === '/notifiche' && unreadCount > 0 ? `Notifiche, ${unreadCount} non lette` : undefined}
+            aria-label={item.to === '/notifiche' && unreadCount > 0 ? `Notifiche, ${unreadCount} non lette` : item.label}
             className={({ isActive }) =>
               `relative flex flex-col items-center justify-center py-2 px-3 min-w-[64px] min-h-[56px] text-sm font-medium ${
                 isActive ? 'text-mikai-400' : 'text-gray-500'

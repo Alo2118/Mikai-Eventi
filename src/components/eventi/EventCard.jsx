@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { TIPO_EVENTO, STATO_EVENTO_COLORE } from '../../lib/constants'
-import { TIPO_EVENTO_ICONS } from '../../lib/icons'
-import { formatDateRange } from '../../lib/date-utils'
+import { TIPO_EVENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { formatDateRange, todayISO } from '../../lib/date-utils'
 
 const bandaColore = {
   yellow: 'bg-yellow-400',
@@ -18,6 +18,8 @@ const bandaColore = {
 export function EventCard({ event }) {
   const TipoIcon = TIPO_EVENTO_ICONS[event.tipo_evento]
   const color = STATO_EVENTO_COLORE[event.stato] || 'gray'
+  const today = todayISO()
+  const daysUntil = event.data_inizio ? Math.ceil((new Date(event.data_inizio) - new Date(today)) / (1000 * 60 * 60 * 24)) : null
 
   return (
     <Link
@@ -49,6 +51,18 @@ export function EventCard({ event }) {
                 {TIPO_EVENTO[event.tipo_evento]}
               </span>
             </div>
+            {event.stato === 'proposto' && (
+              <span className="flex items-center gap-1 text-xs text-yellow-600 mt-1">
+                <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+                Da approvare
+              </span>
+            )}
+            {daysUntil !== null && daysUntil <= 7 && daysUntil >= 0 && !['concluso', 'cancellato'].includes(event.stato) && (
+              <span className="flex items-center gap-1 text-xs text-orange-600 mt-1">
+                <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+                {daysUntil === 0 ? 'Oggi' : daysUntil === 1 ? 'Domani' : `Tra ${daysUntil} giorni`}
+              </span>
+            )}
           </div>
 
           {/* Freccia navigazione */}

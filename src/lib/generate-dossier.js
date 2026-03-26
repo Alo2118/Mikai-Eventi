@@ -1,10 +1,6 @@
-import { TIPO_EVENTO, MODALITA_EVENTO, STATO_EVENTO, STATO_ISCRIZIONE, STATO_MATERIALE_LISTA, STATO_PRENOTAZIONE, STATO_PREVENTIVO, RUOLO_EVENTO, TIPO_PARTECIPANTE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO, STATO_ATTIVITA } from './constants'
+import { TIPO_EVENTO, MODALITA_EVENTO, STATO_EVENTO, STATO_ISCRIZIONE, STATO_MATERIALE_LISTA, STATO_PRENOTAZIONE, STATO_PREVENTIVO, RUOLO_EVENTO, TIPO_PARTECIPANTE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO, STATO_ATTIVITA, PDF_COLORS } from './constants'
 import { formatDate, formatDateRange, formatTime, formatDayISO } from './date-utils'
-
-const MIKAI_BLUE = '#3296dc'
-const TABLE_HEADER_BG = '#e8f4fc'
-const TEXT_COLOR = '#374151'
-const SECTION_COLOR = '#1e3a5f'
+import { formatCurrency } from './format-utils'
 
 function personName(row) {
   if (row.user) return `${row.user.nome} ${row.user.cognome}`
@@ -16,13 +12,13 @@ function addSectionTitle(doc, title, y) {
   const pageWidth = doc.internal.pageSize.getWidth()
   y = checkPageBreak(doc, 20, y)
   doc.setFontSize(14)
-  doc.setTextColor(SECTION_COLOR)
+  doc.setTextColor(PDF_COLORS.section)
   doc.setFont('helvetica', 'bold')
   doc.text(title, 14, y)
-  doc.setDrawColor(MIKAI_BLUE)
+  doc.setDrawColor(PDF_COLORS.primary)
   doc.setLineWidth(0.5)
   doc.line(14, y + 2, pageWidth - 14, y + 2)
-  doc.setTextColor(TEXT_COLOR)
+  doc.setTextColor(PDF_COLORS.text)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
   return y + 8
@@ -55,22 +51,22 @@ function addAutoTable(doc, head, body, startY) {
     startY,
     margin: { left: 14, right: 14 },
     headStyles: {
-      fillColor: TABLE_HEADER_BG,
-      textColor: TEXT_COLOR,
+      fillColor: PDF_COLORS.headerBg,
+      textColor: PDF_COLORS.text,
       fontStyle: 'bold',
       fontSize: 9,
     },
     bodyStyles: {
       fontSize: 9,
-      textColor: TEXT_COLOR,
+      textColor: PDF_COLORS.text,
     },
     alternateRowStyles: {
-      fillColor: '#f9fafb',
+      fillColor: PDF_COLORS.altRow,
     },
     styles: {
       cellPadding: 3,
       lineWidth: 0.1,
-      lineColor: '#e5e7eb',
+      lineColor: PDF_COLORS.border,
     },
   })
   return doc.lastAutoTable.finalY + 8
@@ -84,7 +80,7 @@ function addFooter(doc) {
     const pageHeight = doc.internal.pageSize.getHeight()
     const pageWidth = doc.internal.pageSize.getWidth()
     doc.setFontSize(8)
-    doc.setTextColor('#9ca3af')
+    doc.setTextColor(PDF_COLORS.muted)
     doc.setFont('helvetica', 'normal')
     const footerText = `Generato il ${today} — Eventi Mikai — Pagina ${i} di ${pageCount}`
     const textWidth = doc.getTextWidth(footerText)
@@ -95,20 +91,20 @@ function addFooter(doc) {
 function addEmptyMessage(doc, message, y) {
   y = checkPageBreak(doc, 8, y)
   doc.setFontSize(10)
-  doc.setTextColor('#9ca3af')
+  doc.setTextColor(PDF_COLORS.muted)
   doc.text(message, 14, y)
-  doc.setTextColor(TEXT_COLOR)
+  doc.setTextColor(PDF_COLORS.text)
   return y + 8
 }
 
 function addCoverPage(doc, event) {
   const pageWidth = doc.internal.pageSize.getWidth()
 
-  doc.setFillColor(MIKAI_BLUE)
+  doc.setFillColor(PDF_COLORS.primary)
   doc.rect(0, 0, pageWidth, 60, 'F')
 
   doc.setFontSize(28)
-  doc.setTextColor('#ffffff')
+  doc.setTextColor(PDF_COLORS.white)
   doc.setFont('helvetica', 'bold')
   doc.text('MIKAI', 14, 28)
 
@@ -118,12 +114,12 @@ function addCoverPage(doc, event) {
 
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
-  doc.setTextColor(TEXT_COLOR)
+  doc.setTextColor(PDF_COLORS.text)
   doc.text(event.titolo || '', 14, 78, { maxWidth: pageWidth - 28 })
 
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
-  doc.setTextColor('#6b7280')
+  doc.setTextColor(PDF_COLORS.subtle)
   const dateStr = formatDateRange(event.data_inizio, event.data_fine)
   doc.text(dateStr, 14, 90)
   if (event.luogo) {
@@ -147,7 +143,7 @@ function addInfoSection(doc, event, y) {
     y = addKeyValue(doc, 'Indirizzo spedizione', event.indirizzo_spedizione, y)
   }
   if (event.budget_previsto) {
-    y = addKeyValue(doc, 'Budget previsto', `${Number(event.budget_previsto).toLocaleString('it-IT')} EUR`, y)
+    y = addKeyValue(doc, 'Budget previsto', formatCurrency(event.budget_previsto), y)
   }
   if (event.certificato_previsto) {
     y = addKeyValue(doc, 'Certificato', 'Previsto', y)
@@ -277,13 +273,13 @@ function addCostsSection(doc, preventivi, permissions, y) {
     return [
       fornitore,
       p.descrizione || '—',
-      p.importo ? `${Number(p.importo).toLocaleString('it-IT')} EUR` : '—',
+      p.importo ? formatCurrency(p.importo) : '—',
       STATO_PREVENTIVO[p.stato] || p.stato || '—',
     ]
   })
 
   const totale = preventivi.reduce((sum, p) => sum + (Number(p.importo) || 0), 0)
-  body.push(['', 'TOTALE', `${totale.toLocaleString('it-IT')} EUR`, ''])
+  body.push(['', 'TOTALE', formatCurrency(totale), ''])
 
   return addAutoTable(doc, head, body, y)
 }

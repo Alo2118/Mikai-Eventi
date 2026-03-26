@@ -6,10 +6,14 @@ import { useAdminStore } from '../../hooks/useAdmin'
 import { ContactForm } from '../../components/contatti/ContactForm'
 import { Button } from '../../components/ui/Button'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
+import { MobileHeader } from '../../components/layout/MobileHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
+import { EmptyState } from '../../components/ui/EmptyState'
 import { useToastStore } from '../../components/ui/Toast'
-import { TIPO_CONTATTO } from '../../lib/constants'
+import { TIPO_CONTATTO, CARD_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
+import { Icon } from '../../components/ui/Icon'
+import { CONTATTI_ICONS } from '../../lib/icons'
 
 export function ContattiDetail() {
   const { id } = useParams()
@@ -48,13 +52,16 @@ export function ContattiDetail() {
   }
 
   if (loading) return <LoadingSkeleton />
-  if (!contact) return null
+  if (!contact) return <EmptyState title="Contatto non trovato" />
 
   return (
     <div className="space-y-4">
       <Breadcrumb items={[{ label: 'Contatti', to: '/contatti' }, { label: `${contact.cognome} ${contact.nome}` }]} />
+      <div className="md:hidden">
+        <MobileHeader title={`${contact.cognome} ${contact.nome}`} subtitle="Dettaglio contatto" backTo="/contatti" />
+      </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className={CARD_STYLE}>
         {editing ? (
           <ContactForm contact={contact} users={[]} zones={zones || []} onSave={handleSave} onCancel={() => setEditing(false)} saving={saving} />
         ) : (
@@ -67,13 +74,13 @@ export function ContattiDetail() {
               {canEdit && <Button variant="secondary" onClick={() => setEditing(true)}>Modifica</Button>}
             </div>
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-base">
-              {contact.azienda && <><dt className="text-gray-500">Azienda</dt><dd>{contact.azienda}</dd></>}
-              {contact.email && <><dt className="text-gray-500">Email</dt><dd>{contact.email}</dd></>}
-              {contact.telefono && <><dt className="text-gray-500">Telefono</dt><dd>{contact.telefono}</dd></>}
-              {contact.ruolo_medico && <><dt className="text-gray-500">Ruolo</dt><dd>{contact.ruolo_medico}</dd></>}
-              {contact.specializzazione && <><dt className="text-gray-500">Specializzazione</dt><dd>{contact.specializzazione}</dd></>}
-              {contact.proprietario && <><dt className="text-gray-500">Proprietario</dt><dd>{contact.proprietario.cognome} {contact.proprietario.nome}</dd></>}
-              {contact.zona && <><dt className="text-gray-500">Zona</dt><dd>{contact.zona.nome}</dd></>}
+              {contact.azienda && <><dt className="text-gray-500 flex items-center gap-1.5"><Icon icon={CONTATTI_ICONS.azienda} size={14} className="text-gray-400" />Azienda</dt><dd>{contact.azienda}</dd></>}
+              {contact.email && <><dt className="text-gray-500 flex items-center gap-1.5"><Icon icon={CONTATTI_ICONS.email} size={14} className="text-gray-400" />Email</dt><dd>{contact.email}</dd></>}
+              {contact.telefono && <><dt className="text-gray-500 flex items-center gap-1.5"><Icon icon={CONTATTI_ICONS.telefono} size={14} className="text-gray-400" />Telefono</dt><dd>{contact.telefono}</dd></>}
+              {contact.ruolo_medico && <><dt className="text-gray-500 flex items-center gap-1.5"><Icon icon={CONTATTI_ICONS.ruolo} size={14} className="text-gray-400" />Ruolo</dt><dd>{contact.ruolo_medico}</dd></>}
+              {contact.specializzazione && <><dt className="text-gray-500 flex items-center gap-1.5"><Icon icon={CONTATTI_ICONS.specializzazione} size={14} className="text-gray-400" />Specializzazione</dt><dd>{contact.specializzazione}</dd></>}
+              {contact.proprietario && <><dt className="text-gray-500 flex items-center gap-1.5"><Icon icon={CONTATTI_ICONS.proprietario} size={14} className="text-gray-400" />Proprietario</dt><dd>{contact.proprietario.cognome} {contact.proprietario.nome}</dd></>}
+              {contact.zona && <><dt className="text-gray-500 flex items-center gap-1.5"><Icon icon={CONTATTI_ICONS.zona} size={14} className="text-gray-400" />Zona</dt><dd>{contact.zona.nome}</dd></>}
             </dl>
             {contact.note && <p className="text-gray-600 bg-gray-50 rounded-lg p-3">{contact.note}</p>}
           </div>
@@ -81,7 +88,7 @@ export function ContattiDetail() {
       </div>
 
       {history.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className={CARD_STYLE}>
           <h2 className="font-semibold text-lg mb-3">Storico eventi</h2>
           <div className="space-y-2">
             {history.map(h => (

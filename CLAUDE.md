@@ -42,12 +42,16 @@ Sales reps, area managers, back-office staff with **highly variable digital lite
 | **Materiale Redesign** | Done | Granular permissions, editable material list, visual catalog, venue directory, admin CRUD |
 | **Phase 4** | Done | People & Logistics: contacts directory, event staff/participants, sub-activities, hotel/transport, quotes with approval, costs |
 | **Phase 4b** | Done | Bulk import (paste from spreadsheet), transport details (mezzo/codice/orario/autista), tavoli corso, logistics redesign (checkbox selection + bulk modals + grouping), hotel details, agente participant type |
-| **Design System** | Done | 20 UI components: Modal (unified, accessible), FormField, StatusPill, ProgressIndicator, ActionToolbar, FilterBar, FilterSelect, ChipFilter, EventChecklistView. Summary bars in tabs, tab status dots, INPUT_STYLE constants. Specs: `docs/superpowers/specs/2026-03-23-design-system-spec.md` |
-| **Phase 5A** | Done | Gap completion: DataTable component, tab status dots (6 tabs), summary bars, EventChecklistView integration, template admin (cycle detection, topological sort, segmented controls), material position UI (warehouse/agent selectors) |
+| **Design System** | Done | UI components: Modal (unified, accessible), FormField, ProgressIndicator, ChipFilter, EventChecklistView. Summary bars in tabs, tab status dots, INPUT_STYLE constants. Specs: `docs/superpowers/specs/2026-03-23-design-system-spec.md` |
+| **Phase 5A** | Done | Gap completion: tab status dots (6 tabs), summary bars, EventChecklistView integration, template admin (cycle detection, topological sort, segmented controls), material position UI (warehouse/agent selectors) |
 | **Phase 5B** | Done | Notifications: in-app notifications with Realtime, NotificationBell + dropdown, NotifichePage with filters, DB triggers (event/activity/preventivo), Edge Functions (deadline-checker, overdue-returns, email-digest), pg_cron schedules, notification preferences |
 | **Phase 5C** | Done | Documents & Export: EventDocumentiTab (drag&drop upload, preview, download), Excel export on 5 list pages (exceljs), packing list (generate/toggle/print), dossier PDF generator (jsPDF), print CSS |
 | **Phase 5D** | Done | Analytics: KPI dashboard (recharts), consuntivo vs preventivo, material utilization report, dashboard commerciale |
-| **Phase 6** | Next | Compliance (Sunshine Act/ToV tracking, HCP interaction history, audit trail), PWA offline, CI/CD |
+| **Phase 6A** | Done | CI/CD: GitHub Actions workflow (build + deploy to GitHub Pages on push to main) |
+| **Phase 6B** | Done | PWA: vite-plugin-pwa, manifest, service worker, OfflineIndicator, InstallPrompt |
+| **Phase 6C** | Done | Compliance: HCP profiles, ToV tracking (Sunshine Act), interazioni HCP, audit trail expanded, ComplianceDashboard, AuditTrailPage, EventComplianceTab |
+| **Optimization** | Done | Code splitting (React.lazy, 31 lazy routes, -79% initial bundle), vendor chunks (react/supabase/recharts/date-fns/zustand), centralized formatCurrency/formatCurrencyDecimals/formatPercentage in format-utils, useExportHandler hook (DRY 7 pages), date-fns fully centralized in date-utils (14 new helpers), Icon.jsx full 26-map lookup, GlobalSearch queries moved to useGlobalSearchStore, touch targets fixed (48px min), 6 unused components removed |
+| **UX Overhaul** | Done | Tab Persone+Logistica merged, material type icons, availability check, shipping workflow (packing list per collo, spedizione evento-level), deadline fields (preparazione/spedizione/consegna/partecipanti), gate blockers in Preparazione, deep-link notifications, default tab by event state, responsive mobile cards, centralized UI style constants (CARD_STYLE/FORM_CONTAINER_STYLE/SUMMARY_BAR_STYLE), 36+ files standardized, EmptyState with icons, KPI alert colors, ConfirmDialog on approve, BottomBar 5-item + AltroPage, LogisticaTimeline grouped by event |
 
 ### Readiness Engine (cross-phase, implemented)
 The Event Readiness Engine is a cross-cutting system that solves coordination failures. Spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md` (all sections approved and implemented).
@@ -83,14 +87,14 @@ Key business rules:
 - **Supabase CLI:** installed via npx (`npx supabase`), project linked. Use `SUPABASE_ACCESS_TOKEN` env var.
 
 ### GitHub Pages (Deploy)
-- **Static SPA** deployed on GitHub Pages (not a full PWA yet — no service worker or manifest; PWA offline is Phase 6)
-- **Base path:** `/Eventi/` (configured in `vite.config.js`)
+- **PWA SPA** deployed on GitHub Pages with service worker (vite-plugin-pwa), manifest, offline indicator
+- **Base path:** `/Mikai-Eventi/` (configured in `vite.config.js`)
 - **SPA routing:** `public/404.html` redirects all paths to `index.html` via query string rewrite; `index.html` restores the original URL via History API
-- **Deploy process:** Manual — no CI/CD pipeline yet. Steps:
-  1. `npm run build` → produces `dist/`
-  2. Push `dist/` contents to `gh-pages` branch (or use `gh-pages` npm package)
-  3. GitHub Pages serves from `gh-pages` branch at `https://<user>.github.io/Eventi/`
-- **TODO:** Automate with GitHub Actions workflow (Phase 6)
+- **Deploy process:** Automated via GitHub Actions (`.github/workflows/deploy.yml`)
+  - **Trigger:** push to `main` branch
+  - **Steps:** checkout → setup-node 20 → npm ci → build (with secrets) → deploy to GitHub Pages
+  - **Secrets required:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` in repository settings
+  - **Setup:** Repository Settings → Pages → Source: "GitHub Actions"
 
 ### Local development
 ```bash
@@ -129,7 +133,8 @@ source .env && SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN npx supabase migrati
 | Excel export | exceljs | 4.x (MIT, dynamic import) |
 | Charts | recharts | 2.x (PieChart, BarChart, ResponsiveContainer) |
 | PDF generation | jsPDF + jspdf-autotable | 2.5.x / 3.8.x (dynamic import) |
-| Deploy | GitHub Pages | base: `/Mikai-Eventi/` |
+| PWA | vite-plugin-pwa | 1.x (Workbox, autoUpdate) |
+| Deploy | GitHub Pages | base: `/Mikai-Eventi/`, CI/CD via GitHub Actions |
 
 **Language:** UI text and labels always in **Italian** (natural language, zero jargon).
 **Brand color:** `mikai-400` = `#3296dc`. Full scale defined in `src/index.css` @theme.
@@ -141,9 +146,9 @@ source .env && SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN npx supabase migrati
 ```
 src/
 ├── components/
-│   ├── ui/           # Reusable primitives (Button, Icon, Tabs, Toast, DataTable, ExportButton, NotificationBell, NotificationCard, NotificationDropdown, etc.)
-│   ├── layout/       # App shell (with Realtime init), Sidebar (with bell), BottomBar (with badge), MobileHeader, Breadcrumb
-│   ├── eventi/       # Event domain components (tabs: Info, Preparazione, Materiale, Persone, Programma, Logistica, Costi, Documenti + EventChecklistView, EventPackingList)
+│   ├── ui/           # Reusable primitives (Button, Icon, Tabs, Toast, Modal, ExportButton, NotificationBell, NotificationCard, NotificationDropdown, OfflineIndicator, InstallPrompt, GlobalSearch, etc.)
+│   ├── layout/       # App shell (with Realtime init + PWA), Sidebar (with bell + compliance), BottomBar (with badge), MobileHeader, Breadcrumb
+│   ├── eventi/       # Event domain components (tabs: Info, Preparazione, Materiale, Persone, Programma, Logistica, Costi, Documenti, Compliance + EventChecklistView, EventPackingList)
 │   ├── materiale/    # Material domain components
 │   ├── contatti/     # Contact components (ContactPicker, ContactForm)
 │   └── notifiche/    # NotificationPreferences
@@ -153,15 +158,19 @@ src/
 │   ├── materiale/    # MaterialeList, MaterialeDetail
 │   ├── contatti/     # ContattiList, ContattiDetail
 │   ├── notifiche/    # NotifichePage (full list + filters + preferences)
+│   ├── compliance/   # ComplianceDashboard, TovList, TovForm, TovDetail, HcpList, HcpDetail
 │   ├── costi/        # CostiPage (cross-event quotes + analisi costi)
 │   ├── logistica/    # LogisticaPage (cross-event logistics)
 │   ├── report/       # ReportMaterialePage (material utilization analytics)
-│   └── admin/        # AdminBrand, AdminProdotti, AdminSedi, AdminUtenti, AdminSottoAttivita, etc.
-├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useContacts, useStaff, useParticipants, useSubActivities, useLogistics, useCosts, useAdmin, useTavoli, useNotifications, useDocuments, usePackingList)
+│   └── admin/        # AdminBrand, AdminProdotti, AdminSedi, AdminUtenti, AdminSottoAttivita, AuditTrailPage, etc.
+├── hooks/            # Zustand stores (useAuth, useEvents, useMaterials, useContacts, useStaff, useParticipants, useActivities, useSubActivities, useLogistics, useCosts, useAdmin, useTavoli, useNotifications, useDocuments, usePackingList, useCompliance, useAuditLog, useAnalytics, useDashboardCommerciale, useVenues, useGlobalSearch) + custom hooks (useExportHandler)
 ├── lib/              # Utilities (constants, date-utils, format-utils, icons, supabase client, export-utils, generate-dossier)
 └── main.jsx          # Entry point
 public/
-└── 404.html          # GitHub Pages SPA redirect
+├── 404.html          # GitHub Pages SPA redirect
+└── icons/            # PWA icons (192, 512, 512-maskable)
+.github/
+└── workflows/deploy.yml  # CI/CD: build + deploy to GitHub Pages
 docs/superpowers/
 ├── specs/            # Design specs (brainstorming output): YYYY-MM-DD-<topic>-design.md
 └── plans/            # Implementation plans (writing-plans output): YYYY-MM-DD-<topic>-plan.md
@@ -171,15 +180,16 @@ supabase/
 ```
 
 ### File ownership rules
-- **`src/lib/constants.js`** — Enums, labels, color maps. NO icons, NO emoji.
+- **`src/lib/constants.js`** — Enums, labels, color maps, **UI style constants** (`CARD_STYLE`, `FORM_CONTAINER_STYLE`, `INPUT_STYLE`, etc.). NO icons, NO emoji.
 - **`src/lib/icons.js`** — Central icon registry. The ONLY file that imports from `lucide-react`.
 - **`src/components/ui/Icon.jsx`** — Icon wrapper. All components use `<Icon>`, never raw Lucide imports.
-- **`src/lib/date-utils.js`** — All date formatting. Uses `date-fns` with Italian locale (`it`).
-- **`src/lib/format-utils.js`** — Non-date formatting utilities (formatFileSize). NOT in date-utils.
+- **`src/lib/date-utils.js`** — All date formatting AND date computation. Uses `date-fns` with Italian locale (`it`). The ONLY file that imports from `date-fns`.
+- **`src/lib/format-utils.js`** — Non-date formatting utilities (formatFileSize, formatCurrency, formatCurrencyDecimals, formatPercentage). NOT in date-utils.
 - **`src/lib/export-utils.js`** — Excel export with dynamic import of exceljs. exportToExcel + exportToExcelMultiSheet.
 - **`src/lib/generate-dossier.js`** — PDF dossier generation with dynamic import of jsPDF.
 - **`src/index.css`** — Tailwind import + Mikai color @theme + @media print styles. No utility classes here.
-- **`src/App.jsx`** — All route definitions. The only file with a default export.
+- **`src/hooks/useExportHandler.js`** — Reusable Excel export hook. Used by 7 list pages. Multi-sheet exports (LogisticaPage) use export-utils directly.
+- **`src/App.jsx`** — All route definitions with `React.lazy()` + `Suspense` for code splitting. The only file with a default export.
 
 ---
 
@@ -264,7 +274,7 @@ Always alias joins with readable names (`promotore`, `manager`, not `users`).
 
 ### Routing
 
-**All routes defined in `App.jsx`.** No dynamic route registration.
+**All routes defined in `App.jsx`.** No dynamic route registration. All page components are lazy-loaded via `React.lazy()` with a `Suspense` fallback showing `LoadingSkeleton`.
 
 **Protected routes** wrap content in `<ProtectedRoute>` which checks auth session.
 
@@ -284,7 +294,7 @@ Always alias joins with readable names (`promotore`, `manager`, not `users`).
    - `STATUS_COLOR_ICONS` — color-to-icon mapping for StatusBadge
    - `MODALITA_ICONS` — participation mode icons
    - `NAV_ICONS` — navigation icons (sidebar + bottom bar)
-   - `ACTION_ICONS` — action icons (approve, reject, add, back, check, close...)
+   - `ACTION_ICONS` — action icons (approve, reject, add, back, check, close, search, edit...)
    - `MATERIALE_ICONS` — material/logistics icons (package, truck, brand types...)
    - `WIZARD_STEP_ICONS` — wizard step icons
    - `TOAST_ICONS` — notification feedback icons
@@ -292,6 +302,21 @@ Always alias joins with readable names (`promotore`, `manager`, not `users`).
    - `POSIZIONE_ICONS` — material position icons
    - `NOTIFICA_ICONS` — notification type icons + bell variants
    - `DOCUMENTO_ICONS` — document type icons + actions (upload, download, delete, preview, print, dossier)
+   - `ADMIN_ICONS` — admin section icons (brand, distretti, prodotti, sedi, zone, utenti...)
+   - `COMPLIANCE_ICONS` — compliance section icons (hcp, tov, interazione, audit...)
+   - `CONTATTI_ICONS` — contact type icons
+   - `COSTI_ICONS` — cost/quote icons
+   - `CATALOGO_ICONS` — catalog browser icons (cart, filter, search...)
+   - `DASHBOARD_ICONS` — dashboard-specific icons
+   - `TAVOLI_ICONS` — course table icons
+   - `TRASPORTO_ICONS` — transport type icons
+   - `ATTIVITA_STATO_ICONS` — activity state icons
+   - `CATEGORIA_ICONS` — activity category icons
+   - `SOTTO_ATTIVITA_ICONS` — sub-activity type icons
+   - `LOGISTICA_PERSONE_ICONS` — logistics person type icons
+   - `PWA_ICONS` — PWA install/offline icons
+
+   All 26 maps are included in `Icon.jsx`'s flat lookup for string-based name resolution.
 
 2. **`src/components/ui/Icon.jsx`** — Wrapper component:
    ```jsx
@@ -360,9 +385,9 @@ Use for all destructive actions (reject, cancel, delete).
 | `LoadingSkeleton` | Animated pulse lines. Props: `lines` (default 3) |
 | `EmptyState` | Centered message + optional CTA. Props: `title`, `description`, `action` |
 | `Breadcrumb` | Desktop-only navigation trail. Props: `items` (array of `{ label, to? }`) |
-| `DataTable` | Sortable table with selection, grouping, mobile collapse, expandable rows. Props: `columns`, `rows`, `rowKey`, `selectable`, `groupBy`, `renderExpandedRow` |
-| `DataTableMobileRow` | Mobile row for DataTable — expands priority-2 columns on tap |
 | `ExportButton` | Secondary button with spreadsheet icon. Props: `onClick`, `loading`, `label` |
+| `AdminTable` | Simple admin CRUD table with column headers + clickable rows |
+| `GlobalSearch` | Cmd+K search modal. Searches events, contacts, materials via `useGlobalSearchStore` |
 | `NotificationBell` | Bell icon + unread badge. Desktop: toggles dropdown. Mobile: navigates to /notifiche |
 | `NotificationCard` | Notification display with icon, title, message, time. Props: `notification`, `compact` |
 | `NotificationDropdown` | Desktop dropdown showing last 10 notifications + "Vedi tutte" link |
@@ -373,6 +398,8 @@ Use for all destructive actions (reject, cancel, delete).
 
 All date formatting goes through **`src/lib/date-utils.js`** using `date-fns` with Italian locale.
 
+**Formatting functions:**
+
 | Function | Output | Example |
 |----------|--------|---------|
 | `formatDate(str)` | `d MMM yyyy` | `17 mar 2026` |
@@ -380,9 +407,37 @@ All date formatting goes through **`src/lib/date-utils.js`** using `date-fns` wi
 | `formatDateTime(str)` | `d MMM yyyy 'alle' HH:mm` | `17 mar 2026 alle 14:30` |
 | `formatRelativeTime(str)` | relative (date-fns) | `3 minuti fa`, `ieri` |
 
+**Calendar/computation helpers:**
+
+| Function | Purpose |
+|----------|---------|
+| `getMonthDays(date)` | Array of days for calendar grid (Mon-start weeks) |
+| `isSameMonthAs(day, ref)` | Check if day belongs to reference month |
+| `isTodayDate(date)` | Check if date is today |
+| `getWeekdayLabels()` | `['Lun', 'Mar', 'Mer', ...]` |
+| `addOneMonth(date)` / `subtractOneMonth(date)` | Month navigation |
+| `getMonthIndex(date)` / `getFullYear(date)` | Extract month (0-11) / year |
+| `todayISO()` | Today as `YYYY-MM-DD` string |
+| `nowISO()` | Current instant as full ISO string |
+| `toISO(value)` | Converts date value to ISO string (null-safe) |
+| `daysFromToday(isoStr)` | Positive = overdue days |
+| `subtractDays(isoStr, n)` | Returns ISO string or null |
+| `getMonthRange()` / `getQuarterRange()` / `getYearRange()` | Returns `[startISO, endISO]` |
+
+**Currency/number formatting (in `format-utils.js`):**
+
+| Function | Output | Example |
+|----------|--------|---------|
+| `formatCurrency(value)` | `N €` (0-2 decimals) | `1.234,56 €` |
+| `formatCurrencyDecimals(value)` | `€ N` (always 2 dec) | `€ 1.234,56` |
+| `formatPercentage(value, dec)` | `N%` | `12,5%` |
+| `formatFileSize(bytes)` | human-readable | `2,3 MB` |
+
 **Rules:**
 - All dates stored in DB as ISO strings (`YYYY-MM-DD` or `TIMESTAMPTZ`)
-- All date display goes through `date-utils.js` — never format dates inline in components
+- All date display AND computation goes through `date-utils.js` — never import `date-fns` in components
+- **No inline `new Date().toISOString()`** — use `nowISO()` for timestamps, `todayISO()` for date-only, `toISO(value)` for converting form values
+- All currency formatting goes through `format-utils.js` — never use inline `toLocaleString` or `Intl.NumberFormat`
 - Timezone: server uses UTC, display uses Italian locale formatting (no timezone conversion needed for date-only fields)
 
 ---
@@ -425,13 +480,52 @@ This is not optional. Every component, every screen must follow these rules.
 | Neutral | `gray-*` | Borders, secondary text, disabled |
 | Active/in progress | `emerald-*` | In-progress states |
 
-### Card pattern
+### UI Style Constants (mandatory)
 
-All list items use a consistent card pattern:
+**Hard rule: NEVER hardcode card/form/summary class strings.** Always use the constants from `constants.js`:
+
+| Constant | Value | When to use |
+|----------|-------|-------------|
+| `CARD_STYLE` | `bg-white rounded-xl border border-gray-200 p-4` | Any white card container |
+| `CARD_HOVER_STYLE` | `...p-4 hover:shadow-md transition-all` | Clickable/interactive cards |
+| `CARD_ITEM_STYLE` | `rounded-xl border border-gray-200 p-4` | Card items without bg-white |
+| `FORM_CONTAINER_STYLE` | `bg-gray-50 rounded-xl p-4` | Inline forms, edit containers |
+| `SUMMARY_BAR_STYLE` | `bg-mikai-50 border border-mikai-200 rounded-xl px-4 py-3` | Summary/toolbar bars |
+| `GROUP_HEADING_STYLE` | `bg-gray-100 px-4 py-2 rounded-lg font-medium text-sm text-gray-700` | Group section headers |
+| `INPUT_STYLE` | Full input classes | All text inputs |
+| `SELECT_STYLE` | Full select classes | All select elements |
+| `TEXTAREA_STYLE` | Full textarea classes | All textareas |
+
+**Usage pattern — append extra classes via concatenation:**
 ```jsx
-<div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all">
+import { CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
+
+<div className={CARD_STYLE + ' space-y-3'}>           // card with inner spacing
+<div className={CARD_HOVER_STYLE + ' cursor-pointer'}> // clickable card
+<div className={'block ' + CARD_HOVER_STYLE}>           // prefix classes
 ```
+
 Event cards add a **color band** (`w-1.5`) on the left side to indicate status at a glance.
+
+### Event detail tab pattern (cross-component consistency)
+
+All tab components inside EventiDetail MUST use these same patterns:
+
+| Property | Standard | Example |
+|----------|----------|---------|
+| **Outer spacing** | `space-y-6` | `<div className="space-y-6">` |
+| **Section heading** | `<h3 className="font-semibold text-lg">` | Never h2, never text-xl/text-base, never font-bold |
+| **Cards** | `CARD_STYLE` constant | Never hardcode `bg-white rounded-xl border...` |
+| **Forms** | `FORM_CONTAINER_STYLE` constant | Never hardcode `bg-gray-50 rounded-xl...` |
+| **Summary bars** | `SUMMARY_BAR_STYLE` constant | Never hardcode `bg-mikai-50 border...` |
+| **ProgressIndicator** | Use `<ProgressIndicator>` component | Never manual progress bars |
+| **Empty states** | Use `<EmptyState>` component | Never manual `<p>` or `<div>` for empty |
+| **Button gaps** | `gap-3` | Never `gap-2` for button groups |
+| **Card list spacing** | `space-y-3` | Never `space-y-2` for card lists |
+| **Icon color (interactive)** | `text-gray-400` | Never `text-gray-300` (poor contrast) |
+| **Touch targets** | `min-h-[48px]` | Never `min-h-[36px]` on interactive elements |
+
+When adding or modifying a tab, check neighboring tabs for pattern alignment.
 
 ### Form pattern
 
@@ -457,9 +551,10 @@ Event cards add a **color band** (`w-1.5`) on the left side to indicate status a
 
 ## Performance
 
-- **No premature optimization.** Measure first, optimize if needed.
-- **Zustand selector pattern** to minimize re-renders (see State Management above)
-- **Lazy loading:** Not needed yet at current scale (~50 files). Consider when bundle exceeds 700KB.
+- **Route-level code splitting:** All 31 page components are lazy-loaded via `React.lazy()` in `App.jsx`. Initial bundle ~291 KB (86 KB gzip).
+- **Vendor chunks:** Separated via `manualChunks` in `vite.config.js` — react (50 KB), supabase (176 KB), recharts (375 KB), date-fns (28 KB), zustand (tiny). Cached independently from app code.
+- **Dynamic imports for heavy libs:** exceljs and jsPDF are dynamically imported only when export/dossier is triggered.
+- **Zustand selector pattern** to minimize re-renders (see State Management above).
 - **Images:** Not used in current app. If added: WebP, lazy loaded, with explicit dimensions.
 
 ---
@@ -472,6 +567,8 @@ Event cards add a **color band** (`w-1.5`) on the left side to indicate status a
 - RLS policies enforced on every table. Frontend does NOT rely on client-side auth checks for security
 - Seed data in `012_seed.sql` — uses hex-valid UUID prefixes (`aaaa`, `bbbb`, `cccc`)
 - **Never modify existing migrations.** Always create a new sequential one.
+- **Compliance tables** (Phase 6C): `hcp_professionisti`, `trasferimenti_valore`, `interazioni_hcp` — RLS via `has_compliance_permission()` helper
+- **Audit triggers**: `log_audit_action()` generic trigger on ToV, HCP, contacts, documents, preventivi, material_requests, permissions
 - **Supabase Realtime** enabled on `notifications` table — used for live notification push to clients
 - **Supabase Storage** bucket `event-documents` — private, 10MB max, authenticated RLS
 - **Edge Functions** in `supabase/functions/` — Deno runtime, use `Deno.serve()`, env vars via `Deno.env.get()`
@@ -613,6 +710,7 @@ Ready to merge?
 - **Use parallel agents** when tasks are independent. Don't serialize what can run concurrently.
 - **Never skip systematic-debugging.** Don't guess at fixes — investigate root cause first.
 - **Code review after every major step**, not just at the end.
+- **Cross-component consistency in analyses.** When analyzing codebase quality, always dispatch a dedicated agent that **compares sibling components** (all tabs in the same detail page, all list pages, all admin pages). Extract wrapper classes, spacing, heading styles, card patterns — then flag differences. Analyzing files in isolation misses visual misalignment between components that share the same context.
 
 ---
 
@@ -630,4 +728,9 @@ These are explicit anti-patterns for this project:
 - **No silent failures** — every error must surface to the user via toast or inline message
 - **No CSS-in-JS, styled-components, or CSS modules** — Tailwind only
 - **No inline date formatting** — always use `date-utils.js`
+- **No inline `new Date().toISOString()`** — use `todayISO()`, `nowISO()`, or `toISO()` from `date-utils.js`
+- **No direct date-fns imports** in components — always through `date-utils.js`
+- **No inline currency formatting** — always use `formatCurrency`/`formatCurrencyDecimals` from `format-utils.js`
+- **No duplicated export logic** — use `useExportHandler` hook for Excel exports
 - **No unused dependencies** — if a package is not imported anywhere, remove it from `package.json`
+- **No hardcoded card/form class strings** — always use `CARD_STYLE`, `CARD_HOVER_STYLE`, `FORM_CONTAINER_STYLE`, `SUMMARY_BAR_STYLE` from `constants.js`

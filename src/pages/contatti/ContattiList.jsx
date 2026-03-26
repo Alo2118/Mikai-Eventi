@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useContactsStore } from '../../hooks/useContacts'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useAdminStore } from '../../hooks/useAdmin'
+import { useExportHandler } from '../../hooks/useExportHandler'
 import { ContactForm } from '../../components/contatti/ContactForm'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
@@ -14,10 +15,9 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToastStore } from '../../components/ui/Toast'
-import { TIPO_CONTATTO, SELECT_STYLE } from '../../lib/constants'
+import { TIPO_CONTATTO, SELECT_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
 import { CONTATTI_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { BulkImportModal } from '../../components/contatti/BulkImportModal'
-import { exportToExcel } from '../../lib/export-utils'
 
 const EXPORT_COLUMNS_CONTATTI = [
   { key: 'cognome', label: 'Cognome', width: 20 },
@@ -44,7 +44,7 @@ export function ContattiList() {
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [exporting, setExporting] = useState(false)
+  const { exporting, handleExport } = useExportHandler()
 
   const zones = useAdminStore(s => s.zones)
   const fetchZones = useAdminStore(s => s.fetchZones)
@@ -65,31 +65,15 @@ export function ContattiList() {
 
   const canCreate = hasPermission('gestione_contatti') || profile?.ruolo === 'commerciale'
 
-  const handleExport = async () => {
-    if (contacts.length === 0) { addToast('Nessun dato da esportare', 'warning'); return }
-    setExporting(true)
-    try {
-      const today = new Date().toISOString().slice(0, 10)
-      await exportToExcel({
-        columns: EXPORT_COLUMNS_CONTATTI,
-        rows: contacts,
-        filename: `contatti_${today}.xlsx`,
-        sheetName: 'Contatti',
-      })
-      addToast('File esportato', 'success')
-    } catch { addToast('Errore durante l\'esportazione', 'error') }
-    setExporting(false)
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="px-4 md:px-8 py-4 space-y-4">
       <Breadcrumb items={[{ label: 'Contatti' }]} />
       <PageHeader
         title="Rubrica contatti"
         subtitle={`${contacts.length} contatti`}
         actions={
           <div className="flex gap-2">
-            <ExportButton onClick={handleExport} loading={exporting} />
+            <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_CONTATTI, rows: contacts, filename: 'contatti', sheetName: 'Contatti' })} loading={exporting} />
             {canCreate && (
               <>
                 <Button variant="secondary" onClick={() => setShowImport(true)}>
@@ -107,7 +91,7 @@ export function ContattiList() {
       />
 
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className={CARD_STYLE}>
           <ContactForm
             users={[]}
             zones={zones || []}
@@ -133,14 +117,23 @@ export function ContattiList() {
       </div>
 
       {loading ? <LoadingSkeleton lines={5} /> : contacts.length === 0 ? (
-        <EmptyState title="Nessun contatto" description="Aggiungi il primo contatto dalla rubrica" />
+        <EmptyState
+          title="Nessun contatto"
+          description="Aggiungi il primo contatto dalla rubrica"
+          action={canCreate && (
+            <Button onClick={() => setShowForm(true)}>
+              <Icon icon={CONTATTI_ICONS.aggiungi} size={18} className="mr-2" />
+              Nuovo contatto
+            </Button>
+          )}
+        />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {contacts.map(c => (
             <button
               key={c.id}
               onClick={() => navigate(`/contatti/${c.id}`)}
-              className="w-full bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all text-left"
+              className={'w-full ' + CARD_HOVER_STYLE + ' text-left'}
             >
               <div className="flex items-center justify-between">
                 <div>

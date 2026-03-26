@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../ui/EmptyState'
-import { TIPO_CONTATTO } from '../../lib/constants'
+import { TIPO_CONTATTO, CARD_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
 
 export function RecentContacts({ contacts }) {
   if (!contacts || contacts.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <h3 className="font-semibold text-lg mb-3">Contatti recenti</h3>
         <EmptyState title="Nessun contatto" description="Non hai ancora aggiunto contatti" />
       </div>
@@ -14,7 +14,7 @@ export function RecentContacts({ contacts }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className={CARD_STYLE}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-lg">Contatti recenti</h3>
         <Link to="/contatti" className="text-sm text-mikai-400 hover:underline min-h-[48px] flex items-center">

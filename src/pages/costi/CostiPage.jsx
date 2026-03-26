@@ -8,10 +8,10 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Tabs } from '../../components/ui/Tabs'
-import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, TIPO_EVENTO, SELECT_STYLE } from '../../lib/constants'
-import { formatDate } from '../../lib/date-utils'
-import { exportToExcel } from '../../lib/export-utils'
-import { useToastStore } from '../../components/ui/Toast'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, TIPO_EVENTO, SELECT_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
+import { formatDate, formatDayISO } from '../../lib/date-utils'
+import { useExportHandler } from '../../hooks/useExportHandler'
+import { formatCurrency } from '../../lib/format-utils'
 
 const EXPORT_COLUMNS_PREVENTIVI = [
   { key: 'evento', label: 'Evento', format: v => v?.titolo || '' },
@@ -37,7 +37,6 @@ const ANALISI_VIEWS = [
   { id: 'mese', label: 'Per mese' },
 ]
 
-const currencyFmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
 
 function getPeriodRange(period) {
   const now = new Date()
@@ -45,7 +44,7 @@ function getPeriodRange(period) {
   if (period === 'trimestre') {
     const qStart = new Date(year, Math.floor(now.getMonth() / 3) * 3, 1)
     const qEnd = new Date(year, Math.floor(now.getMonth() / 3) * 3 + 3, 0)
-    return [qStart.toISOString().split('T')[0], qEnd.toISOString().split('T')[0]]
+    return [formatDayISO(qStart), formatDayISO(qEnd)]
   }
   return [`${year}-01-01`, `${year}-12-31`]
 }
@@ -65,46 +64,96 @@ function AnalisiTable({ grouped }) {
   const entries = Object.entries(grouped).sort((a, b) => b[1].previsto - a[1].previsto)
   if (entries.length === 0) return <EmptyState title="Nessun dato" description="Non ci sono preventivi approvati nel periodo selezionato" />
 
+  const totals = entries.reduce((s, [, v]) => ({
+    previsto: s.previsto + v.previsto,
+    effettivo: s.effettivo + v.effettivo,
+    count: s.count + v.count,
+  }), { previsto: 0, effettivo: 0, count: 0 })
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="py-3 px-3 text-sm font-semibold text-gray-600">Voce</th>
-            <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">Preventivato</th>
-            <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">Effettivo</th>
-            <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">Delta</th>
-            <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">N.</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map(([key, vals]) => {
-            const delta = vals.effettivo - vals.previsto
-            const deltaColor = delta > 0 ? 'text-red-600' : delta < 0 ? 'text-green-600' : 'text-gray-500'
-            return (
-              <tr key={key} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-3 px-3 text-base font-medium">{key}</td>
-                <td className="py-3 px-3 text-right">{currencyFmt.format(vals.previsto)}</td>
-                <td className="py-3 px-3 text-right">{vals.effettivo > 0 ? currencyFmt.format(vals.effettivo) : '—'}</td>
-                <td className={`py-3 px-3 text-right font-medium ${deltaColor}`}>
-                  {vals.effettivo > 0 ? currencyFmt.format(delta) : '—'}
-                </td>
-                <td className="py-3 px-3 text-right text-gray-500">{vals.count}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-        <tfoot>
-          <tr className="border-t-2 border-gray-300 font-bold">
-            <td className="py-3 px-3">Totale</td>
-            <td className="py-3 px-3 text-right">{currencyFmt.format(entries.reduce((s, [, v]) => s + v.previsto, 0))}</td>
-            <td className="py-3 px-3 text-right">{currencyFmt.format(entries.reduce((s, [, v]) => s + v.effettivo, 0))}</td>
-            <td className="py-3 px-3 text-right">{currencyFmt.format(entries.reduce((s, [, v]) => s + (v.effettivo - v.previsto), 0))}</td>
-            <td className="py-3 px-3 text-right text-gray-500">{entries.reduce((s, [, v]) => s + v.count, 0)}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="py-3 px-3 text-sm font-semibold text-gray-600">Voce</th>
+              <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">Preventivato</th>
+              <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">Effettivo</th>
+              <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">Delta</th>
+              <th className="py-3 px-3 text-sm font-semibold text-gray-600 text-right">N.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(([key, vals]) => {
+              const delta = vals.effettivo - vals.previsto
+              const deltaColor = delta > 0 ? 'text-red-600' : delta < 0 ? 'text-green-600' : 'text-gray-500'
+              return (
+                <tr key={key} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-3 text-base font-medium">{key}</td>
+                  <td className="py-3 px-3 text-right">{formatCurrency(vals.previsto)}</td>
+                  <td className="py-3 px-3 text-right">{vals.effettivo > 0 ? formatCurrency(vals.effettivo) : '—'}</td>
+                  <td className={`py-3 px-3 text-right font-medium ${deltaColor}`}>
+                    {vals.effettivo > 0 ? formatCurrency(delta) : '—'}
+                  </td>
+                  <td className="py-3 px-3 text-right text-gray-500">{vals.count}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-gray-300 font-bold">
+              <td className="py-3 px-3">Totale</td>
+              <td className="py-3 px-3 text-right">{formatCurrency(totals.previsto)}</td>
+              <td className="py-3 px-3 text-right">{formatCurrency(totals.effettivo)}</td>
+              <td className="py-3 px-3 text-right">{formatCurrency(totals.effettivo - totals.previsto)}</td>
+              <td className="py-3 px-3 text-right text-gray-500">{totals.count}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {entries.map(([key, vals]) => {
+          const delta = vals.effettivo - vals.previsto
+          const deltaColor = delta > 0 ? 'text-red-600' : delta < 0 ? 'text-green-600' : 'text-gray-500'
+          return (
+            <div key={key} className="border border-gray-200 rounded-lg p-3">
+              <p className="font-medium text-gray-900">{key}</p>
+              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                <div>
+                  <p className="text-gray-400">Preventivato</p>
+                  <p className="font-medium">{formatCurrency(vals.previsto)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Effettivo</p>
+                  <p className="font-medium">{vals.effettivo > 0 ? formatCurrency(vals.effettivo) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Delta</p>
+                  <p className={`font-medium ${deltaColor}`}>{vals.effettivo > 0 ? formatCurrency(delta) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Preventivi</p>
+                  <p className="font-medium">{vals.count}</p>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+        <div className="border-t-2 border-gray-300 pt-3 font-bold text-sm">
+          <div className="flex justify-between">
+            <span>Totale preventivato</span>
+            <span>{formatCurrency(totals.previsto)}</span>
+          </div>
+          <div className="flex justify-between mt-1">
+            <span>Totale effettivo</span>
+            <span>{formatCurrency(totals.effettivo)}</span>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -163,7 +212,7 @@ function AnalisiCostiSection() {
       </div>
 
       {loading ? <LoadingSkeleton lines={5} /> : (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className={CARD_STYLE}>
           <AnalisiTable grouped={grouped} />
         </div>
       )}
@@ -174,10 +223,9 @@ function AnalisiCostiSection() {
 export function CostiPage() {
   const navigate = useNavigate()
   const fetchPendingPreventivi = useCostsStore(s => s.fetchPendingPreventivi)
-  const addToast = useToastStore(s => s.add)
   const [preventivi, setPreventivi] = useState([])
   const [loading, setLoading] = useState(true)
-  const [exporting, setExporting] = useState(false)
+  const { exporting, handleExport } = useExportHandler()
   const [activeTab, setActiveTab] = useState('approvazioni')
 
   useEffect(() => {
@@ -187,29 +235,13 @@ export function CostiPage() {
     })
   }, [])
 
-  const handleExport = async () => {
-    if (preventivi.length === 0) { addToast('Nessun dato da esportare', 'warning'); return }
-    setExporting(true)
-    try {
-      const today = new Date().toISOString().slice(0, 10)
-      await exportToExcel({
-        columns: EXPORT_COLUMNS_PREVENTIVI,
-        rows: preventivi,
-        filename: `preventivi_${today}.xlsx`,
-        sheetName: 'Preventivi',
-      })
-      addToast('File esportato', 'success')
-    } catch { addToast('Errore durante l\'esportazione', 'error') }
-    setExporting(false)
-  }
-
   return (
     <div className="space-y-4">
       <Breadcrumb items={[{ label: 'Costi' }]} />
       <PageHeader
         title="Costi"
         subtitle={activeTab === 'approvazioni' ? `${preventivi.length} preventivi da approvare` : 'Analisi costi cross-evento'}
-        actions={activeTab === 'approvazioni' ? <ExportButton onClick={handleExport} loading={exporting} /> : null}
+        actions={activeTab === 'approvazioni' ? <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_PREVENTIVI, rows: preventivi, filename: 'preventivi', sheetName: 'Preventivi' })} loading={exporting} /> : null}
       />
 
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
@@ -224,7 +256,7 @@ export function CostiPage() {
                 <button
                   key={p.id}
                   onClick={() => navigate(`/eventi/${p.evento?.id}`)}
-                  className="w-full bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all text-left"
+                  className={'w-full ' + CARD_HOVER_STYLE + ' text-left'}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -233,7 +265,7 @@ export function CostiPage() {
                       {p.fornitore_nome && <p className="text-sm text-gray-400">{p.fornitore_nome}</p>}
                     </div>
                     <div className="flex items-center gap-3">
-                      {p.importo != null && <span className="font-semibold">{p.importo.toLocaleString('it-IT')} €</span>}
+                      {p.importo != null && <span className="font-semibold">{formatCurrency(p.importo)}</span>}
                       <StatusBadge stato={p.stato} labels={STATO_PREVENTIVO} colors={STATO_PREVENTIVO_COLORE} />
                     </div>
                   </div>

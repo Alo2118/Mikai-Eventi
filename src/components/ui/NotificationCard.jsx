@@ -13,6 +13,32 @@ const COLOR_MAP = {
   mikai: 'text-mikai-500',
 }
 
+// Map notification types to event detail tabs
+const TIPO_TAB_MAP = {
+  materiale_richiesto: 'materiale',
+  materiale_confermato: 'materiale',
+  conflitto_materiale: 'materiale',
+  preventivo_inviato: 'costi',
+  preventivo_approvato: 'costi',
+  preventivo_rifiutato: 'costi',
+  preventivo_in_revisione: 'costi',
+  evento_stato_cambiato: 'info',
+  attivita_assegnata: 'preparazione',
+  attivita_completata: 'preparazione',
+  attivita_scadenza: 'preparazione',
+  deadline_imminente: 'preparazione',
+  deadline_superata: 'preparazione',
+}
+
+function buildLink(notification) {
+  const link = notification.link
+  if (!link || !link.startsWith('/eventi/')) return link
+  const tab = TIPO_TAB_MAP[notification.tipo]
+  if (!tab) return link
+  const separator = link.includes('?') ? '&' : '?'
+  return `${link}${separator}tab=${tab}`
+}
+
 export function NotificationCard({ notification, compact = false, onNavigate }) {
   const navigate = useNavigate()
   const markAsRead = useNotificationsStore((s) => s.markAsRead)
@@ -25,7 +51,8 @@ export function NotificationCard({ notification, compact = false, onNavigate }) 
   function handleClick() {
     if (unread) markAsRead(notification.id)
     if (onNavigate) onNavigate()
-    if (notification.link) navigate(notification.link)
+    const link = buildLink(notification)
+    if (link) navigate(link)
   }
 
   function handleKeyDown(e) {

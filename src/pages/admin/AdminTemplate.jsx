@@ -15,7 +15,7 @@ import { ACTION_ICONS, CATEGORIA_ICONS } from '../../lib/icons'
 import {
   TIPO_EVENTO, MODALITA_EVENTO,
   CATEGORIA_ATTIVITA, VERIFICATION_FUNCTIONS,
-  INPUT_STYLE, SELECT_STYLE,
+  INPUT_STYLE, SELECT_STYLE, CARD_HOVER_STYLE,
 } from '../../lib/constants'
 
 function wouldCreateCycle(itemId, targetId, allItems) {
@@ -235,8 +235,8 @@ export function AdminTemplate() {
                   return (
                     <div
                       key={item.id}
-                      className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-all cursor-pointer"
-                      style={{ marginLeft: depth * 32 }}
+                      className={CARD_HOVER_STYLE + ' cursor-pointer'}
+                      style={{ marginLeft: `${depth * 2}rem` }}
                       onClick={() => openEdit(item)}
                     >
                       <div className="flex items-start justify-between gap-3">

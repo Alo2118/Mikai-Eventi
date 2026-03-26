@@ -1,0 +1,64 @@
+<h2>Aggiornamenti v3</h2>
+<p class="subtitle">Gadget + costi opzionali</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+  <!-- GADGET -->
+  <div class="mockup">
+    <div class="mockup-header" style="background:rgba(236,72,153,0.15);color:#ec4899;">🎁 event_gadgets — NUOVO</div>
+    <div class="mockup-body" style="padding:16px;font-family:monospace;font-size:13px;line-height:1.8;">
+      id, event_id → events<br>
+      nome (penne, borse, block notes, USB...)<br>
+      quantita_richiesta, quantita_consegnata<br>
+      stato: <strong>richiesto → in_ordine → pronto → consegnato</strong><br>
+      fornitore, note<br>
+    </div>
+  </div>
+
+  <!-- GADGET INVENTORY -->
+  <div class="mockup">
+    <div class="mockup-header" style="background:rgba(236,72,153,0.15);color:#ec4899;">🎁 gadgets — NUOVO (inventario)</div>
+    <div class="mockup-body" style="padding:16px;font-family:monospace;font-size:13px;line-height:1.8;">
+      id, nome, descrizione<br>
+      quantita_disponibile<br>
+      foto_url<br>
+      soglia_minima (alert quando scende sotto)<br>
+      fornitore_abituale<br>
+      note<br>
+    </div>
+  </div>
+
+</div>
+
+<!-- NOTA COSTI -->
+<div style="margin-top:24px;padding:20px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;">
+  <h3 style="margin:0 0 8px;color:#f59e0b;">💰 Nota su event_costs</h3>
+  <p style="font-size:14px;line-height:1.7;">
+    Tutti i campi di costo nell'app saranno <strong>opzionali</strong>. Nessun campo economico blocchera' il flusso di lavoro.
+    Chi vuole compila budget e consuntivi, chi non vuole prosegue senza.
+    Vale per: <code>event_costs</code>, costi in <code>event_logistics</code>, costi in <code>event_sub_activities</code>, <code>event_report.costo_totale_effettivo</code>.
+  </p>
+</div>
+
+<!-- SCHEMA FINALE -->
+<div style="margin-top:24px;padding:20px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;">
+  <h3 style="margin:0 0 12px;">Schema finale: 16 tabelle</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;">
+    <div>👤 users</div>
+    <div>📅 events</div>
+    <div>📦 materials</div>
+    <div>🔄 material_movements</div>
+    <div>👥 event_staff</div>
+    <div>📋 event_materials</div>
+    <div>📇 event_participants</div>
+    <div>⏰ event_deadlines</div>
+    <div>🍽️ event_sub_activities</div>
+    <div>🚆 event_logistics</div>
+    <div>⚡ workflow_actions</div>
+    <div>💰 event_costs <span style="color:#f59e0b;">(opzionale)</span></div>
+    <div>📎 documents</div>
+    <div>📝 event_templates + checklist_items</div>
+    <div>📊 event_report</div>
+    <div style="color:#ec4899;">🎁 gadgets + event_gadgets</div>
+  </div>
+</div>

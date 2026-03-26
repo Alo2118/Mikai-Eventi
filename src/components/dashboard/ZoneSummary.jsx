@@ -1,6 +1,6 @@
 import { Icon } from '../ui/Icon'
 import { DASHBOARD_ICONS } from '../../lib/icons'
-import { STATO_EVENTO } from '../../lib/constants'
+import { STATO_EVENTO, CARD_STYLE } from '../../lib/constants'
 
 export function ZoneSummary({ zoneSummary }) {
   if (!zoneSummary) return null
@@ -16,7 +16,7 @@ export function ZoneSummary({ zoneSummary }) {
   const statoEntries = Object.entries(eventiByStato).filter(([, count]) => count > 0)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className={CARD_STYLE}>
       <div className="flex items-center gap-2 mb-3">
         <Icon icon={DASHBOARD_ICONS.report} size={20} className="text-mikai-400" />
         <h3 className="font-semibold text-lg">Riepilogo zona</h3>

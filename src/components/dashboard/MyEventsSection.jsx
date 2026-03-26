@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { EmptyState } from '../ui/EmptyState'
-import { STATO_EVENTO, STATO_EVENTO_COLORE } from '../../lib/constants'
-import { formatDateRange } from '../../lib/date-utils'
+import { STATO_EVENTO, STATO_EVENTO_COLORE, CARD_STYLE } from '../../lib/constants'
+import { formatDateRange, todayISO } from '../../lib/date-utils'
 
 function daysAgo(dateStr) {
   if (!dateStr) return 0
@@ -11,12 +11,12 @@ function daysAgo(dateStr) {
 }
 
 export function MyEventsSection({ events }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   const prossimi = events.filter(e => e.data_inizio >= today && e.stato !== 'proposto').slice(0, 5)
   const inAttesa = events.filter(e => e.stato === 'proposto')
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className={CARD_STYLE}>
       <h3 className="font-semibold text-lg mb-3">I miei eventi</h3>
 
       {prossimi.length > 0 && (

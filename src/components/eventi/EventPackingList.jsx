@@ -10,9 +10,10 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EmptyState } from '../ui/EmptyState'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ACTION_ICONS, DOCUMENTO_ICONS, MATERIALE_ICONS } from '../../lib/icons'
+import { Modal } from '../ui/Modal'
 import { PackingItem } from './PackingItem'
 import { formatDateRange } from '../../lib/date-utils'
-import { INPUT_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, TEXTAREA_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE } from '../../lib/constants'
 
 export function EventPackingList({ event, onBack }) {
   const items = usePackingListStore(s => s.items)
@@ -24,10 +25,18 @@ export function EventPackingList({ event, onBack }) {
   const removeItem = usePackingListStore(s => s.removeItem)
   const fetchEventMaterialList = useMaterialsStore(s => s.fetchEventMaterialList)
 
+  const assignToCollo = usePackingListStore(s => s.assignToCollo)
+  const splitToCollo = usePackingListStore(s => s.splitToCollo)
+
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
 
   const [generating, setGenerating] = useState(false)
+  const [printCollo, setPrintCollo] = useState(null)
+  const [selected, setSelected] = useState(new Set())
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [assignCollo, setAssignCollo] = useState(1)
+  const [assignQtyMap, setAssignQtyMap] = useState({})
   const [showAddForm, setShowAddForm] = useState(false)
   const [newDesc, setNewDesc] = useState('')
   const [newQty, setNewQty] = useState(1)
@@ -110,10 +119,10 @@ export function EventPackingList({ event, onBack }) {
   if (loading) return <LoadingSkeleton lines={6} />
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Print-only header */}
       <div className="hidden print-header">
-        <h1 className="text-xl font-bold">MIKAI — Lista Preparazione</h1>
+        <h1 className="text-xl font-bold">MIKAI — Lista Preparazione{printCollo ? ` — Collo ${printCollo}` : ''}</h1>
         <p className="text-base">{event.titolo}</p>
         <p className="text-sm text-gray-600">
           {formatDateRange(event.data_inizio, event.data_fine)}
@@ -133,7 +142,7 @@ export function EventPackingList({ event, onBack }) {
           </Button>
         )}
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-gray-900">Lista Preparazione</h2>
+          <h3 className="font-semibold text-lg">Lista Preparazione</h3>
           <p className="text-sm text-gray-500">
             {event.titolo} — {formatDateRange(event.data_inizio, event.data_fine)}
           </p>
@@ -155,13 +164,36 @@ export function EventPackingList({ event, onBack }) {
         </Button>
         <Button
           variant="secondary"
-          onClick={() => window.print()}
+          onClick={() => { setPrintCollo(null); setTimeout(() => window.print(), 100) }}
           disabled={items.length === 0}
         >
           <Icon icon={DOCUMENTO_ICONS.print} size={18} className="mr-2" />
-          Stampa lista
+          Stampa tutto
         </Button>
       </div>
+
+      {/* Selection toolbar */}
+      {selected.size > 0 && (
+        <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap no-print'}>
+          <span className="text-sm font-medium text-mikai-700">{selected.size} selezionati</span>
+          <Button
+            size="sm"
+            onClick={() => {
+              const selectedItems = items.filter(i => selected.has(i.id))
+              const qtyMap = {}
+              selectedItems.forEach(i => { qtyMap[i.id] = i.quantita })
+              setAssignQtyMap(qtyMap)
+              const colloNumbers = [...new Set(items.map(i => i.collo_numero).filter(n => n != null))]
+              setAssignCollo(colloNumbers.length > 0 ? Math.max(...colloNumbers) + 1 : 1)
+              setShowAssignModal(true)
+            }}
+          >
+            <Icon icon={MATERIALE_ICONS.package} size={16} className="mr-1" />
+            Assegna a collo
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Deseleziona</Button>
+        </div>
+      )}
 
       {/* Out of sync warning */}
       {outOfSync && (
@@ -187,29 +219,69 @@ export function EventPackingList({ event, onBack }) {
         />
       )}
 
-      {/* Linked materials group */}
-      {linkedItems.length > 0 && (
-        <PackingGroup
-          title="Materiale confermato"
-          items={linkedItems}
-          onToggle={handleToggle}
-          onDelete={null}
-        />
-      )}
+      {/* Items grouped by collo */}
+      {items.length > 0 && (() => {
+        const colloNumbers = [...new Set(items.map(i => i.collo_numero).filter(n => n != null))].sort((a, b) => a - b)
+        const unassigned = items.filter(i => i.collo_numero == null)
+        const maxCollo = colloNumbers.length > 0 ? Math.max(...colloNumbers) : 0
 
-      {/* Manual items group */}
-      {manualItems.length > 0 && (
-        <PackingGroup
-          title="Voci manuali"
-          items={manualItems}
-          onToggle={handleToggle}
-          onDelete={setDeleteTarget}
-        />
-      )}
+        return (
+          <div className="space-y-4">
+            {colloNumbers.map(num => {
+              const colloItems = items.filter(i => i.collo_numero === num)
+              const colloPackedCount = colloItems.filter(i => i.imballato).length
+              return (
+                <PackingGroup
+                  key={`collo-${num}`}
+                  title={`Collo ${num}`}
+                  subtitle={`${colloPackedCount}/${colloItems.length} imballati`}
+                  items={colloItems}
+                  onToggle={handleToggle}
+                  onDelete={i => !i.event_material_id ? setDeleteTarget(i) : null}
+                  selected={selected}
+                  onSelect={id => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })}
+                  onPrintCollo={() => { setPrintCollo(num); setTimeout(() => { window.print(); setPrintCollo(null) }, 100) }}
+                />
+              )
+            })}
+            {unassigned.length > 0 && (
+              <PackingGroup
+                title="Non assegnati a un collo"
+                subtitle={`${unassigned.length} voci`}
+                items={unassigned}
+                onToggle={handleToggle}
+                onDelete={i => !i.event_material_id ? setDeleteTarget(i) : null}
+                selected={selected}
+                onSelect={id => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })}
+              />
+            )}
+            {/* Add new collo */}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="no-print"
+              onClick={async () => {
+                const nextCollo = maxCollo + 1
+                if (unassigned.length > 0) {
+                  for (const item of unassigned) {
+                    await assignToCollo(item.id, nextCollo)
+                  }
+                  addToast(`Collo ${nextCollo} creato con ${unassigned.length} voci`, 'success')
+                } else {
+                  addToast(`Assegna delle voci al collo ${nextCollo} usando il selettore`, 'warning')
+                }
+              }}
+            >
+              <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
+              {unassigned.length > 0 ? `Crea collo ${maxCollo + 1} (${unassigned.length} voci)` : 'Aggiungi collo'}
+            </Button>
+          </div>
+        )
+      })()}
 
       {/* Add manual item form */}
       {showAddForm && (
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3 no-print">
+        <div className={FORM_CONTAINER_STYLE + ' border border-gray-200 space-y-3 no-print'}>
           <h3 className="text-base font-semibold text-gray-900">Nuova voce manuale</h3>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -230,8 +302,7 @@ export function EventPackingList({ event, onBack }) {
               min={1}
               value={newQty}
               onChange={e => setNewQty(parseInt(e.target.value) || 1)}
-              className={INPUT_STYLE}
-              style={{ maxWidth: 120 }}
+              className={INPUT_STYLE + ' max-w-[120px]'}
             />
           </div>
           <div>
@@ -249,6 +320,61 @@ export function EventPackingList({ event, onBack }) {
           </div>
         </div>
       )}
+
+      {/* Assign to collo modal */}
+      <Modal open={showAssignModal} onClose={() => setShowAssignModal(false)} title="Assegna a collo">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Collo di destinazione</label>
+            <input
+              type="number"
+              min={1}
+              value={assignCollo}
+              onChange={e => setAssignCollo(Math.max(1, parseInt(e.target.value) || 1))}
+              className={INPUT_STYLE + ' max-w-[120px]'}
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-700">Quantità per voce:</p>
+            {items.filter(i => selected.has(i.id)).map(item => (
+              <div key={item.id} className="flex items-center justify-between gap-3 py-1">
+                <span className="text-sm text-gray-900 truncate flex-1">{item.descrizione}</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <input
+                    type="number"
+                    min={1}
+                    max={item.quantita}
+                    value={assignQtyMap[item.id] || item.quantita}
+                    onChange={e => setAssignQtyMap(prev => ({ ...prev, [item.id]: Math.max(1, Math.min(item.quantita, parseInt(e.target.value) || 1)) }))}
+                    className="w-16 h-9 text-center text-sm font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-mikai-400 outline-none"
+                  />
+                  <span className="text-xs text-gray-400">/ {item.quantita}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button onClick={async () => {
+              const selectedItems = items.filter(i => selected.has(i.id))
+              for (const item of selectedItems) {
+                const qty = assignQtyMap[item.id] || item.quantita
+                if (qty < item.quantita) {
+                  await splitToCollo(item.id, assignCollo, qty)
+                } else {
+                  await assignToCollo(item.id, assignCollo)
+                }
+              }
+              addToast(`${selectedItems.length} voci assegnate al collo ${assignCollo}`, 'success')
+              setSelected(new Set())
+              setShowAssignModal(false)
+              fetchPackingList(event.id)
+            }}>
+              Assegna al collo {assignCollo}
+            </Button>
+            <Button variant="secondary" onClick={() => setShowAssignModal(false)}>Annulla</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Generate confirm dialog */}
       <ConfirmDialog
@@ -274,18 +400,44 @@ export function EventPackingList({ event, onBack }) {
   )
 }
 
-function PackingGroup({ title, items, onToggle, onDelete }) {
+function PackingGroup({ title, subtitle, items, onToggle, onDelete, selected, onSelect, onPrintCollo }) {
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{title}</h3>
-      <div className="space-y-2">
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
+        <div>
+          <span className="font-semibold text-sm text-gray-700">{title}</span>
+          {subtitle && <span className="text-sm text-gray-400 ml-2">· {subtitle}</span>}
+        </div>
+        {onPrintCollo && (
+          <button
+            onClick={onPrintCollo}
+            className="text-sm text-mikai-500 hover:text-mikai-700 no-print flex items-center gap-1 min-h-[48px]"
+            aria-label={`Stampa ${title}`}
+          >
+            <Icon icon={DOCUMENTO_ICONS.print} size={14} />
+            Stampa
+          </button>
+        )}
+      </div>
+      <div className="p-3 space-y-2">
         {items.map(item => (
-          <PackingItem
-            key={item.id}
-            item={item}
-            onToggle={() => onToggle(item)}
-            onDelete={onDelete ? () => onDelete(item) : null}
-          />
+          <div key={item.id} className="flex items-center gap-2 packing-item">
+            {onSelect && (
+              <input
+                type="checkbox"
+                checked={selected?.has(item.id) || false}
+                onChange={() => onSelect(item.id)}
+                className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 no-print flex-shrink-0"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <PackingItem
+                item={item}
+                onToggle={() => onToggle(item)}
+                onDelete={onDelete ? () => onDelete(item) : null}
+              />
+            </div>
+          </div>
         ))}
       </div>
     </div>

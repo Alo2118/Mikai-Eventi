@@ -1,9 +1,9 @@
-import { POSIZIONE_MATERIALE } from '../../lib/constants'
+import { POSIZIONE_MATERIALE, CARD_STYLE } from '../../lib/constants'
 
 export function MaterialeFuoriList({ data }) {
   if (!data?.length) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className={CARD_STYLE}>
         <p className="text-sm font-medium text-gray-500 mb-2">Materiale fuori magazzino</p>
         <p className="text-gray-400 text-sm">Tutto il materiale è in magazzino</p>
       </div>

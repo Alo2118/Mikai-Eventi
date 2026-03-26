@@ -1,10 +1,7 @@
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts'
 import { CHART_COLORS } from '../../lib/constants'
+import { formatCurrency } from '../../lib/format-utils'
 import { KpiCard } from './KpiCard'
-
-const currencyFmt = new Intl.NumberFormat('it-IT', {
-  style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-})
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -13,7 +10,7 @@ function CustomTooltip({ active, payload, label }) {
       <p className="font-medium mb-1">{label}</p>
       {payload.map(p => (
         <p key={p.dataKey} style={{ color: p.color }}>
-          {p.name}: {currencyFmt.format(p.value)}
+          {p.name}: {formatCurrency(p.value)}
         </p>
       ))}
     </div>
@@ -71,9 +68,9 @@ export function BudgetBreakdownChart({ data }) {
           {data.map(d => (
             <tr key={d.mese}>
               <td>{d.meseLabel}</td>
-              <td>{currencyFmt.format(d.previsto)}</td>
-              <td>{currencyFmt.format(d.approvato)}</td>
-              <td>{currencyFmt.format(d.effettivo)}</td>
+              <td>{formatCurrency(d.previsto)}</td>
+              <td>{formatCurrency(d.approvato)}</td>
+              <td>{formatCurrency(d.effettivo)}</td>
             </tr>
           ))}
         </tbody>

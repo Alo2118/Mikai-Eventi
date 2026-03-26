@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Icon } from '../ui/Icon'
 import { NotificationBell } from '../ui/NotificationBell'
-import { NAV_ICONS, ADMIN_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { NAV_ICONS, ADMIN_ICONS, ACTION_ICONS, COMPLIANCE_ICONS } from '../../lib/icons'
 
 const navItems = [
   { to: '/', label: 'Riepilogo', icon: NAV_ICONS.riepilogo, roles: ['admin', 'direzione', 'ufficio', 'commerciale', 'area_manager'] },
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/logistica', label: 'Logistica', icon: NAV_ICONS.logistica, permissions: ['gestione_spedizioni', 'gestione_magazzino'] },
   { to: '/contatti', label: 'Contatti', icon: NAV_ICONS.contatti },
   { to: '/costi', label: 'Costi', icon: NAV_ICONS.costi, permissions: ['gestione_costi', 'approva_preventivi'] },
+  { to: '/compliance', label: 'Compliance', icon: COMPLIANCE_ICONS.compliance, permissions: ['compliance'] },
   { to: '/notifiche', label: 'Notifiche', icon: NAV_ICONS.notifiche },
 ]
 
@@ -26,6 +27,7 @@ const adminItems = [
   { to: '/admin/sotto-attivita', label: 'Sotto-attività', icon: ADMIN_ICONS.sottoattivita },
   { to: '/admin/template', label: 'Template attività', icon: NAV_ICONS.checklist },
   { to: '/admin/utenti', label: 'Utenti', icon: ADMIN_ICONS.utenti, permissions: ['gestione_utenti'] },
+  { to: '/admin/audit', label: 'Audit Trail', icon: COMPLIANCE_ICONS.audit, permissions: ['gestione_utenti'] },
 ]
 
 export function Sidebar() {
@@ -52,7 +54,7 @@ export function Sidebar() {
       <div className="px-3 pt-3">
         <button
           onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors min-h-[44px]"
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors min-h-[48px]"
           aria-label="Ricerca globale"
         >
           <Icon icon={ACTION_ICONS.search} size={18} />

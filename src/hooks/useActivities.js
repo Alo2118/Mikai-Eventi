@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { nowISO } from '../lib/date-utils'
 import { calculateDeadline } from '../lib/date-utils'
 
 export const useActivitiesStore = create((set, get) => ({
@@ -19,10 +20,7 @@ export const useActivitiesStore = create((set, get) => ({
     set({ eventLoading: true, eventError: null })
     const { data, error } = await supabase
       .from('event_activities')
-      .select(`
-        *,
-        assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome)
-      `)
+      .select('id, event_id, descrizione, stato, deadline, obbligatoria, dipende_da, categoria, permesso_responsabile, assegnato_a, tipo_verifica, verifica_automatica, completata_il, completata_da, note, assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome)')
       .eq('event_id', eventId)
       .order('deadline', { ascending: true, nullsFirst: false })
     // Resolve self-referential dependencies in-memory (PostgREST can't self-join)
@@ -193,7 +191,7 @@ export const useActivitiesStore = create((set, get) => ({
   completeActivity: async (id, userId) => {
     return get().updateActivity(id, {
       stato: 'completata',
-      completata_il: new Date().toISOString(),
+      completata_il: nowISO(),
       completata_da: userId,
     })
   },
@@ -276,7 +274,7 @@ export const useActivitiesStore = create((set, get) => ({
           .from('event_activities')
           .update({
             stato: 'completata',
-            completata_il: new Date().toISOString(),
+            completata_il: nowISO(),
             note: 'Verificata automaticamente',
           })
           .eq('id', activity.id)

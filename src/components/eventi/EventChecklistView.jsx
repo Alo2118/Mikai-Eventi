@@ -36,9 +36,9 @@ export function EventChecklistView({ event, participants }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">{event.titolo}</h2>
+        <h3 className="font-semibold text-lg">{event.titolo}</h3>
         <p className="text-sm text-gray-500">{formatDate(event.data_inizio)}</p>
         <ProgressIndicator label="Presenti" current={presenti.length} total={attendees.length} color="green" />
       </div>
@@ -49,7 +49,7 @@ export function EventChecklistView({ event, participants }) {
         placeholder="Cerca per nome..."
       />
 
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {filtered.map(p => {
           const presente = p.stato_iscrizione === 'presente'
           const nome = `${p.contact?.cognome ?? ''} ${p.contact?.nome ?? ''}`.trim()

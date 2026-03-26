@@ -3,6 +3,7 @@ import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useTavoliStore } from '../../hooks/useTavoli'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
+import { toISO } from '../../lib/date-utils'
 import { Modal } from '../ui/Modal'
 import { MEZZO_TRASPORTO, STATO_PRENOTAZIONE, INPUT_STYLE } from '../../lib/constants'
 import { toLocalDateTime } from '../../lib/date-utils'
@@ -158,9 +159,9 @@ export function TrasportoModal({ selectedPeople, eventId, direzione, onDone, onC
     const payload = {
       mezzo: form.mezzo || null,
       codice: form.codice.trim() || null,
-      orario: form.orario ? new Date(form.orario).toISOString() : null,
+      orario: toISO(form.orario),
       autista: form.autista.trim() || null,
-      orario_pickup: form.orario_pickup ? new Date(form.orario_pickup).toISOString() : null,
+      orario_pickup: toISO(form.orario_pickup),
       stato: form.stato,
       note: form.note.trim() || null,
     }

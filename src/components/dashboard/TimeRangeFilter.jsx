@@ -1,28 +1,10 @@
 import { useState } from 'react'
-import { startOfMonth, endOfMonth, startOfYear, endOfYear, format } from 'date-fns'
-import { formatDayISO } from '../../lib/date-utils'
-
-function quarterRange() {
-  const now = new Date()
-  const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
-  const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
-  return { start: formatDayISO(qStart), end: formatDayISO(qEnd) }
-}
-
-function monthRange() {
-  const now = new Date()
-  return { start: formatDayISO(startOfMonth(now)), end: formatDayISO(endOfMonth(now)) }
-}
-
-function yearRange() {
-  const now = new Date()
-  return { start: formatDayISO(startOfYear(now)), end: formatDayISO(endOfYear(now)) }
-}
+import { getMonthRange, getQuarterRange, getYearRange } from '../../lib/date-utils'
 
 const PRESETS = [
-  { id: 'mese', label: 'Mese', range: monthRange },
-  { id: 'trimestre', label: 'Trimestre', range: quarterRange },
-  { id: 'anno', label: 'Anno', range: yearRange },
+  { id: 'mese', label: 'Mese', range: getMonthRange },
+  { id: 'trimestre', label: 'Trimestre', range: getQuarterRange },
+  { id: 'anno', label: 'Anno', range: getYearRange },
   { id: 'personalizzato', label: 'Personalizzato', range: null },
 ]
 

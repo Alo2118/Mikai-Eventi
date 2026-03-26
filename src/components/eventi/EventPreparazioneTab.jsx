@@ -8,7 +8,7 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { ActivityCard } from './ActivityCard'
 import { ActivityGateBar } from './ActivityGateBar'
-import { CATEGORIA_ATTIVITA } from '../../lib/constants'
+import { CATEGORIA_ATTIVITA, CARD_STYLE } from '../../lib/constants'
 import { CATEGORIA_ICONS } from '../../lib/icons'
 
 function TrafficLight({ total, completed, overdue }) {
@@ -38,6 +38,7 @@ export function EventPreparazioneTab({ event, onShowPackingList }) {
   const startActivity = useActivitiesStore(s => s.startActivity)
   const completeActivity = useActivitiesStore(s => s.completeActivity)
   const assignActivity = useActivitiesStore(s => s.assignActivity)
+  const disableActivity = useActivitiesStore(s => s.disableActivity)
   const instantiateTemplate = useActivitiesStore(s => s.instantiateTemplate)
   const runAutoVerifications = useActivitiesStore(s => s.runAutoVerifications)
 
@@ -92,6 +93,16 @@ export function EventPreparazioneTab({ event, onShowPackingList }) {
     }
   }
 
+  async function handleDisable(activityId) {
+    const { error } = await disableActivity(activityId)
+    if (error) {
+      addToast('Impossibile rimuovere l\'attività. Riprova.', 'error')
+    } else {
+      addToast('Attività rimossa.', 'success')
+      fetchEventActivities(event.id)
+    }
+  }
+
   async function handleInstantiateTemplate() {
     const { error } = await instantiateTemplate(
       event.id,
@@ -141,7 +152,7 @@ export function EventPreparazioneTab({ event, onShowPackingList }) {
         </div>
       )}
       {/* Progress section */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+      <div className={CARD_STYLE + ' space-y-3'}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">Avanzamento</p>
@@ -181,6 +192,7 @@ export function EventPreparazioneTab({ event, onShowPackingList }) {
                 onStart={handleStart}
                 onComplete={handleComplete}
                 onAssign={handleAssign}
+                onDisable={handleDisable}
                 currentUserId={user?.id}
               />
             ))}

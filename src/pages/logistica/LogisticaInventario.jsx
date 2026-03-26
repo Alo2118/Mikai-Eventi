@@ -37,16 +37,16 @@ function InventarioCard({ material, onNavigate }) {
           <div className="min-w-0">
             <p className="font-semibold text-gray-900 text-base truncate">{nome}</p>
             {codice_inventario && (
-              <p className="text-xs text-gray-400 mt-0.5">{codice_inventario}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{codice_inventario}</p>
             )}
             {tipo && (
-              <p className="text-xs text-gray-400 mt-0.5 capitalize">{tipo.replace('_', ' ')}</p>
+              <p className="text-sm text-gray-500 mt-0.5 capitalize">{tipo.replace('_', ' ')}</p>
             )}
             {material.magazzino?.nome && (
-              <p className="text-xs text-gray-400 mt-0.5">{material.magazzino.nome}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{material.magazzino.nome}</p>
             )}
             {material.agente && (
-              <p className="text-xs text-gray-400 mt-0.5">{material.agente.cognome} {material.agente.nome}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{material.agente.cognome} {material.agente.nome}</p>
             )}
           </div>
         </div>

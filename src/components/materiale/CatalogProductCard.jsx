@@ -16,7 +16,7 @@ export function CatalogProductCard({ product, cartQuantity = 0, onAdd, onUpdateQ
             {product.foto_url ? (
               <img src={product.foto_url} alt={product.nome} className="w-full h-full object-cover" />
             ) : (
-              <Icon icon={MATERIALE_ICONS.package} size={22} className="text-gray-300" />
+              <Icon icon={MATERIALE_ICONS.package} size={22} className="text-gray-400" />
             )}
           </div>
 

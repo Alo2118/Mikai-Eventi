@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { RUOLI, PERMESSI, RUOLI_OPERATIVI, INPUT_STYLE } from '../../lib/constants'
+import { RUOLI, PERMESSI, RUOLI_OPERATIVI, INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminUtenti() {
@@ -83,7 +83,7 @@ export function AdminUtenti() {
       <div className="px-4 md:px-8 pb-8">
         {creating ? (
           <div className="space-y-4 max-w-lg">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
+            <div className={CARD_STYLE + ' md:p-6 space-y-4'}>
               <h2 className="text-lg font-semibold text-gray-900">Nuovo utente</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -133,7 +133,7 @@ export function AdminUtenti() {
           </div>
         ) : editing ? (
           <div className="space-y-6 max-w-2xl">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
+            <div className={CARD_STYLE + ' md:p-6 space-y-4'}>
               <h2 className="text-lg font-semibold text-gray-900">Modifica utente</h2>
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-base text-gray-700 font-medium">{editing.cognome} {editing.nome}</p>
@@ -152,7 +152,7 @@ export function AdminUtenti() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+            <div className={CARD_STYLE + ' md:p-6'}>
               <h3 className="text-base font-semibold text-gray-900 mb-3">Ruoli operativi</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {Object.entries(RUOLI_OPERATIVI).map(([k, v]) => (
@@ -164,7 +164,7 @@ export function AdminUtenti() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+            <div className={CARD_STYLE + ' md:p-6'}>
               <h3 className="text-base font-semibold text-gray-900 mb-3">Permessi</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {Object.entries(PERMESSI).map(([k, v]) => (

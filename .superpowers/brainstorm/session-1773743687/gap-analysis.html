@@ -1,0 +1,190 @@
+<h2>Analisi Gap — Cosa manca</h2>
+<p class="subtitle">6 aree critiche che oggi non sono coperte dal modello</p>
+
+<!-- GAP 1: WORKFLOW -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header" style="background:rgba(239,68,68,0.15);color:#ef4444;">🔴 GAP 1 — Workflow di approvazione e stati di avanzamento</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Oggi nessuno "firma" nulla. Un commerciale propone un evento via email/WhatsApp, qualcuno se ne occupa, ma non c'è un processo tracciato. Chi ha approvato? Chi ha verificato che il materiale fosse pronto?</p>
+
+    <p><strong>Soluzione: tabella <code>workflow_actions</code></strong> — registro di ogni azione/approvazione</p>
+
+    <div style="margin:16px 0;padding:16px;background:rgba(99,102,241,0.06);border-radius:8px;font-family:monospace;line-height:1.8;">
+      <strong>workflow_actions</strong><br>
+      id, entita_tipo (event | material_request | logistics | sub_activity)<br>
+      entita_id → ID dell'oggetto<br>
+      azione: <strong>proposto → validato → approvato → in_lavorazione → completato → verificato</strong><br>
+      eseguito_da → users<br>
+      richiesto_a → users (chi deve approvare il prossimo step)<br>
+      data_azione, data_scadenza<br>
+      commento, allegato_url<br>
+    </div>
+
+    <p><strong>Flusso tipico di un evento:</strong></p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;margin:12px 0;">
+      <span style="padding:6px 12px;background:rgba(107,114,128,0.15);border-radius:16px;">Commerciale propone</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(245,158,11,0.15);border-radius:16px;">Enrica valida</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(99,102,241,0.15);border-radius:16px;">Federica pianifica</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(168,85,247,0.15);border-radius:16px;">Nicola prepara materiale mktg</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(14,165,233,0.15);border-radius:16px;">Ivan spedisce materiale demo</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(16,185,129,0.15);border-radius:16px;">Chiara gestisce bolle/ordini</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(16,185,129,0.3);border-radius:16px;font-weight:bold;">✓ Tutto pronto</span>
+    </div>
+
+    <p><strong>Flusso richiesta materiale:</strong></p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;margin:12px 0;">
+      <span style="padding:6px 12px;background:rgba(107,114,128,0.15);border-radius:16px;">Richiesta materiale</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(239,68,68,0.15);border-radius:16px;">Verifica disponibilità (auto)</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(245,158,11,0.15);border-radius:16px;">Approvazione</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(168,85,247,0.15);border-radius:16px;">Preparazione</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(14,165,233,0.15);border-radius:16px;">Spedito + tracking</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(16,185,129,0.15);border-radius:16px;">Consegnato</span>
+      <span>→</span>
+      <span style="padding:6px 12px;background:rgba(16,185,129,0.3);border-radius:16px;font-weight:bold;">Rientrato ✓</span>
+    </div>
+  </div>
+</div>
+
+<!-- GAP 2: BUDGET -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header" style="background:rgba(245,158,11,0.15);color:#f59e0b;">🟡 GAP 2 — Budget e costi</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Nessun tracciamento dei costi per evento. Non sapete quanto costa un congresso finché non arrivano le fatture.</p>
+
+    <div style="margin:16px 0;padding:16px;background:rgba(245,158,11,0.06);border-radius:8px;font-family:monospace;line-height:1.8;">
+      <strong>event_costs</strong><br>
+      id, event_id → events<br>
+      categoria: <strong>sponsorizzazione | iscrizioni | catering | trasporti | alloggi | materiale_mktg | desk | altro</strong><br>
+      descrizione, importo_previsto, importo_effettivo<br>
+      fornitore, n_fattura<br>
+      stato_pagamento: <strong>da_pagare | approvato | pagato</strong><br>
+      approvato_da → users<br>
+    </div>
+
+    <p>Ogni evento avrebbe un <strong>budget previsto vs effettivo</strong>, visibile a Enrica in dashboard.</p>
+  </div>
+</div>
+
+<!-- GAP 3: DOCUMENTI -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header" style="background:rgba(168,85,247,0.15);color:#a855f7;">🟣 GAP 3 — Documenti e allegati</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Contratti, programmi scientifici, locandine finite, bolle di spedizione, fatture... dove vanno? Oggi probabilmente in cartelle condivise o email.</p>
+
+    <div style="margin:16px 0;padding:16px;background:rgba(168,85,247,0.06);border-radius:8px;font-family:monospace;line-height:1.8;">
+      <strong>documents</strong><br>
+      id, event_id → events (opzionale)<br>
+      material_id → materials (opzionale)<br>
+      tipo: <strong>contratto | programma | locandina | bolla | fattura | presentazione | foto | altro</strong><br>
+      nome_file, file_url (Supabase Storage)<br>
+      caricato_da → users, data_caricamento<br>
+      versione (per locandine che cambiano 5 volte...)<br>
+    </div>
+
+    <p>Ogni evento diventa un "fascicolo" con tutti i documenti collegati.</p>
+  </div>
+</div>
+
+<!-- GAP 4: CHECKLIST TEMPLATE -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header" style="background:rgba(14,165,233,0.15);color:#0ea5e9;">🔵 GAP 4 — Checklist template per tipo evento</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Ogni volta che create un workshop, dovete ricordarvi da zero cosa serve. Inevitabilmente qualcosa si dimentica.</p>
+
+    <div style="margin:16px 0;padding:16px;background:rgba(14,165,233,0.06);border-radius:8px;font-family:monospace;line-height:1.8;">
+      <strong>event_templates</strong><br>
+      id, tipo_evento, nome_template<br>
+      <br>
+      <strong>template_checklist_items</strong><br>
+      id, template_id → event_templates<br>
+      descrizione, assegnazione_default_ruolo<br>
+      giorni_prima_evento (scadenza relativa: -30, -14, -7, -1)<br>
+      ordine<br>
+    </div>
+
+    <p><strong>Esempio template "Workshop in ospedale":</strong></p>
+    <div style="font-size:12px;line-height:2;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">
+      ☐ -30gg: Commerciale compila scheda evento (dati sede, n. partecipanti, esigenze)<br>
+      ☐ -21gg: Enrica approva evento<br>
+      ☐ -21gg: Federica prenota sala/catering<br>
+      ☐ -14gg: Nicola prepara locandina e materiale marketing<br>
+      ☐ -10gg: Chiara ordina materiale mancante<br>
+      ☐ -7gg: Ivan prepara e spedisce kit demo<br>
+      ☐ -3gg: Federica conferma iscrizioni e invia reminder<br>
+      ☐ -1gg: Verifica finale tutto pronto<br>
+      ☐ +3gg: Ivan verifica rientro materiale demo<br>
+      ☐ +7gg: Chiusura evento e consuntivo costi<br>
+    </div>
+    <p>Quando crei un nuovo workshop, il template genera automaticamente tutte le scadenze con le date reali.</p>
+  </div>
+</div>
+
+<!-- GAP 5: COMPLIANCE MEDICA -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header" style="background:rgba(239,68,68,0.15);color:#ef4444;">🔴 GAP 5 — Compliance MedTech</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Nel settore dispositivi medici, le interazioni con i medici (sponsorizzazioni, iscrizioni a congressi, ospitalità) sono regolamentate dal <strong>Codice Etico MedTech Europe / Confindustria DM</strong>. Dovete poter dimostrare chi ha ricevuto cosa.</p>
+
+    <p>Non serve una tabella dedicata — ma serve che i dati siano <strong>tracciabili e esportabili</strong>:</p>
+    <ul style="line-height:2;">
+      <li>Per ogni medico: storico eventi a cui ha partecipato, costi sostenuti (iscrizione, viaggio, alloggio, cena)</li>
+      <li>Per ogni evento: breakdown costi per tipologia</li>
+      <li>Export CSV/PDF per audit o per il responsabile compliance</li>
+    </ul>
+    <p>I dati ci sono già nelle tabelle <code>event_participants</code>, <code>event_logistics</code>, <code>event_costs</code> — serve solo un report dedicato.</p>
+  </div>
+</div>
+
+<!-- GAP 6: POST-EVENTO -->
+<div class="mockup" style="margin-bottom:24px;">
+  <div class="mockup-header" style="background:rgba(16,185,129,0.15);color:#10b981;">🟢 GAP 6 — Post-evento e follow-up</div>
+  <div class="mockup-body" style="padding:20px;font-size:13px;">
+    <p><strong>Problema:</strong> Dopo l'evento, chi verifica che il materiale sia tornato? Chi fa il consuntivo? Chi raccoglie il feedback?</p>
+
+    <div style="margin:16px 0;padding:16px;background:rgba(16,185,129,0.06);border-radius:8px;font-family:monospace;line-height:1.8;">
+      <strong>event_report</strong><br>
+      id, event_id → events<br>
+      partecipanti_effettivi, n_no_show<br>
+      feedback_generale (testo)<br>
+      materiale_tutto_rientrato: si/no<br>
+      materiale_danneggiato: testo<br>
+      costo_totale_effettivo<br>
+      note_follow_up<br>
+      compilato_da → users, data_compilazione<br>
+    </div>
+    <p>Chiude il ciclo di vita dell'evento e alimenta i report per Enrica.</p>
+  </div>
+</div>
+
+<!-- RIEPILOGO -->
+<div style="margin-top:32px;padding:20px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;">
+  <h3 style="margin:0 0 12px;">Riepilogo: da 8 a 14 tabelle</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+    <div>✅ users</div>
+    <div>✅ events (+ parent_event_id, postazioni)</div>
+    <div>✅ materials</div>
+    <div>✅ material_movements</div>
+    <div>✅ event_staff</div>
+    <div>✅ event_materials</div>
+    <div>✅ event_participants</div>
+    <div>✅ event_deadlines</div>
+    <div>✅ event_sub_activities</div>
+    <div>✅ event_logistics</div>
+    <div style="color:#f59e0b;">🆕 workflow_actions</div>
+    <div style="color:#f59e0b;">🆕 event_costs</div>
+    <div style="color:#f59e0b;">🆕 documents</div>
+    <div style="color:#f59e0b;">🆕 event_templates + template_checklist_items</div>
+    <div style="color:#f59e0b;">🆕 event_report</div>
+  </div>
+</div>
