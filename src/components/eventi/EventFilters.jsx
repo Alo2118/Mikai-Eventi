@@ -1,6 +1,7 @@
 import { SearchInput } from '../ui/SearchInput'
-import { STATO_EVENTO, TIPO_EVENTO } from '../../lib/constants'
+import { STATO_EVENTO, TIPO_EVENTO, SELECT_STYLE } from '../../lib/constants'
 import { useEventsStore } from '../../hooks/useEvents'
+import { Button } from '../ui/Button'
 
 export function EventFilters() {
   const filters = useEventsStore(s => s.filters)
@@ -10,17 +11,19 @@ export function EventFilters() {
   const hasFilters = filters.search || filters.stato || filters.tipo
 
   return (
-    <div className="space-y-3 px-6 md:px-8">
-      <SearchInput
-        value={filters.search}
-        onChange={(v) => setFilter('search', v)}
-        placeholder="Cerca evento per nome..."
-      />
-      <div className="flex flex-wrap gap-3">
+    <div className="px-4 md:px-8 py-3">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <SearchInput
+            value={filters.search}
+            onChange={(v) => setFilter('search', v)}
+            placeholder="Cerca evento..."
+          />
+        </div>
         <select
           value={filters.stato}
           onChange={(e) => setFilter('stato', e.target.value)}
-          className="px-4 py-2.5 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+          className={SELECT_STYLE + ' sm:max-w-[180px]'}
           aria-label="Filtra per stato"
         >
           <option value="">Tutti gli stati</option>
@@ -31,7 +34,7 @@ export function EventFilters() {
         <select
           value={filters.tipo}
           onChange={(e) => setFilter('tipo', e.target.value)}
-          className="px-4 py-2.5 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+          className={SELECT_STYLE + ' sm:max-w-[160px]'}
           aria-label="Filtra per tipo"
         >
           <option value="">Tutti i tipi</option>
@@ -40,12 +43,7 @@ export function EventFilters() {
           ))}
         </select>
         {hasFilters && (
-          <button
-            onClick={resetFilters}
-            className="px-4 py-2.5 text-base text-mikai-400 hover:text-mikai-500 min-h-[48px] font-medium"
-          >
-            Azzera filtri
-          </button>
+          <Button variant="ghost" onClick={resetFilters}>Azzera</Button>
         )}
       </div>
     </div>

@@ -39,7 +39,7 @@ export const useEventsStore = create((set, get) => ({
     let query = supabase
       .from('events')
       .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)')
-      .order('data_inizio', { ascending: false })
+      .order('data_inizio', { ascending: true })
 
     const { search, stato, tipo, mese } = get().filters
     const { userId, ruolo, showAll } = get().roleFilter

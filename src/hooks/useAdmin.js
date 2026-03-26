@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseAdmin } from '../lib/supabase'
 
 export const useAdminStore = create((set, get) => ({
   // === Brands ===
@@ -303,14 +303,26 @@ export const useAdminStore = create((set, get) => ({
   },
 
   createUser: async ({ email, password, nome, cognome, ruolo }) => {
-    const { data, error } = await supabase.rpc('create_app_user', {
-      p_email: email,
-      p_password: password,
-      p_nome: nome,
-      p_cognome: cognome,
-      p_ruolo: ruolo,
+    // Use separate client to avoid logging out current admin
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { nome, cognome, ruolo },
+        emailRedirectTo: undefined,
+      },
     })
-    if (!error) get().fetchUsers()
-    return { data, error: error?.message || null }
+    if (authError) return { data: null, error: authError.message }
+
+    const userId = authData.user?.id
+    if (!userId) return { data: null, error: 'Utente creato ma ID non disponibile' }
+
+    // Trigger handle_new_auth_user creates public.users synchronously.
+    // Confirm email immediately so user can log in without verification.
+    const { error: confirmError } = await supabase.rpc('confirm_user_email', { user_id: userId })
+    if (confirmError) return { data: { id: userId }, error: 'Utente creato ma conferma email fallita: ' + confirmError.message }
+
+    get().fetchUsers()
+    return { data: { id: userId }, error: null }
   },
 }))
