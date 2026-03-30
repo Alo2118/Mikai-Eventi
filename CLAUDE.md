@@ -567,6 +567,7 @@ When adding or modifying a tab, check neighboring tabs for pattern alignment.
 - RLS policies enforced on every table. Frontend does NOT rely on client-side auth checks for security
 - Seed data in `012_seed.sql` — uses hex-valid UUID prefixes (`aaaa`, `bbbb`, `cccc`)
 - **Never modify existing migrations.** Always create a new sequential one.
+- **Column name verification (mandatory).** Before writing any `.insert()`, `.update()`, `.select()`, `.order()`, `.eq()`, or `.gte()/.lte()` call, verify that every field name matches the actual DB column name from the migration files. Supabase/PostgREST silently ignores unknown fields on INSERT/UPDATE (data loss) and returns 400 on unknown fields in SELECT/ORDER/FILTER. Common traps: `created_at` vs `data_richiesta`, `foto_url` vs `immagine_url`, `codice` vs `codice_inventario`, old column names after a RENAME. When a table is evolved (new column replaces old one), verify the old column is nullable or dropped — NOT NULL on a superseded column causes INSERT failures.
 - **Compliance tables** (Phase 6C): `hcp_professionisti`, `trasferimenti_valore`, `interazioni_hcp` — RLS via `has_compliance_permission()` helper
 - **Audit triggers**: `log_audit_action()` generic trigger on ToV, HCP, contacts, documents, preventivi, material_requests, permissions
 - **Supabase Realtime** enabled on `notifications` table — used for live notification push to clients
@@ -734,3 +735,4 @@ These are explicit anti-patterns for this project:
 - **No duplicated export logic** — use `useExportHandler` hook for Excel exports
 - **No unused dependencies** — if a package is not imported anywhere, remove it from `package.json`
 - **No hardcoded card/form class strings** — always use `CARD_STYLE`, `CARD_HOVER_STYLE`, `FORM_CONTAINER_STYLE`, `SUMMARY_BAR_STYLE` from `constants.js`
+- **No unverified column names in Supabase queries** — always cross-check field names against migration files before writing `.insert()`, `.update()`, `.select()`, `.order()`, `.eq()` calls. Silent data loss from mismatched names is extremely hard to debug.

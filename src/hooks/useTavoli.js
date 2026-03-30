@@ -23,14 +23,13 @@ async function syncTavoliToMaterialList(eventId, tavoli) {
 
   const existingByProduct = new Map((existing || []).map(e => [e.product_id, e]))
 
-  let added = 0
-  let updated = 0
+  const toInsert = []
+  const toUpdate = []
 
   for (const [productId, count] of Object.entries(productCounts)) {
     const ex = existingByProduct.get(productId)
     if (!ex) {
-      // Product not in material list — add it
-      await supabase.from('event_materials').insert({
+      toInsert.push({
         event_id: eventId,
         product_id: productId,
         quantita: count,
@@ -38,17 +37,24 @@ async function syncTavoliToMaterialList(eventId, tavoli) {
         richiesto_da: user.id,
         note_commerciale: `Richiesto automaticamente da ${count} tavol${count === 1 ? 'o' : 'i'}`,
       })
-      added++
     } else if (ex.quantita !== count && ex.stato === 'richiesto') {
-      // Quantity changed and not yet approved — update
-      await supabase.from('event_materials')
-        .update({ quantita: count, note_commerciale: `Aggiornato da ${count} tavol${count === 1 ? 'o' : 'i'}` })
-        .eq('id', ex.id)
-      updated++
+      toUpdate.push({ id: ex.id, quantita: count, note_commerciale: `Aggiornato da ${count} tavol${count === 1 ? 'o' : 'i'}` })
     }
   }
 
-  return { added, updated }
+  // Batch insert new materials
+  if (toInsert.length > 0) {
+    await supabase.from('event_materials').insert(toInsert)
+  }
+
+  // Updates must stay individual (different values per row) — parallelize
+  await Promise.all(toUpdate.map(upd =>
+    supabase.from('event_materials')
+      .update({ quantita: upd.quantita, note_commerciale: upd.note_commerciale })
+      .eq('id', upd.id)
+  ))
+
+  return { added: toInsert.length, updated: toUpdate.length }
 }
 
 // Create notification when tavoli materials change
@@ -65,22 +71,25 @@ async function notifyTavoliMaterialChange(eventId, changeType, count) {
     removed: `Un prodotto è stato rimosso dai tavoli — verificare la lista materiale`,
   }
 
-  // Notify warehouse staff
+  // Notify warehouse staff — batch insert
   const { data: warehouseUsers } = await supabase
     .from('user_permissions')
     .select('user_id')
     .in('permission', ['gestione_magazzino', 'approva_materiale'])
 
-  for (const u of (warehouseUsers || [])) {
-    if (u.user_id === user.id) continue
-    await supabase.from('notifications').insert({
+  const notifRows = (warehouseUsers || [])
+    .filter(u => u.user_id !== user.id)
+    .map(u => ({
       user_id: u.user_id,
       tipo: 'evento_stato_cambiato',
       titolo: `Materiale tavoli aggiornato`,
       messaggio: `${titolo}: ${messages[changeType]}`,
       link: `/eventi/${eventId}`,
       gruppo: `tavoli_mat_${eventId}_${todayISO()}`,
-    })
+    }))
+
+  if (notifRows.length > 0) {
+    await supabase.from('notifications').insert(notifRows)
   }
 }
 

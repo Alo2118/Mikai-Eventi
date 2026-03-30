@@ -20,7 +20,7 @@ export const useVenuesStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('venues')
       .insert(venue)
-      .select('*, zone:zones(id, nome)')
+      .select()
       .single()
     return { data, error: error?.message || null }
   },

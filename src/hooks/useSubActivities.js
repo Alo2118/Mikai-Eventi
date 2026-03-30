@@ -63,10 +63,13 @@ export const useSubActivitiesStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('event_sub_activities')
       .insert(payload)
-      .select('*, tipo_ref:sub_activity_types(id, nome)')
+      .select()
       .single()
-    if (!error) set(s => ({ subActivities: [...s.subActivities, data].sort((a, b) => (a.data_ora || '').localeCompare(b.data_ora || '')) }))
-    return { data, error }
+    if (!error && data) {
+      // Refetch to get joined data (PostgREST doesn't support embedded resources on INSERT)
+      await get().fetchEventSubActivities(data.event_id)
+    }
+    return { data, error: error?.message || null }
   },
 
   updateSubActivity: async (id, updates) => {
@@ -74,10 +77,12 @@ export const useSubActivitiesStore = create((set, get) => ({
       .from('event_sub_activities')
       .update(updates)
       .eq('id', id)
-      .select('*, tipo_ref:sub_activity_types(id, nome)')
+      .select()
       .single()
-    if (!error) set(s => ({ subActivities: s.subActivities.map(r => r.id === id ? data : r) }))
-    return { data, error }
+    if (!error && data) {
+      await get().fetchEventSubActivities(data.event_id)
+    }
+    return { data, error: error?.message || null }
   },
 
   removeSubActivity: async (id) => {

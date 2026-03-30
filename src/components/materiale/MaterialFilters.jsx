@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { SearchInput } from '../ui/SearchInput'
-import { TIPO_MATERIALE, POSIZIONE_MATERIALE } from '../../lib/constants'
+import { TIPO_MATERIALE, POSIZIONE_MATERIALE, SELECT_STYLE } from '../../lib/constants'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 
 export function MaterialFilters() {
@@ -12,14 +12,14 @@ export function MaterialFilters() {
 
   useEffect(() => {
     fetchBrands().then(({ data }) => {
-      setBrands(data)
+      setBrands(data || [])
     })
   }, [])
 
   const hasFilters = filters.search || filters.tipo || filters.posizione || filters.brand
 
   return (
-    <div className="space-y-3 px-6 md:px-8">
+    <div className="space-y-3 px-4 md:px-8">
       <SearchInput
         value={filters.search}
         onChange={(v) => setFilter('search', v)}
@@ -29,7 +29,7 @@ export function MaterialFilters() {
         <select
           value={filters.brand || ''}
           onChange={(e) => setFilter('brand', e.target.value)}
-          className="px-4 py-2.5 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+          className={SELECT_STYLE}
           aria-label="Filtra per azienda"
         >
           <option value="">Tutte le aziende</option>
@@ -40,7 +40,7 @@ export function MaterialFilters() {
         <select
           value={filters.tipo}
           onChange={(e) => setFilter('tipo', e.target.value)}
-          className="px-4 py-2.5 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+          className={SELECT_STYLE}
           aria-label="Filtra per tipo"
         >
           <option value="">Tutti i tipi</option>
@@ -51,7 +51,7 @@ export function MaterialFilters() {
         <select
           value={filters.posizione}
           onChange={(e) => setFilter('posizione', e.target.value)}
-          className="px-4 py-2.5 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+          className={SELECT_STYLE}
           aria-label="Filtra per posizione"
         >
           <option value="">Tutte le posizioni</option>

@@ -33,19 +33,26 @@ export const useComplianceStore = create((set, get) => ({
       .from('hcp_professionisti')
       .select(`
         *,
-        contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, email, telefono, ente_ospedaliero, specializzazione)
+        contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, email, telefono, azienda, specializzazione)
       `)
       .order('created_at', { ascending: false })
 
     if (filters.categoria) query = query.eq('categoria', filters.categoria)
+
+    let { data, error } = await query.limit(200)
+
+    // Client-side search on joined contact fields (PostgREST doesn't support .or() on joined columns)
     if (filters.search) {
-      // Search is done on the joined contact fields — use contatto filter
-      query = query.or(`contatto.nome.ilike.%${filters.search}%,contatto.cognome.ilike.%${filters.search}%,contatto.ente_ospedaliero.ilike.%${filters.search}%`)
+      const s = filters.search.toLowerCase()
+      data = (data || []).filter(h =>
+        h.contatto?.nome?.toLowerCase().includes(s) ||
+        h.contatto?.cognome?.toLowerCase().includes(s) ||
+        h.contatto?.azienda?.toLowerCase().includes(s)
+      )
     }
 
-    const { data, error } = await query.limit(200)
-    set({ hcpList: data || [], hcpLoading: false, error: error?.message })
-    return { data, error }
+    set({ hcpList: data || [], hcpLoading: false, error: error?.message || null })
+    return { data, error: error?.message || null }
   },
 
   fetchHcpDetail: async (id) => {
@@ -54,13 +61,13 @@ export const useComplianceStore = create((set, get) => ({
       .from('hcp_professionisti')
       .select(`
         *,
-        contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, email, telefono, ente_ospedaliero, specializzazione, ruolo_medico)
+        contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, email, telefono, azienda, specializzazione, ruolo_medico)
       `)
       .eq('id', id)
       .single()
 
-    set({ hcpDetail: data, hcpLoading: false, error: error?.message })
-    return { data, error }
+    set({ hcpDetail: data, hcpLoading: false, error: error?.message || null })
+    return { data, error: error?.message || null }
   },
 
   createHcp: async (hcpData) => {
@@ -74,7 +81,7 @@ export const useComplianceStore = create((set, get) => ({
       const list = get().hcpList
       set({ hcpList: [data, ...list] })
     }
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   updateHcp: async (id, updates) => {
@@ -91,7 +98,7 @@ export const useComplianceStore = create((set, get) => ({
         hcpDetail: get().hcpDetail?.id === id ? { ...get().hcpDetail, ...data } : get().hcpDetail,
       })
     }
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   deleteHcp: async (id) => {
@@ -103,7 +110,7 @@ export const useComplianceStore = create((set, get) => ({
     if (!error) {
       set({ hcpList: get().hcpList.filter(h => h.id !== id) })
     }
-    return { error }
+    return { error: error?.message || null }
   },
 
   // ═══════════════════════════════════════════
@@ -118,7 +125,7 @@ export const useComplianceStore = create((set, get) => ({
         *,
         hcp:hcp_professionisti!trasferimenti_valore_hcp_id_fkey(
           id,
-          contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, ente_ospedaliero)
+          contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, azienda)
         ),
         evento:events!trasferimenti_valore_evento_id_fkey(id, titolo),
         autore:users!trasferimenti_valore_created_by_fkey(id, nome, cognome),
@@ -135,8 +142,8 @@ export const useComplianceStore = create((set, get) => ({
     if (filters.a) query = query.lte('data_trasferimento', filters.a)
 
     const { data, error } = await query.limit(500)
-    set({ tovList: data || [], tovLoading: false, error: error?.message })
-    return { data, error }
+    set({ tovList: data || [], tovLoading: false, error: error?.message || null })
+    return { data, error: error?.message || null }
   },
 
   fetchTovDetail: async (id) => {
@@ -147,7 +154,7 @@ export const useComplianceStore = create((set, get) => ({
         *,
         hcp:hcp_professionisti!trasferimenti_valore_hcp_id_fkey(
           id, categoria, specializzazione,
-          contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, email, ente_ospedaliero)
+          contatto:contacts!hcp_professionisti_contatto_id_fkey(id, nome, cognome, email, azienda)
         ),
         evento:events!trasferimenti_valore_evento_id_fkey(id, titolo, data_inizio),
         autore:users!trasferimenti_valore_created_by_fkey(id, nome, cognome),
@@ -156,8 +163,8 @@ export const useComplianceStore = create((set, get) => ({
       .eq('id', id)
       .single()
 
-    set({ tovDetail: data, tovLoading: false, error: error?.message })
-    return { data, error }
+    set({ tovDetail: data, tovLoading: false, error: error?.message || null })
+    return { data, error: error?.message || null }
   },
 
   createTov: async (tovData) => {
@@ -171,7 +178,7 @@ export const useComplianceStore = create((set, get) => ({
       // Refresh list to get joined data
       get().fetchTovList()
     }
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   updateTov: async (id, updates) => {
@@ -186,7 +193,7 @@ export const useComplianceStore = create((set, get) => ({
       get().fetchTovList()
       if (get().tovDetail?.id === id) get().fetchTovDetail(id)
     }
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   verifyTov: async (id) => {
@@ -208,7 +215,7 @@ export const useComplianceStore = create((set, get) => ({
       get().fetchTovList()
       if (get().tovDetail?.id === id) get().fetchTovDetail(id)
     }
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   flagTov: async (id) => {
@@ -226,7 +233,7 @@ export const useComplianceStore = create((set, get) => ({
       get().fetchTovList()
       if (get().tovDetail?.id === id) get().fetchTovDetail(id)
     }
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   // ═══════════════════════════════════════════
@@ -253,8 +260,8 @@ export const useComplianceStore = create((set, get) => ({
     if (filters.tipo) query = query.eq('tipo', filters.tipo)
 
     const { data, error } = await query.limit(500)
-    set({ interazioni: data || [], interazioniLoading: false, error: error?.message })
-    return { data, error }
+    set({ interazioni: data || [], interazioniLoading: false, error: error?.message || null })
+    return { data, error: error?.message || null }
   },
 
   createInterazione: async (interazioneData) => {
@@ -267,7 +274,7 @@ export const useComplianceStore = create((set, get) => ({
     if (!error) {
       get().fetchInterazioni(interazioneData.hcp_id ? { hcp_id: interazioneData.hcp_id } : {})
     }
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   // ═══════════════════════════════════════════
@@ -287,8 +294,8 @@ export const useComplianceStore = create((set, get) => ({
     const { data: tovData, error: tovError } = await tovQuery
 
     if (tovError) {
-      set({ statsLoading: false, error: tovError.message })
-      return { error: tovError }
+      set({ statsLoading: false, error: tovError.message || null })
+      return { error: tovError.message || null }
     }
 
     // Compute stats

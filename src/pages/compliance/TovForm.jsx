@@ -92,7 +92,7 @@ export function TovForm() {
             <option value="">Seleziona HCP...</option>
             {hcpList.map(h => (
               <option key={h.id} value={h.id}>
-                {h.contatto?.cognome} {h.contatto?.nome} — {h.contatto?.ente_ospedaliero || 'N/D'}
+                {h.contatto?.cognome} {h.contatto?.nome} — {h.contatto?.azienda || 'N/D'}
               </option>
             ))}
           </select>

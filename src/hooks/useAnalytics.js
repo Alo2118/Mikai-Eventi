@@ -74,10 +74,12 @@ export const useAnalyticsStore = create((set, get) => ({
         .gte('data_inizio', start).lte('data_inizio', end),
       supabase.from('event_preventivi')
         .select('importo, evento:events!event_preventivi_event_id_fkey(data_inizio)')
-        .eq('stato', 'approvato'),
+        .eq('stato', 'approvato')
+        .limit(2000),
       supabase.from('event_preventivi')
         .select('importo_effettivo, evento:events!event_preventivi_event_id_fkey(data_inizio)')
-        .not('importo_effettivo', 'is', null),
+        .not('importo_effettivo', 'is', null)
+        .limit(2000),
     ])
 
     const previstoByMonth = groupByMonth(
@@ -117,6 +119,7 @@ export const useAnalyticsStore = create((set, get) => ({
     const { data } = await supabase
       .from('event_participants')
       .select('stato_iscrizione, evento:events!event_participants_event_id_fkey(data_inizio)')
+      .limit(5000)
     const filtered = (data || []).filter(
       p => p.evento?.data_inizio && p.evento.data_inizio >= start && p.evento.data_inizio <= end
     )

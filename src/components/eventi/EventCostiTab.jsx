@@ -18,6 +18,7 @@ export function EventCostiTab({ event }) {
   const preventivi = useCostsStore(s => s.preventivi)
   const costs = useCostsStore(s => s.costs)
   const loading = useCostsStore(s => s.loading)
+  const costsError = useCostsStore(s => s.error)
   const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
   const fetchEventCosts = useCostsStore(s => s.fetchEventCosts)
   const createPreventivo = useCostsStore(s => s.createPreventivo)
@@ -176,7 +177,8 @@ export function EventCostiTab({ event }) {
             </div>
           ))}
           {loading && <LoadingSkeleton lines={3} />}
-          {preventivi.length === 0 && !loading && (
+          {costsError && !loading && <p className="text-sm text-red-500 py-2" role="alert">Errore nel caricamento dei costi.</p>}
+          {preventivi.length === 0 && !loading && !costsError && (
             <div className="text-center py-6">
               <p className="text-gray-400 mb-3">Nessun preventivo</p>
               {canManage && !showForm && (

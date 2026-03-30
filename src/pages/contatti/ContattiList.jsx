@@ -35,6 +35,7 @@ export function ContattiList() {
   const loading = useContactsStore(s => s.loading)
   const filters = useContactsStore(s => s.filters)
   const fetchContacts = useContactsStore(s => s.fetchContacts)
+  const resetFilters = useContactsStore(s => s.resetFilters)
   const setFilter = useContactsStore(s => s.setFilter)
   const createContact = useContactsStore(s => s.createContact)
   const profile = useAuthStore(s => s.profile)
@@ -49,7 +50,7 @@ export function ContattiList() {
   const zones = useAdminStore(s => s.zones)
   const fetchZones = useAdminStore(s => s.fetchZones)
 
-  useEffect(() => { fetchContacts(); fetchZones() }, [])
+  useEffect(() => { resetFilters(); fetchZones() }, [])
 
   const handleSave = async (form) => {
     setSaving(true)
@@ -108,7 +109,7 @@ export function ContattiList() {
         </div>
         <select
           value={filters.tipo}
-          onChange={e => { setFilter('tipo', e.target.value); fetchContacts() }}
+          onChange={e => setFilter('tipo', e.target.value)}
           className={SELECT_STYLE}
         >
           <option value="">Tutti i tipi</option>

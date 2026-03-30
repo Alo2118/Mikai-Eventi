@@ -18,6 +18,7 @@ export function EventiCalendar() {
 
   useEffect(() => {
     setFilter('mese', { year: getFullYear(currentDate), month: getMonthIndex(currentDate) + 1 })
+    return () => setFilter('mese', null)
   }, [currentDate])
 
   const monthLabel = formatMonth(currentDate)

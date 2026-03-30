@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useActivitiesStore } from '../../hooks/useActivities'
@@ -6,6 +6,7 @@ import { useAnalyticsStore } from '../../hooks/useAnalytics'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { StatusBadge } from '../../components/ui/StatusBadge'
+import { SearchInput } from '../../components/ui/SearchInput'
 import { Icon } from '../../components/ui/Icon'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -23,28 +24,14 @@ import { ACTION_ICONS } from '../../lib/icons'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
-import { formatDate, formatDateRange, formatDayISO } from '../../lib/date-utils'
-import { formatCurrency } from '../../lib/format-utils'
-
-function currentQuarterBudget(events) {
-  const now = new Date()
-  const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
-  const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
-
-  return events
-    .filter(e => {
-      if (!['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(e.stato)) return false
-      const d = new Date(e.data_inizio)
-      return d >= qStart && d <= qEnd
-    })
-    .reduce((sum, e) => sum + (e.budget_previsto || 0), 0)
-}
+import { formatDate, formatDateRange, todayISO } from '../../lib/date-utils'
+import { formatCurrency, formatPercentage } from '../../lib/format-utils'
 
 function defaultTimeRange() {
   const now = new Date()
   const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
   const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
-  return { type: 'trimestre', start: formatDayISO(qStart), end: formatDayISO(qEnd) }
+  return { type: 'trimestre', start: qStart.toISOString().slice(0, 10), end: qEnd.toISOString().slice(0, 10) }
 }
 
 function SemaphoreIcon({ status }) {
@@ -56,7 +43,7 @@ function SemaphoreIcon({ status }) {
   }
   const c = config[status] || config.gray
   return (
-    <span className="inline-flex items-center gap-1.5" title={c.label}>
+    <span className="inline-flex items-center gap-1.5" title={c.label} aria-label={c.label}>
       <span className={`inline-block w-3 h-3 rounded-full ${c.bg} ring-2 ${c.ring}`} />
       <span className={`text-xs font-medium ${c.text}`}>{c.label}</span>
     </span>
@@ -107,58 +94,94 @@ export function DashboardStrategica() {
   const rejectEvent = useEventsStore(s => s.rejectEvent)
   const permissions = useAuthStore(s => s.permissions)
   const addToast = useToastStore(s => s.add)
+
+  const [approvingId, setApprovingId] = useState(null)
+  const [approving, setApproving] = useState(false)
   const [rejectingId, setRejectingId] = useState(null)
   const [rejectMotivo, setRejectMotivo] = useState('')
-  const [approving, setApproving] = useState(null)
-  const [approvingId, setApprovingId] = useState(null)
   const [timeRange, setTimeRange] = useState(defaultTimeRange)
+  const [searchApproval, setSearchApproval] = useState('')
 
   const canApprove = permissions?.includes('approva_eventi')
 
-  async function handleApprove(eventId) {
-    setApproving(eventId)
-    const { error } = await approveEvent(eventId)
-    setApproving(null)
-    if (error) {
-      addToast('Errore nell\'approvazione. Riprova.', 'error')
-    } else {
-      addToast('Evento approvato!', 'success')
-    }
+  const loadData = useCallback(() => { fetchEvents() }, [])
+
+  // Initial fetch + auto-refresh 60s
+  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    const interval = setInterval(loadData, 60000)
+    return () => clearInterval(interval)
+  }, [loadData])
+
+  const today = todayISO()
+
+  // Memoized computed values
+  const { attivi, proposti, quarterBudget, cancelledRate } = useMemo(() => {
+    const activeStates = ['confermato', 'in_preparazione', 'pronto', 'in_corso']
+    const attiviCount = events.filter(e => activeStates.includes(e.stato)).length
+    const propostiList = events.filter(e => e.stato === 'proposto')
+
+    const now = new Date()
+    const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+    const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
+    const qBudget = events
+      .filter(e => activeStates.includes(e.stato) && e.data_inizio)
+      .filter(e => { const d = new Date(e.data_inizio); return d >= qStart && d <= qEnd })
+      .reduce((sum, e) => sum + (e.budget_previsto || 0), 0)
+
+    const total = events.length
+    const cancelled = events.filter(e => ['cancellato', 'rifiutato'].includes(e.stato)).length
+    const rate = total > 0 ? (cancelled / total) * 100 : 0
+
+    return { attivi: attiviCount, proposti: propostiList, quarterBudget: qBudget, cancelledRate: rate }
+  }, [events])
+
+  const upcomingEvents = useMemo(() =>
+    events
+      .filter(e => e.data_inizio >= today)
+      .sort((a, b) => a.data_inizio.localeCompare(b.data_inizio))
+      .slice(0, 10)
+  , [events, today])
+
+  // Semaphores for upcoming events
+  useEffect(() => {
+    if (!upcomingEvents.length) return
+    fetchEventSemaphores(upcomingEvents.map(e => e.id)).then(setSemaphores)
+  }, [upcomingEvents])
+
+  const semaphoreOverdue = useMemo(() =>
+    Object.values(semaphores).filter(s => s === 'red').length
+  , [semaphores])
+
+  // Search in approval queue
+  const filteredProposti = useMemo(() => {
+    if (!searchApproval) return proposti
+    const s = searchApproval.toLowerCase()
+    return proposti.filter(e =>
+      e.titolo?.toLowerCase().includes(s) ||
+      e.promotore?.nome?.toLowerCase().includes(s) ||
+      e.promotore?.cognome?.toLowerCase().includes(s)
+    )
+  }, [proposti, searchApproval])
+
+  // Actions
+  const handleApprove = async () => {
+    setApproving(true)
+    const { error } = await approveEvent(approvingId)
+    setApproving(false)
+    setApprovingId(null)
+    if (error) addToast('Errore nell\'approvazione. Riprova.', 'error')
+    else addToast('Evento approvato!', 'success')
   }
 
-  async function handleReject() {
+  const handleReject = async () => {
     if (!rejectMotivo.trim()) return
     const { error } = await rejectEvent(rejectingId, rejectMotivo.trim())
     setRejectingId(null)
     setRejectMotivo('')
-    if (error) {
-      addToast('Errore nel rifiuto. Riprova.', 'error')
-    } else {
-      addToast('Evento rifiutato.', 'success')
-    }
+    if (error) addToast('Errore nel rifiuto. Riprova.', 'error')
+    else addToast('Evento rifiutato.', 'success')
   }
-
-  useEffect(() => { fetchEvents() }, [])
-
-  const upcomingEvents = useMemo(() => {
-    const now = new Date()
-    return events
-      .filter(e => new Date(e.data_inizio) >= now)
-      .sort((a, b) => new Date(a.data_inizio) - new Date(b.data_inizio))
-      .slice(0, 10)
-  }, [events])
-
-  useEffect(() => {
-    if (!upcomingEvents.length) return
-    const ids = upcomingEvents.map(e => e.id)
-    fetchEventSemaphores(ids).then(result => setSemaphores(result))
-  }, [upcomingEvents])
-
-  const proposti = events.filter(e => e.stato === 'proposto')
-  const quarterBudget = currentQuarterBudget(events)
-  const attivi = events.filter(e => ['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(e.stato)).length
-  const inAttesa = proposti.length
-  const overdueCount = Object.values(semaphores).filter(s => s === 'red').length
 
   return (
     <div>
@@ -168,34 +191,52 @@ export function DashboardStrategica() {
       <div className="md:hidden">
         <MobileHeader title="Dashboard Direzione" />
       </div>
-      <PageHeader title="Dashboard Direzione" subtitle="Panoramica strategica degli eventi" />
+      <PageHeader
+        title="Dashboard Direzione"
+        subtitle="Panoramica strategica degli eventi"
+        actions={
+          <Button variant="secondary" onClick={loadData} disabled={loading} size="sm">
+            <Icon icon={ACTION_ICONS.refresh} size={16} className={loading ? 'animate-spin' : ''} />
+            <span className="hidden md:inline ml-1">Aggiorna</span>
+          </Button>
+        }
+      />
 
       <div className="px-4 md:px-8 space-y-8 pb-8">
-        {loading ? (
+        {loading && !events.length ? (
           <LoadingSkeleton lines={6} />
         ) : (
           <>
-            {/* KPI Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* KPI Summary */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">Eventi attivi</p>
-                <p className="text-3xl font-bold text-gray-900">{attivi}</p>
+                <p className="text-2xl md:text-3xl font-bold text-gray-900">{attivi}</p>
               </div>
               <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">In attesa</p>
-                <p className={`text-3xl font-bold ${inAttesa > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>{inAttesa}</p>
+                <p className={`text-2xl md:text-3xl font-bold ${proposti.length > 0 ? 'text-yellow-600' : 'text-gray-400'}`}>{proposti.length}</p>
+                {proposti.length > 0 && <p className="text-xs text-yellow-500 mt-1">Da approvare</p>}
               </div>
-              <div className={`${overdueCount > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} rounded-xl border p-4`}>
+              <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">Con ritardi</p>
-                <p className={`text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
+                <p className={`text-2xl md:text-3xl font-bold ${semaphoreOverdue > 0 ? 'text-red-600' : 'text-green-600'}`}>{semaphoreOverdue}</p>
+                {semaphoreOverdue > 0 && <p className="text-xs text-red-500 mt-1">Richiede attenzione</p>}
               </div>
               <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">Budget trimestre</p>
-                <p className="text-3xl font-bold text-mikai-400">{formatCurrency(quarterBudget)}</p>
+                <p className="text-2xl md:text-3xl font-bold text-mikai-500">{formatCurrency(quarterBudget)}</p>
+              </div>
+              <div className={CARD_STYLE}>
+                <p className="text-sm text-gray-500">Cancellazione</p>
+                <p className={`text-2xl md:text-3xl font-bold ${cancelledRate > 20 ? 'text-red-600' : cancelledRate > 10 ? 'text-yellow-600' : 'text-green-600'}`}>
+                  {formatPercentage(cancelledRate, 0)}
+                </p>
+                {cancelledRate > 20 && <p className="text-xs text-red-500 mt-1">Sopra soglia</p>}
               </div>
             </div>
 
-            {/* Time Range Filter + KPI Charts */}
+            {/* Analytics charts */}
             <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
             <KpiCharts timeRange={timeRange} />
 
@@ -209,45 +250,38 @@ export function DashboardStrategica() {
                   </span>
                 )}
               </h2>
-              {proposti.length === 0 ? (
-                <p className="text-gray-500 text-base">Nessun evento in attesa di approvazione.</p>
+              {proposti.length > 3 && (
+                <div className="mb-3">
+                  <SearchInput value={searchApproval} onChange={setSearchApproval} placeholder="Cerca per titolo o promotore..." />
+                </div>
+              )}
+              {filteredProposti.length === 0 ? (
+                <p className="text-gray-500 text-base">
+                  {searchApproval ? 'Nessun risultato.' : 'Nessun evento in attesa di approvazione.'}
+                </p>
               ) : (
                 <div className="space-y-3">
-                  {proposti.map(event => (
-                    <div
-                      key={event.id}
-                      className="bg-white rounded-xl border-l-4 border-l-yellow-400 border border-gray-200 p-4"
-                    >
+                  {filteredProposti.map(event => (
+                    <div key={event.id} className="bg-white rounded-xl border-l-4 border-l-yellow-400 border border-gray-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <Link to={`/eventi/${event.id}`} className="flex-1 min-w-0 hover:underline">
-                          <p className="text-base font-semibold text-gray-900 truncate" title={event.titolo}>{event.titolo}</p>
+                          <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
-                            {event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : '\u2014'}
+                            {event.promotore ? `${event.promotore.cognome} ${event.promotore.nome}` : '\u2014'}
                             {event.data_inizio && ` \u00B7 ${formatDate(event.data_inizio)}`}
                           </p>
                         </Link>
-                        <div className="shrink-0 text-right">
-                          {event.budget_previsto && (
-                            <p className="text-sm font-semibold text-gray-700">{formatCurrency(event.budget_previsto)}</p>
-                          )}
-                        </div>
+                        {event.budget_previsto != null && (
+                          <p className="text-sm font-semibold text-gray-700 shrink-0">{formatCurrency(event.budget_previsto)}</p>
+                        )}
                       </div>
                       {canApprove && (
-                        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            loading={approving === event.id}
-                            onClick={() => setApprovingId(event.id)}
-                          >
+                        <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
+                          <Button variant="primary" size="sm" onClick={() => setApprovingId(event.id)}>
                             <Icon icon={ACTION_ICONS.approve} size={16} className="mr-1" />
                             Approva
                           </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => { setRejectingId(event.id); setRejectMotivo('') }}
-                          >
+                          <Button variant="danger" size="sm" onClick={() => { setRejectingId(event.id); setRejectMotivo('') }}>
                             <Icon icon={ACTION_ICONS.reject} size={16} className="mr-1" />
                             Rifiuta
                           </Button>
@@ -259,7 +293,7 @@ export function DashboardStrategica() {
               )}
             </div>
 
-            {/* Semafori prossimi eventi */}
+            {/* Prossimi eventi con semafori */}
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-3">Prossimi eventi</h2>
               {upcomingEvents.length === 0 ? (
@@ -267,24 +301,14 @@ export function DashboardStrategica() {
               ) : (
                 <div className="space-y-3">
                   {upcomingEvents.map(event => (
-                    <Link
-                      key={event.id}
-                      to={`/eventi/${event.id}`}
-                      className={'block ' + CARD_HOVER_STYLE}
-                    >
+                    <Link key={event.id} to={`/eventi/${event.id}`} className={'block ' + CARD_HOVER_STYLE}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-base font-semibold text-gray-900 truncate" title={event.titolo}>{event.titolo}</p>
-                          <p className="text-sm text-gray-500 mt-0.5">
-                            {formatDateRange(event.data_inizio, event.data_fine)}
-                          </p>
+                          <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>
+                          <p className="text-sm text-gray-500 mt-0.5">{formatDateRange(event.data_inizio, event.data_fine)}</p>
                         </div>
                         <div className="shrink-0 flex flex-col items-end gap-1">
-                          <StatusBadge
-                            stato={event.stato}
-                            labels={STATO_EVENTO}
-                            colors={STATO_EVENTO_COLORE}
-                          />
+                          <StatusBadge stato={event.stato} labels={STATO_EVENTO} colors={STATO_EVENTO_COLORE} />
                           <SemaphoreIcon status={semaphores[event.id] || 'gray'} />
                         </div>
                       </div>
@@ -302,7 +326,7 @@ export function DashboardStrategica() {
         title="Approva evento"
         message="Confermi l'approvazione di questo evento?"
         confirmLabel="Approva"
-        onConfirm={() => { handleApprove(approvingId); setApprovingId(null) }}
+        onConfirm={handleApprove}
         onCancel={() => setApprovingId(null)}
       />
 
@@ -314,9 +338,7 @@ export function DashboardStrategica() {
         footer={
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setRejectingId(null)}>Annulla</Button>
-            <Button variant="danger" onClick={handleReject} disabled={!rejectMotivo.trim()}>
-              Rifiuta evento
-            </Button>
+            <Button variant="danger" onClick={handleReject} disabled={!rejectMotivo.trim()}>Rifiuta evento</Button>
           </div>
         }
       >

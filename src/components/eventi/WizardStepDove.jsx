@@ -54,6 +54,7 @@ export function WizardStepDove({ data, onChange }) {
             value={data.data_fine}
             onChange={(v) => update('data_fine', v)}
             min={data.data_inizio}
+            hint="Facoltativo"
           />
         </div>
 
@@ -75,23 +76,6 @@ export function WizardStepDove({ data, onChange }) {
           />
         </FormField>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DatePicker
-            label="Data spedizione prevista"
-            value={data.data_spedizione_prevista}
-            onChange={(v) => update('data_spedizione_prevista', v)}
-            max={data.data_inizio}
-          />
-          <FormField label="Note consegna" hint="Facoltativo">
-            <input
-              type="text"
-              value={data.note_consegna || ''}
-              onChange={(e) => update('note_consegna', e.target.value)}
-              placeholder="Es: Consegnare al portiere"
-              className={INPUT_STYLE}
-            />
-          </FormField>
-        </div>
       </div>
     </div>
   )

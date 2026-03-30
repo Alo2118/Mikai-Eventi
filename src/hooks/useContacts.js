@@ -8,8 +8,14 @@ export const useContactsStore = create((set, get) => ({
   error: null,
   filters: { search: '', tipo: '', zoneId: '' },
 
-  setFilter: (key, value) => set(s => ({ filters: { ...s.filters, [key]: value } })),
-  resetFilters: () => set({ filters: { search: '', tipo: '', zoneId: '' } }),
+  setFilter: (key, value) => {
+    set(s => ({ filters: { ...s.filters, [key]: value } }))
+    get().fetchContacts()
+  },
+  resetFilters: () => {
+    set({ filters: { search: '', tipo: '', zoneId: '' } })
+    get().fetchContacts()
+  },
 
   fetchContacts: async () => {
     set({ loading: true, error: null })
@@ -27,8 +33,8 @@ export const useContactsStore = create((set, get) => ({
     if (filters.zoneId) query = query.eq('zone_id', filters.zoneId)
 
     const { data, error } = await query.limit(300)
-    set({ contacts: data || [], loading: false, error: error?.message })
-    return { data, error }
+    set({ contacts: data || [], loading: false, error: error?.message || null })
+    return { data, error: error?.message || null }
   },
 
   fetchContact: async (id) => {
@@ -38,8 +44,8 @@ export const useContactsStore = create((set, get) => ({
       .select('*, proprietario:users!contacts_proprietario_id_fkey(id, nome, cognome), zona:zones!contacts_zone_id_fkey(id, nome)')
       .eq('id', id)
       .single()
-    set({ contact: data, loading: false, error: error?.message })
-    return { data, error }
+    set({ contact: data, loading: false, error: error?.message || null })
+    return { data, error: error?.message || null }
   },
 
   fetchContactHistory: async (contactId) => {
@@ -48,7 +54,7 @@ export const useContactsStore = create((set, get) => ({
       .select('*, evento:events(id, titolo, data_inizio, stato)')
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false })
-    return { data: data || [], error }
+    return { data: data || [], error: error?.message || null }
   },
 
   createContact: async (payload) => {
@@ -58,7 +64,7 @@ export const useContactsStore = create((set, get) => ({
       .select()
       .single()
     if (!error) get().fetchContacts()
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   updateContact: async (id, updates) => {
@@ -69,7 +75,17 @@ export const useContactsStore = create((set, get) => ({
       .select()
       .single()
     if (!error) get().fetchContacts()
-    return { data, error }
+    return { data, error: error?.message || null }
+  },
+
+  fetchRecentContacts: async (limit = 5) => {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('id, nome, cognome, tipo_contatto, azienda')
+      .eq('attivo', true)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    return { data: data || [], error: error?.message || null }
   },
 
   searchContacts: async (term) => {
@@ -81,7 +97,7 @@ export const useContactsStore = create((set, get) => ({
       .or(`nome.ilike.%${term}%,cognome.ilike.%${term}%`)
       .order('cognome')
       .limit(10)
-    return { data: data || [], error }
+    return { data: data || [], error: error?.message || null }
   },
 
   findDuplicates: async (rows) => {

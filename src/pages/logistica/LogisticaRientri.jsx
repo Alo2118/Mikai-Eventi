@@ -58,7 +58,7 @@ function RientroCard({ movement, onNavigate }) {
 
 export function LogisticaRientri() {
   const overdueReturns = useMaterialsStore(s => s.overdueReturns)
-  const loading = useMaterialsStore(s => s.loading)
+  const loading = useMaterialsStore(s => s.overdueLoading)
   const fetchOverdueReturns = useMaterialsStore(s => s.fetchOverdueReturns)
   const navigate = useNavigate()
 

@@ -149,6 +149,9 @@ import {
   WifiOff,
   MonitorSmartphone,
 
+  // View toggle
+  List,
+
   // Compliance
   Shield,
   Scale,
@@ -252,6 +255,7 @@ export const ACTION_ICONS = {
   upload: Upload,
   sortAsc: ArrowUpNarrowWide,
   sortDesc: ArrowDownWideNarrow,
+  refresh: RotateCcw,
   chevronDown: ChevronDown,
 }
 
@@ -262,6 +266,7 @@ export const MATERIALE_ICONS = {
   package: Package,
   package_open: PackageOpen,
   uscita: Truck,
+  truck: Truck,
   rientro: RotateCcw,
   trasferimento: ArrowRightLeft,
   manutenzione: Wrench,
@@ -273,6 +278,8 @@ export const MATERIALE_ICONS = {
   rifiutato: XCircle,
   listLocked: Lock,
   warehouse: Warehouse,
+  viewList: List,
+  viewGrid: LayoutGrid,
 }
 
 // ═══════════════════════════════════════════

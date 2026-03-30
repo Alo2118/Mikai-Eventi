@@ -230,7 +230,7 @@ export function CostiPage() {
 
   useEffect(() => {
     fetchPendingPreventivi().then(({ data }) => {
-      setPreventivi(data)
+      setPreventivi(data || [])
       setLoading(false)
     })
   }, [])

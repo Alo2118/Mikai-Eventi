@@ -26,9 +26,9 @@ export const useGlobalSearchStore = create((set) => ({
         .limit(5),
       supabase
         .from('materials')
-        .select('id, nome, codice')
+        .select('id, nome, codice_inventario')
         .eq('attivo', true)
-        .or(`nome.ilike.${searchPattern},codice.ilike.${searchPattern}`)
+        .or(`nome.ilike.${searchPattern},codice_inventario.ilike.${searchPattern}`)
         .order('nome')
         .limit(5),
     ])
@@ -64,7 +64,7 @@ export const useGlobalSearchStore = create((set) => ({
         category: 'materiale',
         categoryLabel: 'Materiale',
         title: m.nome,
-        subtitle: m.codice,
+        subtitle: m.codice_inventario,
         path: `/materiale/${m.id}`,
       })
     }

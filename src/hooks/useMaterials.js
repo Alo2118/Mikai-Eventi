@@ -9,6 +9,9 @@ export const useMaterialsStore = create((set, get) => ({
   materialAnalytics: null,
   upcomingBookings: [],
   loading: false,
+  timelineLoading: false,
+  overdueLoading: false,
+  analyticsLoading: false,
   error: null,
   filters: { search: '', tipo: '', posizione: '', brand: '', section: '' },
 
@@ -31,13 +34,16 @@ export const useMaterialsStore = create((set, get) => ({
       agente:users!materials_presso_utente_id_fkey(id, nome, cognome)
     `).eq('attivo', true).order('nome')
 
-    const { search, tipo, posizione } = get().filters
+    const { search, tipo, posizione, brand } = get().filters
     if (search) query = query.ilike('nome', `%${search}%`)
     if (tipo) query = query.eq('tipo', tipo)
     if (posizione) query = query.eq('posizione_attuale', posizione)
 
     const { data, error } = await query.limit(300)
-    set({ materials: data || [], loading: false, error: error?.message || null })
+    let results = data || []
+    // Client-side brand filter (avoids !inner join that would exclude materials without product)
+    if (brand) results = results.filter(m => m.product?.brand?.id === brand)
+    set({ materials: results, loading: false, error: error?.message || null })
   },
 
   fetchMaterial: async (id) => {
@@ -71,14 +77,6 @@ export const useMaterialsStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('event_materials')
       .update({ stato: 'approvato', approvato_da: userId, data_approvazione: nowISO() })
-      .eq('id', id).select().single()
-    return { data, error: error?.message || null }
-  },
-
-  rejectMaterial: async (id) => {
-    const { data, error } = await supabase
-      .from('event_materials')
-      .update({ stato: 'rifiutato' })
       .eq('id', id).select().single()
     return { data, error: error?.message || null }
   },
@@ -372,11 +370,12 @@ export const useMaterialsStore = create((set, get) => ({
   // Batch: fetch availability for multiple products in ONE query
   fetchBatchAvailability: async (productIds) => {
     if (!productIds?.length) return {}
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('materials')
       .select('id, product_id, posizione_attuale, presso_utente_id')
       .in('product_id', productIds)
       .eq('attivo', true)
+    if (error) return {}
     // Group by product_id → { productId: { inMagazzino: N, pressoEvento: N, pressoAgente: N, totale: N } }
     const map = {}
     for (const m of (data || [])) {
@@ -410,7 +409,7 @@ export const useMaterialsStore = create((set, get) => ({
   },
 
   fetchLogisticsTimeline: async () => {
-    set({ loading: true, error: null })
+    set({ timelineLoading: true, error: null })
     const { data, error } = await supabase
       .from('event_materials')
       .select(`
@@ -420,14 +419,14 @@ export const useMaterialsStore = create((set, get) => ({
         product:products!event_materials_product_id_fkey(id, nome, codice, tipo, brand:brands(id, nome))
       `)
       .in('stato', ['approvato', 'in_preparazione'])
-      .order('created_at', { ascending: true })
+      .order('data_richiesta', { ascending: true })
       .limit(200)
-    set({ logisticsTimeline: data || [], loading: false, error: error?.message || null })
+    set({ logisticsTimeline: data || [], timelineLoading: false, error: error?.message || null })
     return { data: data || [], error }
   },
 
   fetchOverdueReturns: async () => {
-    set({ loading: true, error: null })
+    set({ overdueLoading: true, error: null })
     const { data, error } = await supabase
       .from('material_movements')
       .select(`
@@ -438,39 +437,44 @@ export const useMaterialsStore = create((set, get) => ({
       `)
       .eq('tipo', 'uscita')
       .not('data_rientro_prevista', 'is', null)
-      .lt('data_rientro_prevista', nowISO())
+      .lt('data_rientro_prevista', todayISO())
       .order('data_rientro_prevista', { ascending: true })
       .limit(200)
     const overdue = (data || []).filter(m =>
       m.materiale && m.materiale.posizione_attuale !== 'in_magazzino'
     )
-    set({ overdueReturns: overdue, loading: false, error: error?.message || null })
+    set({ overdueReturns: overdue, overdueLoading: false, error: error?.message || null })
     return { data: overdue, error }
   },
 
   fetchMaterialAnalytics: async () => {
-    set({ loading: true, error: null })
-    const oneYearAgo = new Date()
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+    set({ analyticsLoading: true, error: null })
+    try {
+      const oneYearAgo = new Date()
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
 
-    const [usage, movements, fuori] = await Promise.all([
-      supabase.from('event_materials').select('material_id, product_id, created_at')
-        .gte('created_at', toISO(oneYearAgo)),
-      supabase.from('material_movements')
-        .select('material_id, tipo, data_movimento, data_rientro_prevista')
-        .in('tipo', ['uscita', 'rientro'])
-        .gte('data_movimento', toISO(oneYearAgo))
-        .order('data_movimento'),
-      supabase.from('materials')
-        .select('id, nome, codice_inventario, posizione_attuale')
-        .neq('posizione_attuale', 'in_magazzino').eq('attivo', true),
-    ])
+      const [usage, movements, fuori] = await Promise.all([
+        supabase.from('event_materials').select('material_id, product_id, data_richiesta')
+          .gte('data_richiesta', toISO(oneYearAgo)),
+        supabase.from('material_movements')
+          .select('material_id, tipo, data_movimento, data_rientro_prevista')
+          .in('tipo', ['uscita', 'rientro'])
+          .gte('data_movimento', toISO(oneYearAgo))
+          .order('data_movimento'),
+        supabase.from('materials')
+          .select('id, nome, codice_inventario, posizione_attuale')
+          .neq('posizione_attuale', 'in_magazzino').eq('attivo', true),
+      ])
 
-    const analytics = computeMaterialMetrics(
-      usage.data || [], movements.data || [], fuori.data || []
-    )
-    set({ materialAnalytics: analytics, loading: false })
-    return analytics
+      const analytics = computeMaterialMetrics(
+        usage.data || [], movements.data || [], fuori.data || []
+      )
+      set({ materialAnalytics: analytics, analyticsLoading: false })
+      return analytics
+    } catch (error) {
+      set({ analyticsLoading: false, error: error?.message || 'Errore caricamento analytics' })
+      return null
+    }
   },
 
   fetchProductNames: async (ids) => {

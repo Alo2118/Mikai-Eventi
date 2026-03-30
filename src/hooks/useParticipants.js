@@ -13,7 +13,7 @@ export const useParticipantsStore = create((set, get) => ({
       .eq('event_id', eventId)
       .order('created_at')
     set({ participants: data || [], loading: false })
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   addParticipant: async (eventId, contactId, tipo) => {
@@ -23,7 +23,7 @@ export const useParticipantsStore = create((set, get) => ({
       .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, zona:zones!contacts_zone_id_fkey(id, nome))')
       .single()
     if (!error) set(s => ({ participants: [...s.participants, data] }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   updateParticipant: async (id, updates) => {
@@ -34,13 +34,13 @@ export const useParticipantsStore = create((set, get) => ({
       .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, zona:zones!contacts_zone_id_fkey(id, nome))')
       .single()
     if (!error) set(s => ({ participants: s.participants.map(r => r.id === id ? data : r) }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   removeParticipant: async (id) => {
     const { error } = await supabase.from('event_participants').delete().eq('id', id)
     if (!error) set(s => ({ participants: s.participants.filter(r => r.id !== id) }))
-    return { error }
+    return { error: error?.message || null }
   },
 
   bulkAddParticipants: async (eventId, participants) => {

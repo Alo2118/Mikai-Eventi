@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { nowISO } from '../lib/date-utils'
+import { nowISO, todayISO } from '../lib/date-utils'
 import { calculateDeadline } from '../lib/date-utils'
 
 export const useActivitiesStore = create((set, get) => ({
@@ -71,24 +71,34 @@ export const useActivitiesStore = create((set, get) => ({
     return { data, error }
   },
 
-  // Fix 1: fetchEventSemaphores action — no direct supabase calls in components
+  // Batch fetchEventSemaphores — single query instead of N+1
   fetchEventSemaphores: async (eventIds) => {
+    if (!eventIds?.length) return {}
+    const { data } = await supabase
+      .from('event_activities')
+      .select('event_id, stato, obbligatoria, deadline')
+      .in('event_id', eventIds)
+      .neq('stato', 'disattivata')
+
+    // Group by event_id
+    const grouped = {}
+    for (const row of (data || [])) {
+      if (!grouped[row.event_id]) grouped[row.event_id] = []
+      grouped[row.event_id].push(row)
+    }
+
+    const today = todayISO()
     const semaphores = {}
     for (const eid of eventIds) {
-      const { data } = await supabase
-        .from('event_activities')
-        .select('stato, obbligatoria, deadline')
-        .eq('event_id', eid)
-        .neq('stato', 'disattivata')
-      if (data) {
-        const mandatory = data.filter(a => a.obbligatoria)
-        const overdue = mandatory.filter(a =>
-          (a.stato === 'da_fare' || a.stato === 'in_corso') &&
-          a.deadline && new Date(a.deadline) < new Date()
-        )
-        const allDone = mandatory.every(a => a.stato === 'completata')
-        semaphores[eid] = overdue.length > 0 ? 'red' : allDone ? 'green' : 'yellow'
-      }
+      const activities = grouped[eid] || []
+      const mandatory = activities.filter(a => a.obbligatoria)
+      if (mandatory.length === 0) { semaphores[eid] = 'yellow'; continue }
+      const overdue = mandatory.some(a =>
+        (a.stato === 'da_fare' || a.stato === 'in_corso') &&
+        a.deadline && a.deadline < today
+      )
+      const allDone = mandatory.every(a => a.stato === 'completata')
+      semaphores[eid] = overdue ? 'red' : allDone ? 'green' : 'yellow'
     }
     return semaphores
   },
@@ -146,20 +156,19 @@ export const useActivitiesStore = create((set, get) => ({
       for (const act of inserted) {
         if (act.template_item_id) templateIdMap[act.template_item_id] = act.id
       }
-      // Fix 3: add error checking in dependency-wiring loop
-      for (const item of items) {
-        if (item.dipende_da && templateIdMap[item.dipende_da]) {
-          const activityId = templateIdMap[item.id]
-          if (activityId) {
-            const { error: depError } = await supabase
-              .from('event_activities')
-              .update({ dipende_da: templateIdMap[item.dipende_da] })
-              .eq('id', activityId)
-            if (depError) {
-              console.warn('Errore nel collegamento dipendenza:', depError.message)
-            }
-          }
-        }
+      // Wire dependencies in parallel
+      const depUpdates = items
+        .filter(item => item.dipende_da && templateIdMap[item.dipende_da] && templateIdMap[item.id])
+        .map(item => supabase
+          .from('event_activities')
+          .update({ dipende_da: templateIdMap[item.dipende_da] })
+          .eq('id', templateIdMap[item.id])
+        )
+      if (depUpdates.length > 0) {
+        const results = await Promise.all(depUpdates)
+        results.forEach((r, i) => {
+          if (r.error) console.warn('Errore nel collegamento dipendenza:', r.error.message)
+        })
       }
     }
 

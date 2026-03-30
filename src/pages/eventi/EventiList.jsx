@@ -58,6 +58,8 @@ export function EventiList() {
 
   useEffect(() => {
     if (!user || !profile) return
+    // Clear stale filters (e.g. mese from calendar), then setRoleFilter triggers the single fetch
+    useEventsStore.setState({ filters: { search: '', stato: '', tipo: '', mese: null } })
     setRoleFilter(user.id, ruolo)
   }, [user?.id, profile?.id])
 

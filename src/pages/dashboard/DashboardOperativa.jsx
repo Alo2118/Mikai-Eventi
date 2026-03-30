@@ -1,66 +1,109 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useActivitiesStore } from '../../hooks/useActivities'
 import { useAuthStore } from '../../hooks/useAuth'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { SearchInput } from '../../components/ui/SearchInput'
+import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
+import { useToastStore } from '../../components/ui/Toast'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { CATEGORIA_ATTIVITA, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
-import { CATEGORIA_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
-import { formatDate } from '../../lib/date-utils'
+import { CATEGORIA_ATTIVITA, CARD_STYLE, CARD_HOVER_STYLE, SUMMARY_BAR_STYLE } from '../../lib/constants'
+import { CATEGORIA_ICONS, FEEDBACK_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS } from '../../lib/icons'
+import { formatDate, todayISO } from '../../lib/date-utils'
 
 function urgencyGroup(activities) {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const in3 = new Date(today); in3.setDate(today.getDate() + 3)
-  const in7 = new Date(today); in7.setDate(today.getDate() + 7)
-  const todayStr = today.toDateString()
+  const today = todayISO()
+  const d3 = new Date(); d3.setDate(d3.getDate() + 3)
+  const d7 = new Date(); d7.setDate(d7.getDate() + 7)
+  const in3 = d3.toISOString().slice(0, 10)
+  const in7 = d7.toISOString().slice(0, 10)
 
   const groups = { overdue: [], today: [], in3days: [], in7days: [], noDeadline: [] }
   for (const act of activities) {
     if (!act.deadline) { groups.noDeadline.push(act); continue }
-    const d = new Date(act.deadline)
-    const dStr = d.toDateString()
-    if (dStr === todayStr) groups.today.push(act)
-    else if (d < today) groups.overdue.push(act)
-    else if (d < in3) groups.in3days.push(act)
-    else if (d < in7) groups.in7days.push(act)
+    if (act.deadline === today) groups.today.push(act)
+    else if (act.deadline < today) groups.overdue.push(act)
+    else if (act.deadline <= in3) groups.in3days.push(act)
+    else if (act.deadline <= in7) groups.in7days.push(act)
     else groups.noDeadline.push(act)
   }
   return groups
 }
 
-function ActivityGroup({ title, activities, colorClass, iconClass }) {
+function ActivityCard({ act, colorClass, iconClass, onComplete, onAssign, completing }) {
+  return (
+    <div className={CARD_HOVER_STYLE + ' space-y-2'}>
+      <Link to={`/eventi/${act.evento?.id}`} className="block">
+        <div className="flex items-start gap-3">
+          <Icon icon={CATEGORIA_ICONS[act.categoria] || FEEDBACK_ICONS.info} size={20} className={`mt-0.5 shrink-0 ${iconClass}`} />
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-medium text-gray-900 truncate">{act.descrizione}</p>
+            <p className="text-sm text-gray-500 truncate">{act.evento?.titolo}</p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+              {act.deadline && (
+                <span className={`text-xs ${colorClass}`}>Scadenza: {formatDate(act.deadline)}</span>
+              )}
+              {act.assegnato ? (
+                <span className="text-xs text-gray-400">{act.assegnato.nome} {act.assegnato.cognome}</span>
+              ) : (
+                <span className="text-xs font-medium text-red-500">Non assegnata</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Link>
+      {/* Quick actions */}
+      <div className="flex gap-2 pl-8">
+        <button
+          onClick={(e) => { e.preventDefault(); onComplete(act.id) }}
+          disabled={completing === act.id}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors min-h-[36px] md:min-h-[40px]"
+          aria-label={`Completa attività: ${act.descrizione}`}
+        >
+          <Icon icon={ACTION_ICONS.check} size={14} />
+          Completata
+        </button>
+        {!act.assegnato && (
+          <button
+            onClick={(e) => { e.preventDefault(); onAssign(act.id) }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-mikai-700 bg-mikai-50 hover:bg-mikai-100 rounded-lg transition-colors min-h-[36px] md:min-h-[40px]"
+            aria-label={`Assegna a me: ${act.descrizione}`}
+          >
+            <Icon icon={ACTION_ICONS.add} size={14} />
+            Assegna a me
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ActivityGroup({ title, activities, colorClass, iconClass, count, onComplete, onAssign, completing }) {
   if (activities.length === 0) return null
   return (
     <div className="mb-6">
-      <h3 className={`text-sm font-semibold uppercase tracking-wide mb-2 ${colorClass}`}>{title}</h3>
-      <div className="space-y-2">
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className={`text-sm font-semibold uppercase tracking-wide ${colorClass}`}>{title}</h3>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colorClass} bg-opacity-10`} style={{ backgroundColor: 'currentColor', color: 'inherit', opacity: 0.15 }}>
+          {/* inline badge */}
+        </span>
+        <span className={`text-xs font-bold ${colorClass}`}>{count}</span>
+      </div>
+      <div className="space-y-3">
         {activities.map(act => (
-          <Link
+          <ActivityCard
             key={act.id}
-            to={`/eventi/${act.evento?.id}`}
-            className={'block ' + CARD_HOVER_STYLE}
-          >
-            <div className="flex items-start gap-3">
-              <Icon icon={CATEGORIA_ICONS[act.categoria] || FEEDBACK_ICONS.info} size={20} className={`mt-0.5 shrink-0 ${iconClass}`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-base font-medium text-gray-900 truncate">{act.descrizione}</p>
-                <p className="text-sm text-gray-500 truncate">{act.evento?.titolo}</p>
-                {act.deadline && (
-                  <p className={`text-xs mt-1 ${colorClass}`}>Scadenza: {formatDate(act.deadline)}</p>
-                )}
-              </div>
-              {act.assegnato && (
-                <span className="text-xs text-gray-400 shrink-0">
-                  {act.assegnato.nome} {act.assegnato.cognome}
-                </span>
-              )}
-            </div>
-          </Link>
+            act={act}
+            colorClass={colorClass}
+            iconClass={iconClass}
+            onComplete={onComplete}
+            onAssign={onAssign}
+            completing={completing}
+          />
         ))}
       </div>
     </div>
@@ -70,12 +113,19 @@ function ActivityGroup({ title, activities, colorClass, iconClass }) {
 export function DashboardOperativa({ warehouseOnly = false }) {
   const dashboardActivities = useActivitiesStore(s => s.dashboardActivities)
   const loading = useActivitiesStore(s => s.dashboardLoading)
+  const error = useActivitiesStore(s => s.dashboardError)
   const fetchDashboardActivities = useActivitiesStore(s => s.fetchDashboardActivities)
+  const completeActivity = useActivitiesStore(s => s.completeActivity)
+  const assignActivity = useActivitiesStore(s => s.assignActivity)
   const permissions = useAuthStore(s => s.permissions)
+  const user = useAuthStore(s => s.user)
+  const addToast = useToastStore(s => s.add)
 
   const [activeCategory, setActiveCategory] = useState('tutte')
+  const [search, setSearch] = useState('')
+  const [completing, setCompleting] = useState(null)
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!permissions || permissions.length === 0) return
     const perms = warehouseOnly
       ? permissions.filter(p => p === 'gestione_spedizioni' || p === 'gestione_magazzino')
@@ -83,17 +133,57 @@ export function DashboardOperativa({ warehouseOnly = false }) {
     fetchDashboardActivities(perms)
   }, [warehouseOnly, permissions])
 
-  const filtered = activeCategory === 'tutte'
-    ? dashboardActivities
-    : dashboardActivities.filter(a => a.categoria === activeCategory)
+  // Initial fetch
+  useEffect(() => { loadData() }, [loadData])
 
-  const groups = urgencyGroup(filtered)
-  const overdueCount = groups.overdue.length
-  const todayCount = groups.today.length
+  // Auto-refresh every 60s
+  useEffect(() => {
+    const interval = setInterval(loadData, 60000)
+    return () => clearInterval(interval)
+  }, [loadData])
+
+  // Filter by category + search
+  const filtered = useMemo(() => {
+    let result = dashboardActivities
+    if (activeCategory !== 'tutte') result = result.filter(a => a.categoria === activeCategory)
+    if (search) {
+      const s = search.toLowerCase()
+      result = result.filter(a =>
+        a.descrizione?.toLowerCase().includes(s) ||
+        a.evento?.titolo?.toLowerCase().includes(s)
+      )
+    }
+    return result
+  }, [dashboardActivities, activeCategory, search])
+
+  // Urgency groups (memoized)
+  const groups = useMemo(() => urgencyGroup(filtered), [filtered])
+
+  // KPI from all activities (not filtered)
+  const allGroups = useMemo(() => urgencyGroup(dashboardActivities), [dashboardActivities])
+  const overdueCount = allGroups.overdue.length
+  const todayCount = allGroups.today.length
   const totalOpen = dashboardActivities.length
+  const unassignedCount = dashboardActivities.filter(a => !a.assegnato).length
+
+  // Quick actions
+  const handleComplete = async (actId) => {
+    setCompleting(actId)
+    const { error } = await completeActivity(actId, user.id)
+    setCompleting(null)
+    if (error) { addToast(error, 'error'); return }
+    addToast('Attività completata!', 'success')
+    loadData()
+  }
+
+  const handleAssign = async (actId) => {
+    const { error } = await assignActivity(actId, user.id)
+    if (error) { addToast(error, 'error'); return }
+    addToast('Attività assegnata a te!', 'success')
+    loadData()
+  }
 
   const categories = Object.entries(CATEGORIA_ATTIVITA)
-
   const title = warehouseOnly ? 'Dashboard Logistica' : 'Dashboard Operativa'
 
   return (
@@ -104,91 +194,136 @@ export function DashboardOperativa({ warehouseOnly = false }) {
       <div className="md:hidden">
         <MobileHeader title={title} />
       </div>
-      <PageHeader title={title} subtitle="Attività in corso su tutti gli eventi" />
+      <PageHeader
+        title={title}
+        subtitle={`${totalOpen} attività in corso`}
+        actions={
+          <Button variant="secondary" onClick={loadData} disabled={loading} size="sm">
+            <Icon icon={ACTION_ICONS.refresh} size={16} className={loading ? 'animate-spin' : ''} />
+            <span className="hidden md:inline ml-1">Aggiorna</span>
+          </Button>
+        }
+      />
 
       <div className="px-4 md:px-8">
         {/* KPI Summary */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className={CARD_STYLE}>
-            <p className="text-sm text-gray-500">Attività aperte</p>
-            <p className="text-3xl font-bold text-gray-900">{totalOpen}</p>
+            <p className="text-sm text-gray-500">Aperte</p>
+            <p className="text-2xl md:text-3xl font-bold text-gray-900">{totalOpen}</p>
           </div>
           <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">In ritardo</p>
-            <p className={`text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
+            <p className={`text-2xl md:text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
+            {overdueCount > 0 && <p className="text-xs text-red-500 mt-1">Richiede attenzione</p>}
           </div>
           <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">Scadono oggi</p>
-            <p className={`text-3xl font-bold ${todayCount > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>{todayCount}</p>
+            <p className={`text-2xl md:text-3xl font-bold ${todayCount > 0 ? 'text-yellow-600' : 'text-gray-400'}`}>{todayCount}</p>
+          </div>
+          <div className={CARD_STYLE}>
+            <p className="text-sm text-gray-500">Non assegnate</p>
+            <p className={`text-2xl md:text-3xl font-bold ${unassignedCount > 0 ? 'text-red-500' : 'text-green-600'}`}>{unassignedCount}</p>
+            {unassignedCount > 0 && <p className="text-xs text-red-400 mt-1">Da assegnare</p>}
           </div>
         </div>
 
-        {/* Category filter */}
-        <div className="flex gap-2 flex-wrap mb-6">
-          <button
-            onClick={() => setActiveCategory('tutte')}
-            className={`min-h-[48px] px-4 rounded-lg text-base font-medium border transition-colors ${
-              activeCategory === 'tutte'
-                ? 'bg-mikai-400 text-white border-mikai-400'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            Tutte
-          </button>
-          {categories.map(([key, label]) => (
+        {/* Search + category filter */}
+        <div className="space-y-3 mb-6">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Cerca attività o evento..."
+          />
+          <div className="flex gap-2 flex-wrap">
             <button
-              key={key}
-              onClick={() => setActiveCategory(key)}
-              className={`min-h-[48px] px-4 rounded-lg text-base font-medium border transition-colors flex items-center gap-2 ${
-                activeCategory === key
+              onClick={() => setActiveCategory('tutte')}
+              className={`min-h-[48px] px-4 rounded-lg text-base font-medium border transition-colors ${
+                activeCategory === 'tutte'
                   ? 'bg-mikai-400 text-white border-mikai-400'
                   : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
               }`}
             >
-              <Icon icon={CATEGORIA_ICONS[key]} size={18} />
-              {label}
+              Tutte
             </button>
-          ))}
+            {categories.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setActiveCategory(key)}
+                className={`min-h-[48px] px-4 rounded-lg text-base font-medium border transition-colors flex items-center gap-2 ${
+                  activeCategory === key
+                    ? 'bg-mikai-400 text-white border-mikai-400'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <Icon icon={CATEGORIA_ICONS[key]} size={18} />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Content */}
         {loading ? (
           <LoadingSkeleton lines={6} />
+        ) : error ? (
+          <EmptyState title="Errore nel caricamento" description="Non siamo riusciti a caricare le attività. Riprova." />
         ) : filtered.length === 0 ? (
           <EmptyState
             title="Nessuna attività"
-            description="Non ci sono attività in corso per la tua area."
+            description={search ? 'Nessun risultato per la ricerca.' : 'Nessuna attività in corso per la tua area.'}
           />
         ) : (
           <div>
             <ActivityGroup
               title="In ritardo"
               activities={groups.overdue}
+              count={groups.overdue.length}
               colorClass="text-red-600"
               iconClass="text-red-500"
+              onComplete={handleComplete}
+              onAssign={handleAssign}
+              completing={completing}
             />
             <ActivityGroup
               title="Oggi"
               activities={groups.today}
+              count={groups.today.length}
               colorClass="text-yellow-600"
               iconClass="text-yellow-500"
+              onComplete={handleComplete}
+              onAssign={handleAssign}
+              completing={completing}
             />
             <ActivityGroup
               title="Entro 3 giorni"
               activities={groups.in3days}
+              count={groups.in3days.length}
               colorClass="text-mikai-600"
               iconClass="text-mikai-500"
+              onComplete={handleComplete}
+              onAssign={handleAssign}
+              completing={completing}
             />
             <ActivityGroup
               title="Entro 7 giorni"
               activities={groups.in7days}
+              count={groups.in7days.length}
               colorClass="text-gray-600"
               iconClass="text-gray-500"
+              onComplete={handleComplete}
+              onAssign={handleAssign}
+              completing={completing}
             />
             <ActivityGroup
               title="Senza scadenza"
               activities={groups.noDeadline}
+              count={groups.noDeadline.length}
               colorClass="text-gray-500"
               iconClass="text-gray-400"
+              onComplete={handleComplete}
+              onAssign={handleAssign}
+              completing={completing}
             />
           </div>
         )}

@@ -55,7 +55,8 @@ export const useDocumentsStore = create((set, get) => ({
   },
 
   deleteDocument: async (id, filePath) => {
-    await supabase.storage.from('event-documents').remove([filePath])
+    const { error: storageError } = await supabase.storage.from('event-documents').remove([filePath])
+    if (storageError) return { error: storageError.message }
     const { error } = await supabase
       .from('event_documents')
       .delete()

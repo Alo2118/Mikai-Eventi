@@ -13,7 +13,7 @@ import { ProssimePrenotazioni } from '../../components/report/ProssimePrenotazio
 export function ReportMaterialePage() {
   const materialAnalytics = useMaterialsStore(s => s.materialAnalytics)
   const upcomingBookings = useMaterialsStore(s => s.upcomingBookings)
-  const loading = useMaterialsStore(s => s.loading)
+  const loading = useMaterialsStore(s => s.analyticsLoading)
   const fetchMaterialAnalytics = useMaterialsStore(s => s.fetchMaterialAnalytics)
   const fetchUpcomingBookings = useMaterialsStore(s => s.fetchUpcomingBookings)
   const fetchProductNames = useMaterialsStore(s => s.fetchProductNames)

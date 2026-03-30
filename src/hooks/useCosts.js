@@ -6,25 +6,27 @@ export const useCostsStore = create((set, get) => ({
   preventivi: [],
   costs: [],
   loading: false,
+  error: null,
 
   fetchEventPreventivi: async (eventId) => {
-    set({ loading: true })
+    set({ preventivi: [], loading: true, error: null })
     const { data, error } = await supabase
       .from('event_preventivi')
       .select('*, fornitore_ref:contacts!event_preventivi_fornitore_id_fkey(id, nome, cognome), approvatore:users!event_preventivi_approvato_da_fkey(id, nome, cognome)')
       .eq('event_id', eventId)
       .order('created_at')
-    set({ preventivi: data || [], loading: false })
+    set({ preventivi: data || [], loading: false, error: error?.message || null })
     return { data, error }
   },
 
   fetchEventCosts: async (eventId) => {
+    set({ costs: [] })
     const { data, error } = await supabase
       .from('event_costs')
       .select('*')
       .eq('event_id', eventId)
       .order('created_at')
-    set({ costs: data || [] })
+    set({ costs: data || [], error: error?.message || null })
     return { data, error }
   },
 
@@ -35,7 +37,7 @@ export const useCostsStore = create((set, get) => ({
       .select('*, fornitore_ref:contacts!event_preventivi_fornitore_id_fkey(id, nome, cognome)')
       .single()
     if (!error) set(s => ({ preventivi: [...s.preventivi, data] }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   updatePreventivo: async (id, updates) => {
@@ -46,7 +48,7 @@ export const useCostsStore = create((set, get) => ({
       .select('*, fornitore_ref:contacts!event_preventivi_fornitore_id_fkey(id, nome, cognome), approvatore:users!event_preventivi_approvato_da_fkey(id, nome, cognome)')
       .single()
     if (!error) set(s => ({ preventivi: s.preventivi.map(r => r.id === id ? data : r) }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   approvePreventivo: async (id, userId, nota) => {
@@ -74,7 +76,7 @@ export const useCostsStore = create((set, get) => ({
   removePreventivo: async (id) => {
     const { error } = await supabase.from('event_preventivi').delete().eq('id', id)
     if (!error) set(s => ({ preventivi: s.preventivi.filter(r => r.id !== id) }))
-    return { error }
+    return { error: error?.message || null }
   },
 
   // Cross-event
@@ -119,6 +121,6 @@ export const useCostsStore = create((set, get) => ({
       .select()
       .single()
     if (!error) set(s => ({ costs: [...s.costs, data] }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 }))

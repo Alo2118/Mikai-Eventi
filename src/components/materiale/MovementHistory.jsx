@@ -1,4 +1,4 @@
-import { STATO_MOVIMENTO, MODALITA_MOVIMENTO, STATO_RIENTRO } from '../../lib/constants'
+import { STATO_MOVIMENTO, MODALITA_MOVIMENTO, STATO_RIENTRO, POSIZIONE_MATERIALE, CARD_STYLE } from '../../lib/constants'
 import { formatDateTime } from '../../lib/date-utils'
 
 export function MovementHistory({ movements }) {
@@ -9,7 +9,7 @@ export function MovementHistory({ movements }) {
   return (
     <div className="space-y-3">
       {movements.map((m) => (
-        <div key={m.id} className="bg-white border border-gray-200 rounded-lg p-4">
+        <div key={m.id} className={CARD_STYLE}>
           <div className="flex items-center justify-between gap-2">
             <span className={`text-base font-medium ${m.tipo === 'uscita' ? 'text-red-700' : m.tipo === 'rientro' ? 'text-green-700' : 'text-blue-700'}`}>
               {STATO_MOVIMENTO[m.tipo]}
@@ -22,7 +22,7 @@ export function MovementHistory({ movements }) {
             {m.material?.nome && ` \u2014 ${m.material.nome}`}
           </p>
           <p className="text-sm text-gray-500">
-            {m.da_posizione && `Da: ${m.da_posizione}`} {m.a_posizione && `\u2192 ${m.a_posizione}`}
+            {m.da_posizione && `Da: ${POSIZIONE_MATERIALE[m.da_posizione] || m.da_posizione}`} {m.a_posizione && `\u2192 ${POSIZIONE_MATERIALE[m.a_posizione] || m.a_posizione}`}
           </p>
           {m.responsabile && (
             <p className="text-sm text-gray-400 mt-1">Resp: {m.responsabile.nome} {m.responsabile.cognome}</p>

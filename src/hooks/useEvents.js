@@ -55,7 +55,7 @@ export const useEventsStore = create((set, get) => ({
       const endMonth = mese.month === 12 ? 1 : mese.month + 1
       const endYear = mese.month === 12 ? mese.year + 1 : mese.year
       const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`
-      query = query.or(`data_inizio.gte.${startDate},data_fine.gte.${startDate}`).lte('data_inizio', endDate)
+      query = query.lt('data_inizio', endDate).gte('data_fine', startDate)
     }
 
     const { data, error } = await query
@@ -148,6 +148,6 @@ export const useEventsStore = create((set, get) => ({
       .select()
       .single()
     if (!error) await get().fetchEvents()
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 }))

@@ -70,7 +70,7 @@ export function HcpDetail() {
       <MobileHeader title={`${c?.cognome || ''} ${c?.nome || ''}`} subtitle="Profilo HCP" backTo="/compliance/hcp" />
       <PageHeader
         title={`${c?.cognome || ''} ${c?.nome || ''}`}
-        subtitle={`${TIPO_HCP[hcp.categoria]} — ${c?.ente_ospedaliero || hcp.struttura_appartenenza || ''}`}
+        subtitle={`${TIPO_HCP[hcp.categoria]} — ${c?.azienda || hcp.struttura_appartenenza || ''}`}
         actions={
           <Button variant="primary" onClick={() => navigate(`/compliance/tov/nuovo?hcp_id=${id}`)}>
             <Icon icon={ACTION_ICONS.add} size={18} />
@@ -87,7 +87,7 @@ export function HcpDetail() {
             <InfoRow label="Nome completo">{c?.cognome} {c?.nome}</InfoRow>
             <InfoRow label="Categoria">{TIPO_HCP[hcp.categoria]}</InfoRow>
             <InfoRow label="Specializzazione">{hcp.specializzazione || c?.specializzazione}</InfoRow>
-            <InfoRow label="Struttura">{c?.ente_ospedaliero || hcp.struttura_appartenenza}</InfoRow>
+            <InfoRow label="Struttura">{c?.azienda || hcp.struttura_appartenenza}</InfoRow>
             <InfoRow label="Email">{c?.email}</InfoRow>
             <InfoRow label="Telefono">{c?.telefono}</InfoRow>
             <InfoRow label="Ordine provinciale">{hcp.ordine_provinciale}</InfoRow>

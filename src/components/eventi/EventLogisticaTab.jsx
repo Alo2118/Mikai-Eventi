@@ -75,6 +75,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const hotels = useLogisticsStore(s => s.hotels)
   const trasporti = useLogisticsStore(s => s.trasporti)
   const loading = useLogisticsStore(s => s.loading)
+  const logisticsError = useLogisticsStore(s => s.error)
   const fetchEventLogistics = useLogisticsStore(s => s.fetchEventLogistics)
 
   const staff = useStaffStore(s => s.staff)
@@ -220,6 +221,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const colSpan = (hasTavoli ? 6 : 5) // checkbox + persona + [tavolo] + hotel + andata + ritorno
 
   if (loading || staffLoading) return <LoadingSkeleton lines={5} />
+  if (logisticsError) return <EmptyState title="Errore nel caricamento" description="Non siamo riusciti a caricare i dati logistica." />
 
   // ── Checklist presenze mode ──
   if (checklistMode) {

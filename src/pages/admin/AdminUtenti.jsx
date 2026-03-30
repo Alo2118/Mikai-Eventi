@@ -31,6 +31,7 @@ export function AdminUtenti() {
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedPermissions, setSelectedPermissions] = useState([])
+  const [createdPassword, setCreatedPassword] = useState(null)
   const [newUser, setNewUser] = useState({ email: '', password: '', nome: '', cognome: '', ruolo: 'commerciale', zone_id: '' })
 
   useEffect(() => { fetchUsers(); fetchZones() }, [])
@@ -112,7 +113,8 @@ export function AdminUtenti() {
     }
 
     setSaving(false)
-    addToast(`Utente creato — password: ${newUser.password}`, 'success', 8000)
+    setCreatedPassword(newUser.password)
+    addToast('Utente creato!', 'success')
     setCreating(false)
     setNewUser({ email: '', password: '', nome: '', cognome: '', ruolo: 'commerciale', zone_id: '' })
     setSelectedPermissions([])
@@ -165,6 +167,20 @@ export function AdminUtenti() {
       <PageHeader title="Utenti & Permessi" subtitle={`${users.length} utenti`} />
 
       <div className="px-4 md:px-8 pb-8">
+        {createdPassword && (
+          <div className={CARD_STYLE + ' bg-green-50 border-green-200 space-y-2 mb-4 max-w-2xl'}>
+            <p className="text-sm font-medium text-green-800">Utente creato! Password temporanea:</p>
+            <div className="flex items-center gap-3">
+              <code className="text-base font-mono bg-white px-3 py-2 rounded border border-green-200 flex-1">{createdPassword}</code>
+              <button onClick={() => { navigator.clipboard.writeText(createdPassword); addToast('Password copiata!', 'success') }}
+                className="px-4 py-2 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-lg min-h-[48px]">
+                Copia
+              </button>
+            </div>
+            <p className="text-xs text-green-600">Comunicala all'utente, non sarà più visibile dopo la chiusura.</p>
+            <button onClick={() => setCreatedPassword(null)} className="text-xs text-green-500 hover:text-green-700">Chiudi</button>
+          </div>
+        )}
         {creating ? (
           <div className="space-y-4 max-w-2xl">
             <div className={CARD_STYLE + ' md:p-6 space-y-4'}>

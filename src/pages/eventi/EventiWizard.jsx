@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
+import { useAdminStore } from '../../hooks/useAdmin'
 import { WizardStepIndicator } from '../../components/eventi/WizardStepIndicator'
 import { WizardStepTipo } from '../../components/eventi/WizardStepTipo'
 import { WizardStepDove } from '../../components/eventi/WizardStepDove'
 import { WizardStepModalita } from '../../components/eventi/WizardStepModalita'
 import { WizardStepRiepilogo } from '../../components/eventi/WizardStepRiepilogo'
+import { PromoterePicker } from '../../components/eventi/PromoterePicker'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { Button } from '../../components/ui/Button'
@@ -25,16 +27,28 @@ export function EventiWizard() {
     sede_dettaglio: '',
     modalita: '',
     budget_previsto: '',
+    note: '',
   })
+  const [promotore, setPromotore] = useState(null)
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const createEvent = useEventsStore(s => s.createEvent)
   const user = useAuthStore(s => s.user)
   const profile = useAuthStore(s => s.profile)
+  const users = useAdminStore(s => s.users)
   const addToast = useToastStore(s => s.add)
 
+  // Auto-calcolo manager dal promotore selezionato
+  const manager = useMemo(() => {
+    if (!promotore?.responsabile_id || !users?.length) return null
+    return users.find(u => u.id === promotore.responsabile_id) || null
+  }, [promotore, users])
+
+  const promotoreNome = promotore ? `${promotore.cognome} ${promotore.nome}` : null
+  const managerNome = manager ? `${manager.cognome} ${manager.nome}` : null
+
   const canNext = () => {
-    if (step === 0) return !!data.tipo_evento
+    if (step === 0) return !!data.tipo_evento && !!promotore
     if (step === 1) return !!data.titolo && !!data.data_inizio && !!data.luogo
     if (step === 2) return !!data.modalita
     return true
@@ -45,10 +59,11 @@ export function EventiWizard() {
     const { data: created, error } = await createEvent({
       ...data,
       budget_previsto: data.budget_previsto === '' ? null : data.budget_previsto,
+      note: data.note || null,
       data_fine: data.data_fine || data.data_inizio,
-      promotore_id: user.id,
+      promotore_id: promotore.id,
       created_by: user.id,
-      manager_user_id: profile?.responsabile_id || null,
+      manager_user_id: promotore.responsabile_id || null,
       stato: 'proposto',
     })
     setLoading(false)
@@ -82,10 +97,22 @@ export function EventiWizard() {
 
       <div className="px-4 md:px-8 py-4 max-w-2xl">
         {step === 0 && (
-          <WizardStepTipo
-            value={data.tipo_evento}
-            onChange={(v) => setData({ ...data, tipo_evento: v })}
-          />
+          <div className="space-y-6">
+            <WizardStepTipo
+              value={data.tipo_evento}
+              onChange={(v) => setData({ ...data, tipo_evento: v })}
+            />
+            <PromoterePicker
+              value={promotore?.id}
+              onChange={setPromotore}
+              currentUserId={user?.id}
+            />
+            {manager && (
+              <p className="text-sm text-gray-500">
+                Referente: <span className="font-medium text-gray-700">{managerNome}</span>
+              </p>
+            )}
+          </div>
         )}
         {step === 1 && (
           <WizardStepDove
@@ -99,7 +126,14 @@ export function EventiWizard() {
             onChange={(v) => setData({ ...data, modalita: v })}
           />
         )}
-        {step === 3 && <WizardStepRiepilogo data={data} onChange={(d) => setData({ ...data, ...d })} />}
+        {step === 3 && (
+          <WizardStepRiepilogo
+            data={data}
+            onChange={(d) => setData({ ...data, ...d })}
+            promotoreNome={promotoreNome}
+            managerNome={managerNome}
+          />
+        )}
       </div>
 
       <div className="px-4 md:px-8 py-4 flex justify-between max-w-2xl">
@@ -123,10 +157,10 @@ export function EventiWizard() {
         )}
       </div>
 
-      {/* Hint quando il bottone è disabilitato */}
       {!canNext() && step < 3 && (
         <p className="px-4 md:px-8 text-sm text-gray-400 -mt-2">
-          {step === 0 && 'Seleziona un tipo di evento per continuare'}
+          {step === 0 && !data.tipo_evento && 'Seleziona un tipo di evento per continuare'}
+          {step === 0 && data.tipo_evento && !promotore && 'Seleziona chi propone l\'evento'}
           {step === 1 && 'Compila titolo, data e luogo per continuare'}
           {step === 2 && 'Scegli una modalità per continuare'}
         </p>

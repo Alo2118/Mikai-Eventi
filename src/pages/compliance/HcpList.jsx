@@ -56,7 +56,7 @@ function HcpFormModal({ open, onClose, onSave, contacts }) {
           <select value={form.contatto_id} onChange={e => set('contatto_id', e.target.value)} className={SELECT_STYLE} required>
             <option value="">Seleziona contatto...</option>
             {contacts.map(c => (
-              <option key={c.id} value={c.id}>{c.cognome} {c.nome} — {c.ente_ospedaliero || c.azienda || 'N/D'}</option>
+              <option key={c.id} value={c.id}>{c.cognome} {c.nome} — {c.azienda || 'N/D'}</option>
             ))}
           </select>
         </div>
@@ -126,7 +126,7 @@ export function HcpList() {
   const filtered = hcpList.filter(h => {
     if (!search) return true
     const name = `${h.contatto?.nome || ''} ${h.contatto?.cognome || ''}`.toLowerCase()
-    const ente = (h.contatto?.ente_ospedaliero || '').toLowerCase()
+    const ente = (h.contatto?.azienda || '').toLowerCase()
     return name.includes(search.toLowerCase()) || ente.includes(search.toLowerCase())
   })
 
@@ -151,7 +151,7 @@ export function HcpList() {
       cognome: h.contatto?.cognome,
       nome: h.contatto?.nome,
       categoria: h.categoria,
-      ente: h.contatto?.ente_ospedaliero || h.struttura_appartenenza,
+      ente: h.contatto?.azienda || h.struttura_appartenenza,
       specializzazione: h.specializzazione || h.contatto?.specializzazione,
       email: h.contatto?.email,
       telefono: h.contatto?.telefono,
@@ -214,7 +214,7 @@ export function HcpList() {
                       {hcp.contatto?.cognome} {hcp.contatto?.nome}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {hcp.contatto?.ente_ospedaliero || hcp.struttura_appartenenza || '—'}
+                      {hcp.contatto?.azienda || hcp.struttura_appartenenza || '—'}
                       {hcp.specializzazione && <span> — {hcp.specializzazione}</span>}
                     </p>
                   </div>

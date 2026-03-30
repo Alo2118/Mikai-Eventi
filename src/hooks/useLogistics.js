@@ -5,6 +5,7 @@ export const useLogisticsStore = create((set, get) => ({
   hotels: [],
   trasporti: [],
   loading: false,
+  error: null,
 
   fetchEventHotels: async (eventId) => {
     const { data, error } = await supabase
@@ -12,7 +13,7 @@ export const useLogisticsStore = create((set, get) => ({
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
       .eq('event_id', eventId)
       .order('created_at')
-    set({ hotels: data || [] })
+    set({ hotels: data || [], error: error?.message || null })
     return { data, error }
   },
 
@@ -22,13 +23,17 @@ export const useLogisticsStore = create((set, get) => ({
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
       .eq('event_id', eventId)
       .order('created_at')
-    set({ trasporti: data || [] })
+    set({ trasporti: data || [], error: error?.message || null })
     return { data, error }
   },
 
   fetchEventLogistics: async (eventId) => {
-    set({ loading: true })
-    await Promise.all([get().fetchEventHotels(eventId), get().fetchEventTrasporti(eventId)])
+    set({ hotels: [], trasporti: [], loading: true, error: null })
+    try {
+      await Promise.all([get().fetchEventHotels(eventId), get().fetchEventTrasporti(eventId)])
+    } catch (err) {
+      set({ error: err?.message || 'Errore caricamento logistica' })
+    }
     set({ loading: false })
   },
 
@@ -39,7 +44,7 @@ export const useLogisticsStore = create((set, get) => ({
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
       .single()
     if (!error) set(s => ({ hotels: [...s.hotels, data] }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   updateHotel: async (id, updates) => {
@@ -50,13 +55,13 @@ export const useLogisticsStore = create((set, get) => ({
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
       .single()
     if (!error) set(s => ({ hotels: s.hotels.map(r => r.id === id ? data : r) }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   removeHotel: async (id) => {
     const { error } = await supabase.from('event_hotel').delete().eq('id', id)
     if (!error) set(s => ({ hotels: s.hotels.filter(r => r.id !== id) }))
-    return { error }
+    return { error: error?.message || null }
   },
 
   createTrasporto: async (payload) => {
@@ -66,7 +71,7 @@ export const useLogisticsStore = create((set, get) => ({
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
       .single()
     if (!error) set(s => ({ trasporti: [...s.trasporti, data] }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   updateTrasporto: async (id, updates) => {
@@ -77,13 +82,13 @@ export const useLogisticsStore = create((set, get) => ({
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
       .single()
     if (!error) set(s => ({ trasporti: s.trasporti.map(r => r.id === id ? data : r) }))
-    return { data, error }
+    return { data, error: error?.message || null }
   },
 
   removeTrasporto: async (id) => {
     const { error } = await supabase.from('event_trasporti').delete().eq('id', id)
     if (!error) set(s => ({ trasporti: s.trasporti.filter(r => r.id !== id) }))
-    return { error }
+    return { error: error?.message || null }
   },
 
   copyTrasportoToMany: async (sourceId, targetPersons, eventId) => {

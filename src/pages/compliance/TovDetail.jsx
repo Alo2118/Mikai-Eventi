@@ -107,8 +107,8 @@ export function TovDetail() {
             >
               {tov.hcp?.contatto?.cognome} {tov.hcp?.contatto?.nome}
             </button>
-            {tov.hcp?.contatto?.ente_ospedaliero && (
-              <span className="text-gray-500 ml-2">— {tov.hcp.contatto.ente_ospedaliero}</span>
+            {tov.hcp?.contatto?.azienda && (
+              <span className="text-gray-500 ml-2">— {tov.hcp.contatto.azienda}</span>
             )}
           </InfoRow>
           {tov.evento && (

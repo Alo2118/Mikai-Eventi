@@ -36,7 +36,7 @@ export function ContattiDetail() {
   useEffect(() => {
     fetchContact(id)
     fetchZones()
-    fetchContactHistory(id).then(({ data }) => setHistory(data))
+    fetchContactHistory(id).then(({ data }) => setHistory(data || []))
   }, [id])
 
   const canEdit = hasPermission('gestione_contatti') || (profile?.ruolo === 'commerciale' && contact?.proprietario_id === profile?.id)

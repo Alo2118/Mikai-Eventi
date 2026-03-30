@@ -59,7 +59,7 @@ export function AdminProdotti() {
   }, [loadRelated])
 
   const handleNew = () => {
-    setEditing({ nome: '', brand_id: '', tipo: 'demo_kit', codice: '', descrizione: '', immagine_url: '', attivo: true })
+    setEditing({ nome: '', brand_id: '', tipo: 'demo_kit', codice: '', descrizione: '', foto_url: '', attivo: true })
     setSelectedSections([])
     setKitContents([])
     setNewPiece({ piece_name: '', piece_code: '', quantity: 1 })
@@ -84,7 +84,7 @@ export function AdminProdotti() {
       tipo: editing.tipo || 'demo_kit',
       codice: editing.codice || null,
       descrizione: editing.descrizione || null,
-      immagine_url: editing.immagine_url || null,
+      foto_url: editing.foto_url || null,
       attivo: editing.attivo !== false,
     }
     const isNew = !editing.id
@@ -174,7 +174,7 @@ export function AdminProdotti() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">URL foto</label>
-                <input className={INPUT_STYLE} value={editing.immagine_url || ''} onChange={e => setEditing({ ...editing, immagine_url: e.target.value })} />
+                <input className={INPUT_STYLE} value={editing.foto_url || ''} onChange={e => setEditing({ ...editing, foto_url: e.target.value })} />
               </div>
               <div className="flex items-center gap-3">
                 <input type="checkbox" className={CHECK} checked={editing.attivo !== false} onChange={e => setEditing({ ...editing, attivo: e.target.checked })} id="attivo" />

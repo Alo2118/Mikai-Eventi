@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useContactsStore } from '../../hooks/useContacts'
-import { supabase } from '../../lib/supabase'
 import { INPUT_STYLE } from '../../lib/constants'
 
 export function ContactPicker({ value, onChange, placeholder = 'Cerca contatto...' }) {
@@ -11,19 +10,10 @@ export function ContactPicker({ value, onChange, placeholder = 'Cerca contatto..
   const [focused, setFocused] = useState(false)
   const ref = useRef(null)
   const searchContacts = useContactsStore(s => s.searchContacts)
+  const fetchRecentContacts = useContactsStore(s => s.fetchRecentContacts)
 
-  // Fetch 5 most recently created contacts on mount
   useEffect(() => {
-    async function loadRecent() {
-      const { data } = await supabase
-        .from('contacts')
-        .select('id, nome, cognome, tipo_contatto, azienda')
-        .eq('attivo', true)
-        .order('created_at', { ascending: false })
-        .limit(5)
-      if (data) setRecentContacts(data)
-    }
-    loadRecent()
+    fetchRecentContacts().then(({ data }) => setRecentContacts(data || []))
   }, [])
 
   useEffect(() => {

@@ -147,7 +147,7 @@ function EventShippingCard({ group, onNavigate }) {
 
 export function LogisticaTimeline() {
   const timeline = useMaterialsStore(s => s.logisticsTimeline)
-  const loading = useMaterialsStore(s => s.loading)
+  const loading = useMaterialsStore(s => s.timelineLoading)
   const fetchLogisticsTimeline = useMaterialsStore(s => s.fetchLogisticsTimeline)
   const navigate = useNavigate()
 

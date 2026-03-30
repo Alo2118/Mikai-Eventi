@@ -94,13 +94,16 @@ export const useAdminStore = create((set, get) => ({
 
   // Product-BodySection links
   setProductBodySections: async (productId, sectionIds) => {
-    await supabase.from('product_body_sections').delete().eq('product_id', productId)
+    const { error: delError } = await supabase.from('product_body_sections').delete().eq('product_id', productId)
+    if (delError) return { error: delError.message }
     if (sectionIds.length > 0) {
-      await supabase.from('product_body_sections').insert(
+      const { error: insError } = await supabase.from('product_body_sections').insert(
         sectionIds.map(sid => ({ product_id: productId, body_section_id: sid }))
       )
+      if (insError) return { error: insError.message }
     }
     get().fetchProducts()
+    return { error: null }
   },
 
   // === Kit Contents ===
@@ -250,12 +253,15 @@ export const useAdminStore = create((set, get) => ({
   },
 
   setZoneProvinces: async (zoneId, provinces) => {
-    await supabase.from('zone_provinces').delete().eq('zone_id', zoneId)
+    const { error: delError } = await supabase.from('zone_provinces').delete().eq('zone_id', zoneId)
+    if (delError) return { error: delError.message }
     if (provinces.length > 0) {
-      await supabase.from('zone_provinces').insert(
+      const { error: insError } = await supabase.from('zone_provinces').insert(
         provinces.map(p => ({ zone_id: zoneId, provincia: p }))
       )
+      if (insError) return { error: insError.message }
     }
+    return { error: null }
   },
 
   // Zone-Courier mapping
@@ -265,10 +271,13 @@ export const useAdminStore = create((set, get) => ({
   },
 
   setZoneCourier: async (zoneId, courierId) => {
-    await supabase.from('zone_couriers').delete().eq('zone_id', zoneId)
+    const { error: delError } = await supabase.from('zone_couriers').delete().eq('zone_id', zoneId)
+    if (delError) return { error: delError.message }
     if (courierId) {
-      await supabase.from('zone_couriers').insert({ zone_id: zoneId, courier_id: courierId })
+      const { error: insError } = await supabase.from('zone_couriers').insert({ zone_id: zoneId, courier_id: courierId })
+      if (insError) return { error: insError.message }
     }
+    return { error: null }
   },
 
   // === Users (for admin) ===
@@ -294,12 +303,15 @@ export const useAdminStore = create((set, get) => ({
   },
 
   setUserPermissions: async (userId, permissions) => {
-    await supabase.from('user_permissions').delete().eq('user_id', userId)
+    const { error: delError } = await supabase.from('user_permissions').delete().eq('user_id', userId)
+    if (delError) return { error: delError.message }
     if (permissions.length > 0) {
-      await supabase.from('user_permissions').insert(
+      const { error: insError } = await supabase.from('user_permissions').insert(
         permissions.map(p => ({ user_id: userId, permission: p }))
       )
+      if (insError) return { error: insError.message }
     }
+    return { error: null }
   },
 
   createUser: async ({ email, password, nome, cognome, ruolo }) => {
