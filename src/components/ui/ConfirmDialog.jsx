@@ -1,7 +1,16 @@
+import { useRef, useEffect } from 'react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 
 export function ConfirmDialog({ open, title, message, confirmLabel = 'Conferma', cancelLabel = 'Annulla', onConfirm, onCancel, danger = false }) {
+  const confirmRef = useRef(null)
+
+  useEffect(() => {
+    if (open && confirmRef.current) {
+      confirmRef.current.focus()
+    }
+  }, [open])
+
   return (
     <Modal
       open={open}
@@ -13,7 +22,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Conferma',
           <Button variant="secondary" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>
+          <Button ref={confirmRef} variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

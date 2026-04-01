@@ -7,7 +7,7 @@ import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Tabs } from '../../components/ui/Tabs'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { todayISO } from '../../lib/date-utils'
+import { todayISO, formatDateRange } from '../../lib/date-utils'
 import { useAdminStore } from '../../hooks/useAdmin'
 import { useStaffStore } from '../../hooks/useStaff'
 import { useParticipantsStore } from '../../hooks/useParticipants'
@@ -16,12 +16,11 @@ import { useActivitiesStore } from '../../hooks/useActivities'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCostsStore } from '../../hooks/useCosts'
 import { useTavoliStore } from '../../hooks/useTavoli'
-import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI } from '../../lib/constants'
-import { formatDateRange } from '../../lib/date-utils'
+import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI, SUMMARY_BAR_STYLE } from '../../lib/constants'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
-import { DOCUMENTO_ICONS } from '../../lib/icons'
+import { DOCUMENTO_ICONS, CATEGORIA_ICONS, MATERIALE_ICONS, NAV_ICONS as DETAIL_NAV_ICONS, COSTI_ICONS, FEEDBACK_ICONS, ACTION_ICONS as DETAIL_ACTION_ICONS } from '../../lib/icons'
 import { useToastStore } from '../../components/ui/Toast'
 import { generateEventDossier } from '../../lib/generate-dossier'
 
@@ -70,6 +69,51 @@ function getVisibleTabs(event, profile, permissions) {
 }
 
 
+const READINESS_DETAIL_STATES = new Set(['confermato', 'in_preparazione', 'pronto', 'in_corso'])
+const READINESS_COLOR = { green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600', gray: 'text-gray-400' }
+const READINESS_DOT = { green: 'bg-green-500', yellow: 'bg-yellow-500', red: 'bg-red-500', gray: 'bg-gray-300' }
+
+function computeDetailReadiness({ eventActivities, eventMaterials, preventivi, hotels, trasporti }) {
+  const today = todayISO()
+  const areas = []
+
+  // Attivita
+  const vis = eventActivities.filter(a => a.stato !== 'disattivata')
+  const attComp = vis.filter(a => a.stato === 'completata').length
+  const attOverdue = vis.filter(a => a.obbligatoria && a.deadline && a.deadline < today && a.stato !== 'completata').length
+  if (vis.length === 0) areas.push({ icon: CATEGORIA_ICONS.organizzazione, label: 'Attivita', color: 'gray', text: 'Nessuna', tab: 'preparazione' })
+  else if (attOverdue > 0) areas.push({ icon: CATEGORIA_ICONS.organizzazione, label: 'Attivita', color: 'red', text: `${attOverdue} in ritardo`, tab: 'preparazione' })
+  else if (attComp < vis.length) areas.push({ icon: CATEGORIA_ICONS.organizzazione, label: 'Attivita', color: 'yellow', text: `${vis.length - attComp}/${vis.length}`, tab: 'preparazione' })
+  else areas.push({ icon: CATEGORIA_ICONS.organizzazione, label: 'Attivita', color: 'green', text: `${vis.length}/${vis.length}`, tab: 'preparazione' })
+
+  // Materiale
+  const matRif = eventMaterials.filter(m => m.stato === 'rifiutato').length
+  const matReq = eventMaterials.filter(m => m.stato === 'richiesto').length
+  if (eventMaterials.length === 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'gray', text: 'Nessuno', tab: 'materiale' })
+  else if (matRif > 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'red', text: `${matRif} rifiutati`, tab: 'materiale' })
+  else if (matReq > 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'yellow', text: `${matReq} da confermare`, tab: 'materiale' })
+  else areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'green', text: 'Confermato', tab: 'materiale' })
+
+  // Logistica
+  const hConf = hotels.filter(h => h.stato === 'confermato').length
+  const tConf = trasporti.filter(t => t.stato === 'confermato').length
+  const logTotal = hotels.length + trasporti.length
+  const logPending = logTotal - hConf - tConf
+  if (logTotal === 0) areas.push({ icon: DETAIL_NAV_ICONS.logistica, label: 'Logistica', color: 'gray', text: 'Nessuna', tab: 'logistica' })
+  else if (logPending > 0) areas.push({ icon: DETAIL_NAV_ICONS.logistica, label: 'Logistica', color: 'yellow', text: `${logPending} da confermare`, tab: 'logistica' })
+  else areas.push({ icon: DETAIL_NAV_ICONS.logistica, label: 'Logistica', color: 'green', text: 'Confermata', tab: 'logistica' })
+
+  // Costi
+  const cosRif = preventivi.filter(p => p.stato === 'rifiutato').length
+  const cosPend = preventivi.filter(p => ['in_attesa', 'in_revisione'].includes(p.stato)).length
+  if (preventivi.length === 0) areas.push({ icon: COSTI_ICONS.costo, label: 'Costi', color: 'gray', text: 'Nessuno', tab: 'costi' })
+  else if (cosRif > 0) areas.push({ icon: COSTI_ICONS.costo, label: 'Costi', color: 'red', text: `${cosRif} rifiutati`, tab: 'costi' })
+  else if (cosPend > 0) areas.push({ icon: COSTI_ICONS.costo, label: 'Costi', color: 'yellow', text: `${cosPend} in attesa`, tab: 'costi' })
+  else areas.push({ icon: COSTI_ICONS.costo, label: 'Costi', color: 'green', text: 'Approvati', tab: 'costi' })
+
+  return areas
+}
+
 const VALID_TABS = ['info', 'tavoli', 'programma', 'materiale', 'logistica', 'costi', 'documenti', 'preparazione', 'compliance', 'report']
 
 export function EventiDetail() {
@@ -92,6 +136,7 @@ export function EventiDetail() {
   const fetchEventActivities = useActivitiesStore(s => s.fetchEventActivities)
   const tavoli = useTavoliStore(s => s.tavoli)
   const fetchEventTavoli = useTavoliStore(s => s.fetchEventTavoli)
+  const eventMaterials = useMaterialsStore(s => s.eventMaterials)
   const fetchEventMaterialList = useMaterialsStore(s => s.fetchEventMaterialList)
   const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
   const preventivi = useCostsStore(s => s.preventivi)
@@ -101,7 +146,6 @@ export function EventiDetail() {
   const [error, setError] = useState(null)
   const initialTab = (tabFromUrl && VALID_TABS.includes(tabFromUrl)) ? tabFromUrl : 'info'
   const [activeTab, setActiveTab] = useState(initialTab)
-  const [eventMaterials, setEventMaterials] = useState([])
   const [showPackingList, setShowPackingList] = useState(false)
   const [generating, setGenerating] = useState(false)
 
@@ -127,7 +171,7 @@ export function EventiDetail() {
       fetchEventLogistics(event.id)
       fetchEventActivities(event.id)
       fetchEventTavoli(event.id)
-      fetchEventMaterialList(event.id).then(({ data }) => setEventMaterials(data || []))
+      fetchEventMaterialList(event.id)
       fetchEventPreventivi(event.id)
     }
   }, [event?.id])
@@ -200,6 +244,10 @@ export function EventiDetail() {
     fetchEvent(id).then(({ data }) => { if (data) setEvent(data) })
   }
 
+  const readinessAreas = READINESS_DETAIL_STATES.has(event.stato)
+    ? computeDetailReadiness({ eventActivities, eventMaterials, preventivi, hotels, trasporti })
+    : null
+
   const DOSSIER_STATES = ['confermato', 'in_preparazione', 'pronto', 'in_corso', 'concluso']
 
   const handleGenerateDossier = async () => {
@@ -243,7 +291,7 @@ export function EventiDetail() {
 
   return (
     <div>
-      <div className="px-4 md:px-8 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[
           { label: 'Eventi', to: '/eventi' },
           { label: event.titolo },
@@ -251,7 +299,7 @@ export function EventiDetail() {
       </div>
       <MobileHeader title={event.titolo} subtitle={subtitle} />
 
-      <div className="hidden md:block px-8 pt-5">
+      <div className="hidden md:block px-6 pt-5">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{event.titolo}</h1>
@@ -272,16 +320,38 @@ export function EventiDetail() {
       </div>
 
       {showPackingList ? (
-        <div className="px-4 md:px-8 py-3 md:py-5">
+        <div className="px-4 md:px-6 py-3 md:py-5">
           <EventPackingList event={event} onBack={() => setShowPackingList(false)} />
         </div>
       ) : (
         <>
-          <div className="sticky top-[73px] md:static z-20 bg-white px-4 md:px-8 mt-4 md:mt-4">
+          {readinessAreas && (
+            <div className="px-4 md:px-6 mt-3">
+              <div className={SUMMARY_BAR_STYLE + ' flex flex-wrap gap-1'}>
+                {readinessAreas.map(a => (
+                  <button
+                    key={a.tab}
+                    type="button"
+                    onClick={() => setActiveTab(a.tab)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg min-h-[48px] transition-colors hover:bg-white/60 ${
+                      activeTab === a.tab ? 'bg-white shadow-sm ring-1 ring-gray-200' : ''
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${READINESS_DOT[a.color]}`} />
+                    <Icon icon={a.icon} size={16} className={READINESS_COLOR[a.color]} />
+                    <span className="text-sm text-gray-700 font-medium">{a.label}</span>
+                    <span className={`text-sm ${READINESS_COLOR[a.color]}`}>{a.text}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="sticky top-[73px] md:static z-20 bg-white px-4 md:px-6 mt-4 md:mt-4">
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
           </div>
 
-          <div className="px-4 md:px-8 py-3 md:py-5">
+          <div className="px-4 md:px-6 py-3 md:py-5">
             <Suspense fallback={<LoadingSkeleton lines={5} />}>
               {activeTab === 'info' && <EventInfoTab event={event} onUpdate={refreshEvent} />}
               {activeTab === 'tavoli' && <EventTavoliTab event={event} staff={staff} participants={participants} />}
@@ -291,7 +361,7 @@ export function EventiDetail() {
               {activeTab === 'costi' && <EventCostiTab event={event} />}
               {activeTab === 'documenti' && <EventDocumentiTab event={event} onShowPackingList={() => setShowPackingList(true)} />}
               {activeTab === 'compliance' && <EventComplianceTab event={event} />}
-              {activeTab === 'preparazione' && <EventPreparazioneTab event={event} onShowPackingList={() => setShowPackingList(true)} />}
+              {activeTab === 'preparazione' && <EventPreparazioneTab event={event} onShowPackingList={() => setShowPackingList(true)} onUpdate={refreshEvent} />}
               {activeTab === 'report' && <ComingSoon title="Report post-evento" description="I report saranno disponibili nella prossima versione." />}
             </Suspense>
           </div>

@@ -7,8 +7,9 @@ import { useToastStore } from '../ui/Toast'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useAuthStore } from '../../hooks/useAuth'
 import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
-import { MATERIALE_ICONS } from '../../lib/icons'
+import { MATERIALE_ICONS, TIPO_PRODOTTO_ICONS } from '../../lib/icons'
 import { nowISO } from '../../lib/date-utils'
+import { toDriveImageUrl } from '../../lib/format-utils'
 
 const STATO_RIENTRO_CLASSES = {
   integro: 'border-green-400 bg-green-50 text-green-800',
@@ -20,6 +21,7 @@ export function MaterialCard({ material, linkTo, showQuickAction }) {
   const [showRientro, setShowRientro] = useState(false)
   const [statoRientro, setStatoRientro] = useState('')
   const [loading, setLoading] = useState(false)
+  const [imgError, setImgError] = useState(false)
 
   const createMovement = useMaterialsStore(s => s.createMovement)
   const fetchMagazzini = useMaterialsStore(s => s.fetchMagazzini)
@@ -62,32 +64,49 @@ export function MaterialCard({ material, linkTo, showQuickAction }) {
 
   const cardContent = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-gray-900">{material.nome}</h3>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {material.codice_inventario && `${material.codice_inventario} \u00B7 `}
-            {TIPO_MATERIALE[material.tipo]}
-          </p>
-          {material.product && (
-            <p className="text-sm text-gray-500 mt-0.5 truncate">
-              {material.product.brand?.nome && `${material.product.brand.nome} \u00B7 `}
-              {material.product.nome}
-            </p>
+      <div className="flex items-start gap-3">
+        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+          {material.product?.foto_url && !imgError ? (
+            <img
+              src={toDriveImageUrl(material.product.foto_url)}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <Icon icon={TIPO_PRODOTTO_ICONS[material.product?.tipo] || TIPO_PRODOTTO_ICONS[material.tipo] || MATERIALE_ICONS.package} size={20} className="text-gray-400" />
           )}
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <StatusBadge
-            stato={material.posizione_attuale}
-            labels={POSIZIONE_MATERIALE}
-            colors={POSIZIONE_MATERIALE_COLORE}
-          />
-          {material.posizione_attuale === 'in_magazzino' && material.magazzino?.nome && (
-            <span className="text-xs text-gray-500">({material.magazzino.nome})</span>
-          )}
-          {material.posizione_attuale === 'magazzino_agente' && material.agente && (
-            <span className="text-xs text-gray-500">({material.agente.cognome} {material.agente.nome})</span>
-          )}
+        <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-semibold text-gray-900">{material.nome}</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {material.codice_inventario && `${material.codice_inventario} \u00B7 `}
+              {TIPO_MATERIALE[material.tipo]}
+            </p>
+            {material.product && (
+              <p className="text-sm text-gray-500 mt-0.5 truncate">
+                {material.product.brand?.nome && `${material.product.brand.nome} \u00B7 `}
+                {material.product.nome}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            <StatusBadge
+              stato={material.posizione_attuale}
+              labels={POSIZIONE_MATERIALE}
+              colors={POSIZIONE_MATERIALE_COLORE}
+            />
+            {material.posizione_attuale === 'in_magazzino' && material.magazzino?.nome && (
+              <span className="text-xs text-gray-500">({material.magazzino.nome})</span>
+            )}
+            {material.posizione_attuale === 'magazzino_agente' && material.agente && (
+              <span className="text-xs text-gray-500">({material.agente.cognome} {material.agente.nome})</span>
+            )}
+            {material.posizione_attuale === 'presso_evento' && material.posizione_dettaglio && (
+              <span className="text-xs text-gray-500 truncate max-w-[140px]">({material.posizione_dettaglio})</span>
+            )}
+          </div>
         </div>
       </div>
       {material.note && (

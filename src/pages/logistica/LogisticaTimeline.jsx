@@ -7,17 +7,18 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { ProgressIndicator } from '../../components/ui/ProgressIndicator'
 import { Icon } from '../../components/ui/Icon'
 import { Button } from '../../components/ui/Button'
-import { MATERIALE_ICONS, NAV_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, NAV_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, CARD_STYLE, SUMMARY_BAR_STYLE } from '../../lib/constants'
 import { formatDate, formatDateRange, subtractDays } from '../../lib/date-utils'
 
 // Type icon + color (same as MaterialListRow)
 const TIPO_ICON = {
-  demo_kit: { icon: MATERIALE_ICONS.package, bg: 'bg-blue-100', text: 'text-blue-600', label: 'Kit' },
-  strumentario: { icon: MATERIALE_ICONS.package_open, bg: 'bg-purple-100', text: 'text-purple-600', label: 'Strum.' },
-  montaggio: { icon: MATERIALE_ICONS.manutenzione, bg: 'bg-orange-100', text: 'text-orange-600', label: 'Mont.' },
-  pezzo_sfuso: { icon: MATERIALE_ICONS.package, bg: 'bg-gray-100', text: 'text-gray-600', label: 'Sfuso' },
-  gadget: { icon: MATERIALE_ICONS.gadget, bg: 'bg-pink-100', text: 'text-pink-600', label: 'Gadget' },
+  demo_kit: { icon: TIPO_PRODOTTO_ICONS.demo_kit, bg: 'bg-blue-100', text: 'text-blue-600', label: 'Kit' },
+  strumentario: { icon: TIPO_PRODOTTO_ICONS.strumentario, bg: 'bg-purple-100', text: 'text-purple-600', label: 'Strum.' },
+  montaggio: { icon: TIPO_PRODOTTO_ICONS.montaggio, bg: 'bg-orange-100', text: 'text-orange-600', label: 'Mont.' },
+  pezzo_sfuso: { icon: TIPO_PRODOTTO_ICONS.pezzo_sfuso, bg: 'bg-gray-100', text: 'text-gray-600', label: 'Sfuso' },
+  gadget: { icon: TIPO_PRODOTTO_ICONS.gadget, bg: 'bg-pink-100', text: 'text-pink-600', label: 'Gadget' },
+  ossa: { icon: TIPO_PRODOTTO_ICONS.ossa, bg: 'bg-amber-100', text: 'text-amber-600', label: 'Ossa' },
 }
 
 function groupByEvent(items) {

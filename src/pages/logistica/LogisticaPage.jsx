@@ -84,7 +84,7 @@ export function LogisticaPage() {
 
   return (
     <div className="space-y-4">
-      <div className="hidden md:block px-6 md:px-8 pt-4">
+      <div className="hidden md:block px-6 pt-4">
         <Breadcrumb items={[{ label: 'Logistica' }]} />
       </div>
       <div className="md:hidden">
@@ -95,7 +95,7 @@ export function LogisticaPage() {
         subtitle="Gestione spedizioni, rientri e inventario"
         actions={<ExportButton onClick={handleExport} loading={exporting} />}
       />
-      <div className="px-4 md:px-8">
+      <div className="px-4 md:px-6">
         <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
       </div>
       {activeTab === 'timeline' && <LogisticaTimeline />}

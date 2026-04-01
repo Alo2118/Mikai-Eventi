@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAdminStore } from '../../hooks/useAdmin'
+import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
 import { Button } from '../../components/ui/Button'
@@ -73,6 +74,9 @@ export function AdminUtenti() {
     setSelectedPermissions((data || []).map(p => p.permission))
   }, [fetchUserPermissions])
 
+  const currentUserId = useAuthStore(s => s.user?.id)
+  const reloadProfile = useAuthStore(s => s.loadProfile)
+
   const handleSave = async () => {
     setSaving(true)
     const payload = {
@@ -83,7 +87,10 @@ export function AdminUtenti() {
     }
     const { error } = await updateUser(editing.id, payload)
     if (error) { setSaving(false); addToast(error, 'error'); return }
-    await setUserPermissions(editing.id, selectedPermissions)
+    const { error: permError } = await setUserPermissions(editing.id, selectedPermissions)
+    if (permError) { setSaving(false); addToast(permError, 'error'); return }
+    // Reload own profile+permissions if editing self
+    if (editing.id === currentUserId) await reloadProfile(currentUserId)
     setSaving(false)
     addToast('Utente aggiornato', 'success')
     setEditing(null)
@@ -147,7 +154,7 @@ export function AdminUtenti() {
         <h3 className="text-base font-semibold text-gray-900 mb-3">Permessi</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {Object.entries(PERMESSI).map(([k, v]) => (
-            <label key={k} className="flex items-center gap-2 text-base text-gray-700 cursor-pointer min-h-[44px]">
+            <label key={k} className="flex items-center gap-2 text-base text-gray-700 cursor-pointer min-h-[48px]">
               <input type="checkbox" className={CHECK} checked={selectedPermissions.includes(k)} onChange={() => togglePermission(k)} />
               {v}
             </label>
@@ -271,7 +278,7 @@ export function AdminUtenti() {
               <h3 className="text-base font-semibold text-gray-900 mb-3">Ruoli operativi</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {Object.entries(RUOLI_OPERATIVI).map(([k, v]) => (
-                  <label key={k} className="flex items-center gap-2 text-base text-gray-700 cursor-pointer min-h-[44px]">
+                  <label key={k} className="flex items-center gap-2 text-base text-gray-700 cursor-pointer min-h-[48px]">
                     <input type="checkbox" className={CHECK} checked={(editing.ruoli_operativi || []).includes(k)} onChange={() => toggleRuoloOperativo(k)} />
                     {v}
                   </label>

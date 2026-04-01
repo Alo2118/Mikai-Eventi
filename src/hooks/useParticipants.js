@@ -9,7 +9,7 @@ export const useParticipantsStore = create((set, get) => ({
     set({ loading: true })
     const { data, error } = await supabase
       .from('event_participants')
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
       .eq('event_id', eventId)
       .order('created_at')
     set({ participants: data || [], loading: false })
@@ -20,7 +20,7 @@ export const useParticipantsStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('event_participants')
       .insert({ event_id: eventId, contact_id: contactId, tipo, stato_iscrizione: 'invitato' })
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
       .single()
     if (!error) set(s => ({ participants: [...s.participants, data] }))
     return { data, error: error?.message || null }
@@ -31,7 +31,7 @@ export const useParticipantsStore = create((set, get) => ({
       .from('event_participants')
       .update(updates)
       .eq('id', id)
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
       .single()
     if (!error) set(s => ({ participants: s.participants.map(r => r.id === id ? data : r) }))
     return { data, error: error?.message || null }
@@ -65,7 +65,7 @@ export const useParticipantsStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('event_participants')
       .insert(rows)
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
     if (!error) get().fetchEventParticipants(eventId)
     return { data: { inserted: toInsert.length, skipped }, error: error?.message || null }
   },

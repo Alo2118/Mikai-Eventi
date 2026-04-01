@@ -15,7 +15,7 @@ const NEXT_STATE = {
   in_corso: { stato: 'concluso', label: 'Concludi evento', nome: 'concluso' },
 }
 
-export function ActivityGateBar({ event, activities }) {
+export function ActivityGateBar({ event, activities, onUpdate }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [unreturnedMaterials, setUnreturnedMaterials] = useState([])
@@ -55,6 +55,7 @@ export function ActivityGateBar({ event, activities }) {
       addToast('Impossibile aggiornare lo stato. Riprova.', 'error')
     } else {
       addToast(`Stato aggiornato: ${next.label}`, 'success')
+      if (onUpdate) onUpdate()
     }
   }
 

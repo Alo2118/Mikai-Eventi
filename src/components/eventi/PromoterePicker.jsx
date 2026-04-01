@@ -26,7 +26,7 @@ function groupUsersByRole(users) {
   return groups
 }
 
-export function PromoterePicker({ value, onChange, currentUserId }) {
+export function PromoterePicker({ value, onChange, currentUserId, error, onBlur }) {
   const users = useAdminStore(s => s.users)
   const fetchUsers = useAdminStore(s => s.fetchUsers)
 
@@ -50,12 +50,14 @@ export function PromoterePicker({ value, onChange, currentUserId }) {
   }
 
   return (
-    <FormField label="Promotore" required>
+    <FormField label="Promotore" required error={error}>
       <select
         className={SELECT_STYLE + ' min-h-[48px]'}
         value={value || ''}
         onChange={handleChange}
+        onBlur={onBlur}
         aria-label="Seleziona promotore"
+        aria-invalid={!!error}
       >
         <option value="">Seleziona promotore...</option>
         {ROLE_ORDER.map(role => {

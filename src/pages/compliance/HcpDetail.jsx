@@ -11,7 +11,7 @@ import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { useToastStore } from '../../components/ui/Toast'
-import { TIPO_HCP, TIPO_TOV, STATO_TOV, STATO_TOV_COLORE, TIPO_INTERAZIONE_HCP, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
+import { TIPO_HCP, TIPO_TOV, STATO_TOV, STATO_TOV_COLORE, TIPO_INTERAZIONE_HCP, CARD_STYLE, CARD_HOVER_STYLE, SUMMARY_BAR_STYLE } from '../../lib/constants'
 import { COMPLIANCE_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { formatDate, formatDateTime } from '../../lib/date-utils'
 import { formatCurrencyDecimals } from '../../lib/format-utils'
@@ -106,7 +106,7 @@ export function HcpDetail() {
       {tab === 'tov' && (
         <div className="space-y-4">
           {totaleToV > 0 && (
-            <div className="bg-mikai-50 rounded-xl p-4 flex items-center justify-between">
+            <div className={SUMMARY_BAR_STYLE + ' flex items-center justify-between'}>
               <span className="text-sm font-medium text-mikai-700">Totale trasferimenti</span>
               <span className="text-lg font-bold text-mikai-700">{formatCurrencyDecimals(totaleToV)}</span>
             </div>

@@ -44,7 +44,7 @@ export function NotifichePage() {
   return (
     <div>
       <MobileHeader title="Notifiche" />
-      <div className="px-4 md:px-8 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[{ label: 'Notifiche' }]} />
       </div>
       <PageHeader
@@ -70,7 +70,7 @@ export function NotifichePage() {
         }
       />
 
-      <div className="px-4 md:px-8 pb-8">
+      <div className="px-4 md:px-6 pb-8">
         {/* Preferences panel */}
         {showPreferences && (
           <div className="mb-6 p-4 md:p-6 bg-white border border-gray-200 rounded-xl">

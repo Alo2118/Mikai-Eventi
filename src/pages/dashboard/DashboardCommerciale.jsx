@@ -8,6 +8,7 @@ import { MobileHeader } from '../../components/layout/MobileHeader'
 import { QuickActions } from '../../components/dashboard/QuickActions'
 import { MyEventsSection } from '../../components/dashboard/MyEventsSection'
 import { MyActivitiesSection } from '../../components/dashboard/MyActivitiesSection'
+import { ParticipantConfirmation } from '../../components/dashboard/ParticipantConfirmation'
 import { ZoneSummary } from '../../components/dashboard/ZoneSummary'
 import { RecentContacts } from '../../components/dashboard/RecentContacts'
 
@@ -15,6 +16,7 @@ export function DashboardCommerciale() {
   const profile = useAuthStore(s => s.profile)
   const myEvents = useDashboardCommercialeStore(s => s.myEvents)
   const myActivities = useDashboardCommercialeStore(s => s.myActivities)
+  const participantStats = useDashboardCommercialeStore(s => s.participantStats)
   const zoneSummary = useDashboardCommercialeStore(s => s.zoneSummary)
   const recentContacts = useDashboardCommercialeStore(s => s.recentContacts)
   const loading = useDashboardCommercialeStore(s => s.loading)
@@ -44,6 +46,7 @@ export function DashboardCommerciale() {
               <MyEventsSection events={myEvents} />
               <MyActivitiesSection activities={myActivities} />
             </div>
+            <ParticipantConfirmation participantStats={participantStats} />
             <ZoneSummary zoneSummary={zoneSummary} />
             <RecentContacts contacts={recentContacts} />
           </>

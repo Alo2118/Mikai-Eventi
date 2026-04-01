@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS, MATERIALE_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, MATERIALE_ICONS, TIPO_PRODOTTO_ICONS } from '../../lib/icons'
+import { toDriveImageUrl } from '../../lib/format-utils'
 
 export function CatalogProductCard({ product, cartQuantity = 0, onAdd, onUpdateQuantity, onShowDetails }) {
   const sections = product.body_sections?.map(bs => bs.body_section?.nome).filter(Boolean)
   const inCart = cartQuantity > 0
+  const [imgError, setImgError] = useState(false)
 
   return (
     <div className={`bg-white rounded-xl border overflow-hidden transition-all ${
@@ -13,10 +16,15 @@ export function CatalogProductCard({ product, cartQuantity = 0, onAdd, onUpdateQ
         <div className="flex items-center gap-3">
           {/* Product image */}
           <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {product.foto_url ? (
-              <img src={product.foto_url} alt={product.nome} className="w-full h-full object-cover" />
+            {product.foto_url && !imgError ? (
+              <img
+                src={toDriveImageUrl(product.foto_url)}
+                alt={product.nome}
+                className="w-full h-full object-cover"
+                onError={() => setImgError(true)}
+              />
             ) : (
-              <Icon icon={MATERIALE_ICONS.package} size={22} className="text-gray-400" />
+              <Icon icon={TIPO_PRODOTTO_ICONS[product.tipo] || MATERIALE_ICONS.package} size={22} className="text-gray-400" />
             )}
           </div>
 

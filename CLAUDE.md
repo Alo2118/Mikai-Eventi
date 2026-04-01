@@ -10,7 +10,7 @@
 - **Approval workflows:** 2-level (Area Manager for small budgets, Direzione for larger ones)
 - **Contacts directory:** Centralized rubrica with ownership (proprietario), zone-based visibility (RLS), type-based forms
 - **People management:** Staff assignment + participant tracking per event, with confirmation states
-- **Event program:** Configurable sub-activities (pranzo, sessioni, ecc.) with fornitore and confirmation
+- **Event program:** Configurable sub-activities (pranzo, sessioni, ecc.) with fornitore and confirmation. Program templates per event type (giorno+orario), one-click instantiation
 - **Logistics:** Hotel + transport tracking per person (staff & participants), with booking states
 - **Costs & Quotes:** Preventivi with approval flow (in_attesa → approvato/rifiutato/in_revisione), budget comparison
 - **Notifications:** In-app real-time notifications (Supabase Realtime), automatic triggers on event/activity/preventivo state changes, deadline reminders, escalation, email digest
@@ -52,12 +52,14 @@ Sales reps, area managers, back-office staff with **highly variable digital lite
 | **Phase 6C** | Done | Compliance: HCP profiles, ToV tracking (Sunshine Act), interazioni HCP, audit trail expanded, ComplianceDashboard, AuditTrailPage, EventComplianceTab |
 | **Optimization** | Done | Code splitting (React.lazy, 31 lazy routes, -79% initial bundle), vendor chunks (react/supabase/recharts/date-fns/zustand), centralized formatCurrency/formatCurrencyDecimals/formatPercentage in format-utils, useExportHandler hook (DRY 7 pages), date-fns fully centralized in date-utils (14 new helpers), Icon.jsx full 26-map lookup, GlobalSearch queries moved to useGlobalSearchStore, touch targets fixed (48px min), 6 unused components removed |
 | **UX Overhaul** | Done | Tab Persone+Logistica merged, material type icons, availability check, shipping workflow (packing list per collo, spedizione evento-level), deadline fields (preparazione/spedizione/consegna/partecipanti), gate blockers in Preparazione, deep-link notifications, default tab by event state, responsive mobile cards, centralized UI style constants (CARD_STYLE/FORM_CONTAINER_STYLE/SUMMARY_BAR_STYLE), 36+ files standardized, EmptyState with icons, KPI alert colors, ConfirmDialog on approve, BottomBar 5-item + AltroPage, LogisticaTimeline grouped by event |
+| **Hardening** | Done | 40+ bugs fixed (orphaned records, stale store data, missing CASCADE/SET NULL on FKs), event edit form completed (tipo_evento, modalita, desk, certificato, ora_inizio), material type icons per-product, program templates (giorno+orario, multi-day, admin CRUD, one-click apply), template admin CRUD (create/delete templates), reactive readiness alerts (eventMaterials moved to Zustand store), person removal cascades hotel/transport/tavoli cleanup |
 
 ### Readiness Engine (cross-phase, implemented)
 The Event Readiness Engine is a cross-cutting system that solves coordination failures. Spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md` (all sections approved and implemented).
 
 Core concepts:
 - **Template checklist** per tipo evento — activities with configurable deadlines (-Xgg) and dependencies
+- **Template programma** per tipo evento — sub-activities with giorno+orario, multi-day support, one-click apply
 - **Convergence dashboard** per evento — shows all parallel activities, who's responsible, what's late
 - **Gates** block event state advancement if mandatory activities are incomplete
 - **Role dashboards** — each role sees their cross-event priorities at login
@@ -78,7 +80,7 @@ Key business rules:
 - **Project ID:** `ncjpbbvlucquopyihios`
 - **URL:** `https://ncjpbbvlucquopyihios.supabase.co`
 - **Auth:** Email/password. Admin user: `nicola@mikai.it`
-- **Database:** PostgreSQL with 45+ tables, RLS on every table, 50+ migrations
+- **Database:** PostgreSQL with 45+ tables, RLS on every table, 60+ migrations
 - **Storage:** `event-documents` private bucket for file uploads (10MB max, PDF/DOCX/XLSX/JPG/PNG)
 - **Edge Functions:** 3 Deno functions (deadline-checker, overdue-returns-checker, email-digest)
 - **Realtime:** Enabled on `notifications` table for live push

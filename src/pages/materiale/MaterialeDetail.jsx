@@ -9,9 +9,9 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Button } from '../../components/ui/Button'
 import { MaterialMovementForm } from '../../components/materiale/MaterialMovementForm'
 import { MovementHistory } from '../../components/materiale/MovementHistory'
-import { TIPO_MATERIALE, POSIZIONE_MATERIALE, CARD_STYLE } from '../../lib/constants'
+import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, CARD_STYLE } from '../../lib/constants'
 import { StatusBadge } from '../../components/ui/StatusBadge'
-import { POSIZIONE_MATERIALE_COLORE } from '../../lib/constants'
+import { toDriveImageUrl } from '../../lib/format-utils'
 
 export function MaterialeDetail() {
   const { id } = useParams()
@@ -40,7 +40,7 @@ export function MaterialeDetail() {
 
   return (
     <div>
-      <div className="px-4 md:px-8 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[
           { label: 'Materiale & Gadget', to: '/materiale' },
           { label: material.nome },
@@ -48,12 +48,22 @@ export function MaterialeDetail() {
       </div>
       <MobileHeader title={material.nome} subtitle={material.codice_inventario} />
 
-      <div className="hidden md:block px-8 pt-5">
+      <div className="hidden md:block px-6 pt-5">
         <h1 className="text-2xl font-bold text-gray-900">{material.nome}</h1>
         <p className="mt-1 text-base text-gray-500">{material.codice_inventario}</p>
       </div>
 
-      <div className="px-4 md:px-8 py-5 space-y-6">
+      <div className="px-4 md:px-6 py-5 space-y-6">
+        {material.product?.foto_url && (
+          <div className="flex justify-center">
+            <img
+              src={toDriveImageUrl(material.product.foto_url)}
+              alt={material.product.nome}
+              className="max-h-48 object-contain rounded-lg"
+            />
+          </div>
+        )}
+
         <div className={`${CARD_STYLE} space-y-3`}>
           <div className="flex items-center justify-between">
             <span className="text-base text-gray-500">Tipo</span>
@@ -88,6 +98,12 @@ export function MaterialeDetail() {
               <span className="text-base text-gray-500">Prodotto</span>
               <span className="text-base font-medium">{material.product.nome}</span>
             </div>
+            {material.product.codice && (
+              <div className="flex items-center justify-between">
+                <span className="text-base text-gray-500">Codice</span>
+                <span className="text-base font-mono text-gray-700">{material.product.codice}</span>
+              </div>
+            )}
             {material.product.descrizione && (
               <div className="flex items-center justify-between">
                 <span className="text-base text-gray-500">Descrizione</span>

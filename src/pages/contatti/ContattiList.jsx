@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useContactsStore } from '../../hooks/useContacts'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useAdminStore } from '../../hooks/useAdmin'
@@ -24,17 +24,23 @@ const EXPORT_COLUMNS_CONTATTI = [
   { key: 'nome', label: 'Nome', width: 20 },
   { key: 'tipo_contatto', label: 'Tipo', format: v => TIPO_CONTATTO[v] || v },
   { key: 'azienda', label: 'Azienda', width: 25 },
+  { key: 'citta', label: 'Città' },
   { key: 'email', label: 'Email', width: 25 },
   { key: 'telefono', label: 'Telefono' },
   { key: 'zona', label: 'Zona', format: v => v?.nome || '' },
+  { key: 'proprietario', label: 'Referente', format: v => v ? `${v.cognome} ${v.nome}` : '' },
 ]
 
 export function ContattiList() {
   const navigate = useNavigate()
   const contacts = useContactsStore(s => s.contacts)
   const loading = useContactsStore(s => s.loading)
+  const loadingMore = useContactsStore(s => s.loadingMore)
+  const hasMore = useContactsStore(s => s.hasMore)
+  const totalCount = useContactsStore(s => s.totalCount)
   const filters = useContactsStore(s => s.filters)
   const fetchContacts = useContactsStore(s => s.fetchContacts)
+  const loadMore = useContactsStore(s => s.loadMore)
   const resetFilters = useContactsStore(s => s.resetFilters)
   const setFilter = useContactsStore(s => s.setFilter)
   const createContact = useContactsStore(s => s.createContact)
@@ -46,11 +52,25 @@ export function ContattiList() {
   const [showImport, setShowImport] = useState(false)
   const [saving, setSaving] = useState(false)
   const { exporting, handleExport } = useExportHandler()
+  const [searchParams] = useSearchParams()
 
   const zones = useAdminStore(s => s.zones)
+  const users = useAdminStore(s => s.users)
   const fetchZones = useAdminStore(s => s.fetchZones)
+  const fetchUsers = useAdminStore(s => s.fetchUsers)
 
-  useEffect(() => { resetFilters(); fetchZones() }, [])
+  useEffect(() => {
+    resetFilters()
+    fetchZones()
+    fetchUsers()
+    const searchFromUrl = searchParams.get('search')
+    if (searchFromUrl) setFilter('search', searchFromUrl)
+  }, [])
+
+  // Scroll to top when filters change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [filters.search, filters.tipo, filters.zoneId])
 
   const handleSave = async (form) => {
     setSaving(true)
@@ -67,13 +87,13 @@ export function ContattiList() {
   const canCreate = hasPermission('gestione_contatti') || profile?.ruolo === 'commerciale'
 
   return (
-    <div className="px-4 md:px-8 py-4 space-y-4">
+    <div className="px-4 md:px-6 py-4 space-y-4">
       <Breadcrumb items={[{ label: 'Contatti' }]} />
       <PageHeader
         title="Rubrica contatti"
-        subtitle={`${contacts.length} contatti`}
+        subtitle={totalCount > 0 ? `${contacts.length} di ${totalCount} contatti` : `${contacts.length} contatti`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_CONTATTI, rows: contacts, filename: 'contatti', sheetName: 'Contatti' })} loading={exporting} />
             {canCreate && (
               <>
@@ -94,7 +114,7 @@ export function ContattiList() {
       {showForm && (
         <div className={CARD_STYLE}>
           <ContactForm
-            users={[]}
+            users={users || []}
             zones={zones || []}
             onSave={handleSave}
             onCancel={() => setShowForm(false)}
@@ -110,12 +130,64 @@ export function ContattiList() {
         <select
           value={filters.tipo}
           onChange={e => setFilter('tipo', e.target.value)}
-          className={SELECT_STYLE}
+          className={SELECT_STYLE + ' md:max-w-[200px]'}
         >
           <option value="">Tutti i tipi</option>
           {Object.entries(TIPO_CONTATTO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        <select
+          value={filters.zoneId}
+          onChange={e => setFilter('zoneId', e.target.value)}
+          className={SELECT_STYLE + ' md:max-w-[200px]'}
+        >
+          <option value="">Tutte le zone</option>
+          {(zones || []).map(z => <option key={z.id} value={z.id}>{z.nome}</option>)}
+        </select>
       </div>
+
+      {/* Risultati + chip filtri attivi */}
+      {!loading && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-500">
+            {contacts.length === 0
+              ? 'Nessun contatto trovato'
+              : totalCount > contacts.length
+                ? `Mostrati ${contacts.length} di ${totalCount} contatti`
+                : `${contacts.length} ${contacts.length === 1 ? 'contatto trovato' : 'contatti trovati'}`
+            }
+          </span>
+          {filters.tipo && (
+            <button
+              onClick={() => setFilter('tipo', '')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              aria-label={`Rimuovi filtro tipo: ${TIPO_CONTATTO[filters.tipo]}`}
+            >
+              Tipo: {TIPO_CONTATTO[filters.tipo]}
+              <Icon name="close" size={14} />
+            </button>
+          )}
+          {filters.zoneId && (
+            <button
+              onClick={() => setFilter('zoneId', '')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              aria-label="Rimuovi filtro zona"
+            >
+              Zona: {(zones || []).find(z => z.id === filters.zoneId)?.nome}
+              <Icon name="close" size={14} />
+            </button>
+          )}
+          {filters.search && (
+            <button
+              onClick={() => setFilter('search', '')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              aria-label="Rimuovi ricerca"
+            >
+              "{filters.search}"
+              <Icon name="close" size={14} />
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? <LoadingSkeleton lines={5} /> : contacts.length === 0 ? (
         <EmptyState
@@ -136,15 +208,51 @@ export function ContattiList() {
               onClick={() => navigate(`/contatti/${c.id}`)}
               className={'w-full ' + CARD_HOVER_STYLE + ' text-left'}
             >
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
                   <p className="font-semibold text-base">{c.cognome} {c.nome}</p>
-                  {c.azienda && <p className="text-sm text-gray-500">{c.azienda}</p>}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-sm text-gray-500">
+                    {c.azienda && <span>{c.azienda}</span>}
+                    {c.citta && <span>{c.citta}</span>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm text-gray-400">
+                    {c.email && (
+                      <span className="flex items-center gap-1">
+                        <Icon icon={CONTATTI_ICONS.email} size={12} />
+                        <span className="truncate max-w-[200px]">{c.email}</span>
+                      </span>
+                    )}
+                    {c.telefono && (
+                      <span className="flex items-center gap-1">
+                        <Icon icon={CONTATTI_ICONS.telefono} size={12} />
+                        {c.telefono}
+                      </span>
+                    )}
+                    {c.proprietario && (
+                      <span className="flex items-center gap-1">
+                        <Icon icon={CONTATTI_ICONS.contatti} size={12} />
+                        {c.proprietario.cognome} {c.proprietario.nome}
+                      </span>
+                    )}
+                    {c.zona && (
+                      <span className="flex items-center gap-1">
+                        <Icon icon={CONTATTI_ICONS.zona} size={12} />
+                        {c.zona.nome}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <StatusBadge stato={c.tipo_contatto} labels={TIPO_CONTATTO} />
               </div>
             </button>
           ))}
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="secondary" onClick={loadMore} loading={loadingMore}>
+                Carica altri
+              </Button>
+            </div>
+          )}
         </div>
       )}
       <BulkImportModal

@@ -4,13 +4,14 @@ import { TIPO_EVENTO, STATO_EVENTO } from '../lib/constants'
 
 export const useGlobalSearchStore = create((set) => ({
   results: [],
+  counts: { evento: 0, contatto: 0, materiale: 0 },
   loading: false,
 
   search: async (q) => {
     set({ loading: true })
     const searchPattern = `%${q}%`
 
-    const [eventsRes, contactsRes, materialsRes] = await Promise.all([
+    const [eventsRes, contactsRes, materialsRes, eventsCount, contactsCount, materialsCount] = await Promise.all([
       supabase
         .from('events')
         .select('id, titolo, tipo_evento, stato, luogo')
@@ -31,6 +32,21 @@ export const useGlobalSearchStore = create((set) => ({
         .or(`nome.ilike.${searchPattern},codice_inventario.ilike.${searchPattern}`)
         .order('nome')
         .limit(5),
+      // Count queries (head: true returns only count, no rows)
+      supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true })
+        .or(`titolo.ilike.${searchPattern},luogo.ilike.${searchPattern}`),
+      supabase
+        .from('contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('attivo', true)
+        .or(`nome.ilike.${searchPattern},cognome.ilike.${searchPattern},azienda.ilike.${searchPattern}`),
+      supabase
+        .from('materials')
+        .select('*', { count: 'exact', head: true })
+        .eq('attivo', true)
+        .or(`nome.ilike.${searchPattern},codice_inventario.ilike.${searchPattern}`),
     ])
 
     const items = []
@@ -69,9 +85,17 @@ export const useGlobalSearchStore = create((set) => ({
       })
     }
 
-    set({ results: items, loading: false })
+    set({
+      results: items,
+      counts: {
+        evento: eventsCount.count ?? 0,
+        contatto: contactsCount.count ?? 0,
+        materiale: materialsCount.count ?? 0,
+      },
+      loading: false,
+    })
     return { data: items, error: null }
   },
 
-  clearResults: () => set({ results: [], loading: false }),
+  clearResults: () => set({ results: [], counts: { evento: 0, contatto: 0, materiale: 0 }, loading: false }),
 }))

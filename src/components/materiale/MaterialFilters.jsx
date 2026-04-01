@@ -19,7 +19,7 @@ export function MaterialFilters() {
   const hasFilters = filters.search || filters.tipo || filters.posizione || filters.brand
 
   return (
-    <div className="space-y-3 px-4 md:px-8">
+    <div className="space-y-3 px-4 md:px-6">
       <SearchInput
         value={filters.search}
         onChange={(v) => setFilter('search', v)}

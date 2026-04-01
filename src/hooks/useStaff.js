@@ -10,7 +10,7 @@ export const useStaffStore = create((set, get) => ({
     set({ staff: [], loading: true, error: null })
     const { data, error } = await supabase
       .from('event_staff')
-      .select('*, user:users(id, nome, cognome, ruolo, email)')
+      .select('*, user:users(id, nome, cognome, ruolo, email, esigenze_alimentari, esigenze_accessibilita)')
       .eq('event_id', eventId)
       .order('created_at')
     set({ staff: data || [], loading: false, error: error?.message || null })
@@ -21,7 +21,7 @@ export const useStaffStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('event_staff')
       .insert({ event_id: eventId, user_id: userId, ruolo_evento: ruoloEvento, confermato: false })
-      .select('*, user:users(id, nome, cognome, ruolo, email)')
+      .select('*, user:users(id, nome, cognome, ruolo, email, esigenze_alimentari, esigenze_accessibilita)')
       .single()
     if (!error) set(s => ({ staff: [...s.staff, data] }))
     return { data, error: error?.message || null }
@@ -32,7 +32,7 @@ export const useStaffStore = create((set, get) => ({
       .from('event_staff')
       .update(updates)
       .eq('id', id)
-      .select('*, user:users(id, nome, cognome, ruolo, email)')
+      .select('*, user:users(id, nome, cognome, ruolo, email, esigenze_alimentari, esigenze_accessibilita)')
       .single()
     if (!error) set(s => ({ staff: s.staff.map(r => r.id === id ? data : r) }))
     return { data, error: error?.message || null }

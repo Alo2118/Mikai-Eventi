@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
+import { useActivitiesStore } from '../../hooks/useActivities'
+import { useMaterialsStore } from '../../hooks/useMaterials'
+import { useLogisticsStore } from '../../hooks/useLogistics'
+import { useCostsStore } from '../../hooks/useCosts'
 import { useExportHandler } from '../../hooks/useExportHandler'
 import { EventCard } from '../../components/eventi/EventCard'
 import { EventFilters } from '../../components/eventi/EventFilters'
@@ -13,7 +17,7 @@ import { Icon } from '../../components/ui/Icon'
 import { ExportButton } from '../../components/ui/ExportButton'
 import { NAV_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
-import { TIPO_EVENTO, STATO_EVENTO, SUMMARY_BAR_STYLE } from '../../lib/constants'
+import { TIPO_EVENTO, STATO_EVENTO, SUMMARY_BAR_STYLE, SELECT_STYLE } from '../../lib/constants'
 import { formatDate, todayISO } from '../../lib/date-utils'
 
 const EXPORT_COLUMNS_EVENTI = [
@@ -42,26 +46,82 @@ function groupByMonth(events) {
   return Object.values(groups).sort((a, b) => a.key.localeCompare(b.key))
 }
 
+const MAX_ATTENTION_VISIBLE = 5
+
 export function EventiList() {
   const events = useEventsStore(s => s.events)
   const loading = useEventsStore(s => s.loading)
+  const loadingMore = useEventsStore(s => s.loadingMore)
+  const hasMore = useEventsStore(s => s.hasMore)
+  const totalCount = useEventsStore(s => s.totalCount)
   const error = useEventsStore(s => s.error)
   const fetchEvents = useEventsStore(s => s.fetchEvents)
+  const loadMore = useEventsStore(s => s.loadMore)
   const setRoleFilter = useEventsStore(s => s.setRoleFilter)
   const setShowAll = useEventsStore(s => s.setShowAll)
   const showAll = useEventsStore(s => s.roleFilter.showAll)
+  const filters = useEventsStore(s => s.filters)
+  const setFilter = useEventsStore(s => s.setFilter)
   const profile = useAuthStore(s => s.profile)
   const user = useAuthStore(s => s.user)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const ruolo = useAuthStore(s => s.profile?.ruolo)
+  const fetchEventSemaphores = useActivitiesStore(s => s.fetchEventSemaphores)
+  const fetchBatchActivityStatus = useActivitiesStore(s => s.fetchBatchActivityStatus)
+  const fetchBatchMaterialStatus = useMaterialsStore(s => s.fetchBatchMaterialStatus)
+  const fetchBatchLogisticsStatus = useLogisticsStore(s => s.fetchBatchLogisticsStatus)
+  const fetchBatchCostsStatus = useCostsStore(s => s.fetchBatchCostsStatus)
   const { exporting, handleExport } = useExportHandler()
+  const [searchParams] = useSearchParams()
+
+  // Semaphore + readiness state for "richiede attenzione" section
+  const [semaphores, setSemaphores] = useState({})
+  const [readinessMap, setReadinessMap] = useState({})
+  const [attentionExpanded, setAttentionExpanded] = useState(false)
+  const [filterPromotore, setFilterPromotore] = useState('')
 
   useEffect(() => {
     if (!user || !profile) return
-    // Clear stale filters (e.g. mese from calendar), then setRoleFilter triggers the single fetch
-    useEventsStore.setState({ filters: { search: '', stato: '', tipo: '', mese: null } })
+    const searchFromUrl = searchParams.get('search') || ''
+    useEventsStore.setState({ filters: { search: searchFromUrl, stato: '', tipo: '', mese: null }, page: 0, events: [], hasMore: true })
     setRoleFilter(user.id, ruolo)
   }, [user?.id, profile?.id])
+
+  // Scroll to top when filters change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [filters.search, filters.stato, filters.tipo, filters.mese])
+
+  // Fetch semaphores + readiness data for events in preparation states
+  useEffect(() => {
+    if (!events.length) return
+    const prepEvents = events
+      .filter(e => ['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(e.stato))
+      .map(e => e.id)
+    if (!prepEvents.length) return
+    // Semaphores (for attention section)
+    fetchEventSemaphores(prepEvents).then(result => {
+      if (result && typeof result === 'object') setSemaphores(result)
+    })
+    // Readiness data (for readiness strip on cards)
+    Promise.all([
+      fetchBatchActivityStatus(prepEvents),
+      fetchBatchMaterialStatus(prepEvents),
+      fetchBatchLogisticsStatus(prepEvents),
+      fetchBatchCostsStatus(prepEvents),
+    ]).then(([activityData, materialData, logisticsData, costsData]) => {
+      const map = {}
+      for (const eid of prepEvents) {
+        map[eid] = {
+          attivita: activityData[eid] || null,
+          materiale: materialData[eid] || null,
+          logistica: logisticsData[eid] || null,
+          costi: costsData[eid] || null,
+        }
+      }
+      setReadinessMap(map)
+    })
+  }, [events])
 
   // Stats
   const today = todayISO()
@@ -73,6 +133,32 @@ export function EventiList() {
     return { upcoming: upcoming.length, proposti: proposti.length, inPrep: inPrep.length, past: past.length, total: events.length }
   }, [events, today])
 
+  // Extended client-side search (titolo + luogo + promotore)
+  const searchFiltered = useMemo(() => {
+    if (!filters.search) return events
+    const s = filters.search.toLowerCase()
+    return events.filter(e =>
+      e.titolo?.toLowerCase().includes(s) ||
+      e.luogo?.toLowerCase().includes(s) ||
+      e.promotore?.nome?.toLowerCase().includes(s) ||
+      e.promotore?.cognome?.toLowerCase().includes(s)
+    )
+  }, [events, filters.search])
+
+  // Promotore filter (client-side)
+  const promotori = useMemo(() => {
+    const map = new Map()
+    for (const e of events) {
+      if (e.promotore) map.set(e.promotore.id, e.promotore)
+    }
+    return [...map.values()].sort((a, b) => a.cognome.localeCompare(b.cognome))
+  }, [events])
+
+  const filteredEvents = useMemo(() => {
+    if (!filterPromotore) return searchFiltered
+    return searchFiltered.filter(e => e.promotore?.id === filterPromotore)
+  }, [searchFiltered, filterPromotore])
+
   // View mode: '3months' (default), 'all', 'past'
   const [viewMode, setViewMode] = useState('3months')
   const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
@@ -83,11 +169,19 @@ export function EventiList() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   }, [])
 
-  const pastEvents = useMemo(() => events.filter(e => e.data_inizio < today), [events, today])
-  const futureEvents = useMemo(() => events.filter(e => e.data_inizio >= today), [events, today])
+  const futureEvents = useMemo(() => filteredEvents.filter(e => e.data_inizio >= today), [filteredEvents, today])
+
+  // Period counts for labels
+  const threeMonthCount = useMemo(() => {
+    return futureEvents.filter(e => {
+      const d = new Date(e.data_inizio)
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      return k >= currentMonthKey && k <= threeMonthsLater
+    }).length
+  }, [futureEvents, currentMonthKey, threeMonthsLater])
 
   const monthGroups = useMemo(() => {
-    if (viewMode === 'past') return groupByMonth(events)
+    if (viewMode === 'past') return groupByMonth(filteredEvents)
     if (viewMode === 'all') return groupByMonth(futureEvents)
     // Default: future events within 3 months
     const threeMonthEvents = futureEvents.filter(e => {
@@ -96,20 +190,43 @@ export function EventiList() {
       return k <= threeMonthsLater
     })
     return groupByMonth(threeMonthEvents)
-  }, [events, futureEvents, viewMode, threeMonthsLater])
+  }, [filteredEvents, futureEvents, viewMode, threeMonthsLater])
 
-  const hiddenFutureCount = useMemo(() => {
-    if (viewMode !== '3months') return 0
-    return futureEvents.filter(e => {
-      const d = new Date(e.data_inizio)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      return key > threeMonthsLater
-    }).length
-  }, [futureEvents, viewMode, threeMonthsLater])
+  // "Richiede attenzione" events
+  const attentionEvents = useMemo(() => {
+    const result = []
+    // Events needing approval
+    for (const e of filteredEvents) {
+      if (e.stato === 'proposto') {
+        result.push({ ...e, _attentionReason: 'approval' })
+      }
+    }
+    // Events with red semaphore (overdue activities)
+    for (const e of filteredEvents) {
+      if (semaphores[e.id] === 'red' && e.stato !== 'proposto') {
+        result.push({ ...e, _attentionReason: 'overdue' })
+      }
+    }
+    return result
+  }, [filteredEvents, semaphores])
+
+  const visibleAttentionEvents = useMemo(() => {
+    if (attentionExpanded) return attentionEvents
+    return attentionEvents.slice(0, MAX_ATTENTION_VISIBLE)
+  }, [attentionEvents, attentionExpanded])
+
+  // Clickable stat handler
+  const handleStatClick = useCallback((stato) => {
+    if (filters.stato === stato) {
+      setFilter('stato', '')
+    } else {
+      setFilter('stato', stato)
+    }
+  }, [filters.stato, setFilter])
 
   return (
     <div>
-      <div className="px-4 md:px-8 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[{ label: 'Eventi' }]} />
       </div>
       <PageHeader
@@ -122,7 +239,7 @@ export function EventiList() {
                 {showAll ? 'I miei eventi' : 'Tutti gli eventi'}
               </Button>
             )}
-            <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: events, filename: 'eventi', sheetName: 'Eventi' })} loading={exporting} />
+            <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: filteredEvents, filename: 'eventi', sheetName: 'Eventi' })} loading={exporting} />
             <Link to="/eventi/calendario">
               <Button variant="secondary">
                 <Icon icon={NAV_ICONS.calendario} size={18} className="mr-1" />
@@ -139,13 +256,13 @@ export function EventiList() {
         }
       />
 
-      {/* Period selector */}
+      {/* Period selector — compact on mobile */}
       {!loading && events.length > 0 && (
-        <div className="px-4 md:px-8 flex gap-2">
+        <div className="px-4 md:px-6 flex flex-wrap gap-2">
           {[
-            { id: '3months', label: `Prossimi 3 mesi (${futureEvents.filter(e => { const d = new Date(e.data_inizio); const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; return k >= currentMonthKey && k <= threeMonthsLater }).length})` },
-            { id: 'all', label: `Tutti i futuri (${futureEvents.length})` },
-            { id: 'past', label: `Tutto (${events.length})` },
+            { id: '3months', mobileLabel: '3 mesi', fullLabel: `Prossimi 3 mesi (${threeMonthCount})` },
+            { id: 'all', mobileLabel: 'Futuri', fullLabel: `Tutti i futuri (${futureEvents.length})` },
+            { id: 'past', mobileLabel: 'Tutti', fullLabel: `Tutto (${filteredEvents.length})` },
           ].map(opt => (
             <button
               key={opt.id}
@@ -156,33 +273,50 @@ export function EventiList() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {opt.label}
+              <span className="md:hidden">{opt.mobileLabel}</span>
+              <span className="hidden md:inline">{opt.fullLabel}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Stats bar */}
+      {/* Stats bar — clickable filters */}
       {!loading && events.length > 0 && (
-        <div className="px-4 md:px-8">
-          <div className={SUMMARY_BAR_STYLE + ' flex flex-wrap gap-x-6 gap-y-1 text-sm'}>
+        <div className="px-4 md:px-6">
+          <div className={SUMMARY_BAR_STYLE + ' flex flex-wrap gap-x-2 gap-y-1 text-sm'}>
             {stats.proposti > 0 && (
-              <span className="flex items-center gap-1.5 text-yellow-700">
+              <button
+                onClick={() => handleStatClick('proposto')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg min-h-[48px] transition-colors ${
+                  filters.stato === 'proposto'
+                    ? 'bg-yellow-200 ring-2 ring-yellow-400 text-yellow-800'
+                    : 'text-yellow-700 hover:bg-yellow-50'
+                }`}
+                aria-label="Filtra eventi da approvare"
+              >
                 <Icon icon={FEEDBACK_ICONS.warning} size={14} />
                 <strong>{stats.proposti}</strong> da approvare
-              </span>
+              </button>
             )}
             {stats.inPrep > 0 && (
-              <span className="flex items-center gap-1.5 text-mikai-700">
+              <button
+                onClick={() => handleStatClick('in_preparazione')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg min-h-[48px] transition-colors ${
+                  filters.stato === 'in_preparazione'
+                    ? 'bg-mikai-100 ring-2 ring-mikai-400 text-mikai-800'
+                    : 'text-mikai-700 hover:bg-mikai-50'
+                }`}
+                aria-label="Filtra eventi in preparazione"
+              >
                 <Icon icon={ACTION_ICONS.forward} size={14} />
                 <strong>{stats.inPrep}</strong> in preparazione
-              </span>
+              </button>
             )}
-            <span className="text-mikai-600">
-              <strong>{stats.upcoming}</strong> in programma
+            <span className="flex items-center px-3 py-1.5 text-mikai-600">
+              <strong>{stats.upcoming}</strong>&nbsp;in programma
             </span>
-            <span className="text-mikai-500">
-              <strong>{stats.past}</strong> passati
+            <span className="flex items-center px-3 py-1.5 text-mikai-500">
+              <strong>{stats.past}</strong>&nbsp;passati
             </span>
           </div>
         </div>
@@ -190,12 +324,76 @@ export function EventiList() {
 
       <EventFilters />
 
-      <div className="px-4 md:px-8 py-4">
+      {/* Promotore filter */}
+      {!loading && promotori.length > 1 && (
+        <div className="px-4 md:px-6 pb-2">
+          <select
+            value={filterPromotore}
+            onChange={e => setFilterPromotore(e.target.value)}
+            className={SELECT_STYLE + ' sm:max-w-[240px]'}
+            aria-label="Filtra per promotore"
+          >
+            <option value="">Tutti i promotori</option>
+            {promotori.map(p => (
+              <option key={p.id} value={p.id}>{p.cognome} {p.nome}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Risultati + chip filtri attivi */}
+      {!loading && (
+        <div className="px-4 md:px-6 pb-2 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-500">
+            {filteredEvents.length === 0
+              ? 'Nessun evento trovato'
+              : totalCount > events.length
+                ? `Mostrati ${filteredEvents.length} di ${totalCount} eventi`
+                : `${filteredEvents.length} ${filteredEvents.length === 1 ? 'evento trovato' : 'eventi trovati'}`
+            }
+          </span>
+          {filters.stato && (
+            <button
+              onClick={() => setFilter('stato', '')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              aria-label={`Rimuovi filtro stato: ${STATO_EVENTO[filters.stato]}`}
+            >
+              Stato: {STATO_EVENTO[filters.stato]}
+              <Icon name="close" size={14} />
+            </button>
+          )}
+          {filters.tipo && (
+            <button
+              onClick={() => setFilter('tipo', '')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              aria-label={`Rimuovi filtro tipo: ${TIPO_EVENTO[filters.tipo]}`}
+            >
+              Tipo: {TIPO_EVENTO[filters.tipo]}
+              <Icon name="close" size={14} />
+            </button>
+          )}
+          {filterPromotore && (
+            <button
+              onClick={() => setFilterPromotore('')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              aria-label="Rimuovi filtro promotore"
+            >
+              {promotori.find(p => p.id === filterPromotore)
+                ? `${promotori.find(p => p.id === filterPromotore).cognome} ${promotori.find(p => p.id === filterPromotore).nome}`
+                : 'Promotore'
+              }
+              <Icon name="close" size={14} />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="px-4 md:px-6 py-4">
         {loading ? (
           <LoadingSkeleton lines={5} />
         ) : error ? (
           <EmptyState title="Errore nel caricamento" description={error} />
-        ) : events.length === 0 ? (
+        ) : filteredEvents.length === 0 ? (
           <EmptyState
             title="Nessun evento trovato"
             description="Prova a cambiare i filtri o proponi un nuovo evento."
@@ -210,6 +408,46 @@ export function EventiList() {
           />
         ) : (
           <div className="space-y-6">
+            {/* Richiede attenzione section */}
+            {attentionEvents.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-yellow-100 text-yellow-600">
+                    <Icon icon={FEEDBACK_ICONS.warning} size={16} />
+                  </div>
+                  <h2 className="text-base font-semibold text-gray-900">Richiede attenzione</h2>
+                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">
+                    {attentionEvents.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {visibleAttentionEvents.map(event => (
+                    <div
+                      key={`attention-${event.id}-${event._attentionReason}`}
+                      className={`relative rounded-xl overflow-hidden ring-2 ${
+                        event._attentionReason === 'overdue' ? 'ring-red-300' : 'ring-yellow-300'
+                      }`}
+                    >
+                      <EventCard event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} />
+                    </div>
+                  ))}
+                </div>
+                {attentionEvents.length > MAX_ATTENTION_VISIBLE && (
+                  <button
+                    onClick={() => setAttentionExpanded(!attentionExpanded)}
+                    className="mt-2 text-sm text-mikai-500 hover:text-mikai-700 font-medium min-h-[48px] flex items-center gap-1"
+                  >
+                    {attentionExpanded
+                      ? 'Mostra meno'
+                      : `Mostra tutti (${attentionEvents.length})`
+                    }
+                    <Icon icon={attentionExpanded ? ACTION_ICONS.chevronUp : ACTION_ICONS.chevronDown} size={14} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Month-grouped events */}
             {monthGroups.map(group => {
               const isCurrentMonth = group.key === currentMonthKey
               return (
@@ -225,12 +463,21 @@ export function EventiList() {
                   </div>
                   <div className="space-y-3">
                     {group.events.map(event => (
-                      <EventCard key={event.id} event={event} />
+                      <EventCard key={event.id} event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} />
                     ))}
                   </div>
                 </div>
               )
             })}
+
+            {/* Carica altri */}
+            {hasMore && (
+              <div className="flex justify-center pt-2">
+                <Button variant="secondary" onClick={loadMore} loading={loadingMore}>
+                  Carica altri
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

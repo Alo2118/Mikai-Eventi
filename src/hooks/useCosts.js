@@ -79,6 +79,23 @@ export const useCostsStore = create((set, get) => ({
     return { error: error?.message || null }
   },
 
+  // Batch: fetch costs status for multiple events in ONE query
+  fetchBatchCostsStatus: async (eventIds) => {
+    if (!eventIds?.length) return {}
+    const { data, error } = await supabase
+      .from('event_preventivi')
+      .select('event_id, stato')
+      .in('event_id', eventIds)
+    if (error || !data) return {}
+    const map = {}
+    for (const row of data) {
+      if (!map[row.event_id]) map[row.event_id] = { total: 0, approvato: 0, in_attesa: 0, rifiutato: 0, in_revisione: 0 }
+      map[row.event_id].total++
+      if (map[row.event_id][row.stato] !== undefined) map[row.event_id][row.stato]++
+    }
+    return map
+  },
+
   // Cross-event
   fetchPendingPreventivi: async () => {
     const { data, error } = await supabase

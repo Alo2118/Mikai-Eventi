@@ -236,47 +236,53 @@ export function CostiPage() {
   }, [])
 
   return (
-    <div className="space-y-4">
-      <Breadcrumb items={[{ label: 'Costi' }]} />
+    <div>
+      <div className="px-4 md:px-6 pt-4">
+        <Breadcrumb items={[{ label: 'Costi' }]} />
+      </div>
       <PageHeader
         title="Costi"
         subtitle={activeTab === 'approvazioni' ? `${preventivi.length} preventivi da approvare` : 'Analisi costi cross-evento'}
         actions={activeTab === 'approvazioni' ? <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_PREVENTIVI, rows: preventivi, filename: 'preventivi', sheetName: 'Preventivi' })} loading={exporting} /> : null}
       />
 
-      <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <div className="px-4 md:px-6">
+        <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      </div>
 
-      {activeTab === 'approvazioni' && (
-        <>
-          {loading ? <LoadingSkeleton lines={5} /> : preventivi.length === 0 ? (
-            <EmptyState title="Nessun preventivo in attesa" description="Tutti i preventivi sono stati gestiti" />
-          ) : (
-            <div className="space-y-2">
-              {preventivi.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => navigate(`/eventi/${p.evento?.id}`)}
-                  className={'w-full ' + CARD_HOVER_STYLE + ' text-left'}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-base">{p.descrizione}</p>
-                      <p className="text-sm text-gray-500">{p.evento?.titolo} — {p.evento?.data_inizio ? formatDate(p.evento.data_inizio) : ''}</p>
-                      {p.fornitore_nome && <p className="text-sm text-gray-400">{p.fornitore_nome}</p>}
+      <div className="px-4 md:px-6 py-4 space-y-4">
+        {activeTab === 'approvazioni' && (
+          <>
+            {loading ? <LoadingSkeleton lines={5} /> : preventivi.length === 0 ? (
+              <EmptyState title="Nessun preventivo in attesa" description="Tutti i preventivi sono stati gestiti" />
+            ) : (
+              <div className="space-y-3">
+                {preventivi.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => navigate(`/eventi/${p.evento?.id}`)}
+                    className={'w-full ' + CARD_HOVER_STYLE + ' text-left'}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-base">{p.descrizione}</p>
+                        <p className="text-sm text-gray-500">{p.evento?.titolo} — {p.evento?.data_inizio ? formatDate(p.evento.data_inizio) : ''}</p>
+                        {p.fornitore_nome && <p className="text-sm text-gray-400">{p.fornitore_nome}</p>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {p.importo != null && <span className="font-semibold">{formatCurrency(p.importo)}</span>}
+                        <StatusBadge stato={p.stato} labels={STATO_PREVENTIVO} colors={STATO_PREVENTIVO_COLORE} />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {p.importo != null && <span className="font-semibold">{formatCurrency(p.importo)}</span>}
-                      <StatusBadge stato={p.stato} labels={STATO_PREVENTIVO} colors={STATO_PREVENTIVO_COLORE} />
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-      {activeTab === 'analisi' && <AnalisiCostiSection />}
+        {activeTab === 'analisi' && <AnalisiCostiSection />}
+      </div>
     </div>
   )
 }

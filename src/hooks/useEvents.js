@@ -1,10 +1,19 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
-export const useEventsStore = create((set, get) => ({
+const EVENTS_PAGE_SIZE = 25
+
+export const useEventsStore = create((set, get) => {
+  let filterDebounceTimer = null
+  return {
   events: [],
   loading: false,
+  loadingMore: false,
   error: null,
+  page: 0,
+  pageSize: EVENTS_PAGE_SIZE,
+  hasMore: true,
+  totalCount: 0,
   filters: {
     search: '',
     stato: '',
@@ -13,32 +22,38 @@ export const useEventsStore = create((set, get) => ({
   },
 
   setFilter: (key, value) => {
-    set((s) => ({ filters: { ...s.filters, [key]: value } }))
-    get().fetchEvents()
+    set((s) => ({ filters: { ...s.filters, [key]: value }, page: 0, events: [], hasMore: true }))
+    clearTimeout(filterDebounceTimer)
+    filterDebounceTimer = setTimeout(() => get().fetchEvents(), 300)
   },
 
   resetFilters: () => {
-    set({ filters: { search: '', stato: '', tipo: '', mese: null } })
+    set({ filters: { search: '', stato: '', tipo: '', mese: null }, page: 0, events: [], hasMore: true })
+    clearTimeout(filterDebounceTimer)
     get().fetchEvents()
   },
 
   roleFilter: { userId: null, ruolo: null, showAll: false },
 
   setRoleFilter: (userId, ruolo) => {
-    set((s) => ({ roleFilter: { ...s.roleFilter, userId, ruolo } }))
+    set((s) => ({ roleFilter: { ...s.roleFilter, userId, ruolo }, page: 0, events: [], hasMore: true }))
     get().fetchEvents()
   },
 
   setShowAll: (showAll) => {
-    set((s) => ({ roleFilter: { ...s.roleFilter, showAll } }))
+    set((s) => ({ roleFilter: { ...s.roleFilter, showAll }, page: 0, events: [], hasMore: true }))
     get().fetchEvents()
   },
 
   fetchEvents: async () => {
+    const { page, pageSize } = get()
+    const from = page * pageSize
+    const to = from + pageSize - 1
+
     set({ loading: true, error: null })
     let query = supabase
       .from('events')
-      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)')
+      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)', { count: 'exact' })
       .order('data_inizio', { ascending: true })
 
     const { search, stato, tipo, mese } = get().filters
@@ -58,8 +73,62 @@ export const useEventsStore = create((set, get) => ({
       query = query.lt('data_inizio', endDate).gte('data_fine', startDate)
     }
 
-    const { data, error } = await query
-    set({ events: data || [], loading: false, error: error?.message || null })
+    query = query.range(from, to)
+
+    const { data, error, count } = await query
+    const rows = data || []
+    set({
+      events: rows,
+      loading: false,
+      error: error?.message || null,
+      totalCount: count ?? 0,
+      hasMore: rows.length === pageSize,
+    })
+  },
+
+  loadMore: async () => {
+    const { loadingMore, hasMore } = get()
+    if (loadingMore || !hasMore) return
+    const { page, pageSize } = get()
+    const nextPage = page + 1
+    const from = nextPage * pageSize
+    const to = from + pageSize - 1
+
+    set({ loadingMore: true })
+    let query = supabase
+      .from('events')
+      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)', { count: 'exact' })
+      .order('data_inizio', { ascending: true })
+
+    const { search, stato, tipo, mese } = get().filters
+    const { userId, ruolo, showAll } = get().roleFilter
+
+    if (!showAll && userId && ruolo === 'commerciale') query = query.eq('promotore_id', userId)
+    if (!showAll && userId && ruolo === 'area_manager') query = query.eq('manager_user_id', userId)
+
+    if (stato) query = query.eq('stato', stato)
+    if (tipo) query = query.eq('tipo_evento', tipo)
+    if (search) query = query.ilike('titolo', `%${search}%`)
+    if (mese) {
+      const startDate = `${mese.year}-${String(mese.month).padStart(2, '0')}-01`
+      const endMonth = mese.month === 12 ? 1 : mese.month + 1
+      const endYear = mese.month === 12 ? mese.year + 1 : mese.year
+      const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`
+      query = query.lt('data_inizio', endDate).gte('data_fine', startDate)
+    }
+
+    query = query.range(from, to)
+
+    const { data, error, count } = await query
+    const rows = data || []
+    set((s) => ({
+      events: [...s.events, ...rows],
+      loadingMore: false,
+      error: error?.message || null,
+      page: nextPage,
+      totalCount: count ?? s.totalCount,
+      hasMore: rows.length === pageSize,
+    }))
   },
 
   fetchEvent: async (id) => {
@@ -150,4 +219,5 @@ export const useEventsStore = create((set, get) => ({
     if (!error) await get().fetchEvents()
     return { data, error: error?.message || null }
   },
-}))
+  }
+})

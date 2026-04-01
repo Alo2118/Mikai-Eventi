@@ -54,6 +54,7 @@ import {
   Upload,
 
   // Status/feedback
+  Briefcase,
   AlertTriangle,
   Inbox,
   CircleDot,
@@ -103,6 +104,7 @@ import {
   ArrowUpNarrowWide,
   ArrowDownWideNarrow,
   ChevronDown,
+  ChevronUp,
   Warehouse,
 
   // Phase 4 — persone e logistica
@@ -161,6 +163,27 @@ import {
   BadgeCheck,
   FileWarning,
   Gavel,
+
+  // Persone tab improvements
+  StickyNote,
+  UtensilsCrossed,
+  Accessibility,
+  ToggleLeft,
+
+  // Nuovi (color/icon maps Phase 7)
+  PackageCheck,
+  PackageMinus,
+  PackageX,
+  FileCheck,
+  FileClock,
+  FileLock,
+  Factory,
+  Store,
+  Stethoscope,
+  UserCog,
+  Layers,
+  FlaskConical,
+  Cpu,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -257,6 +280,7 @@ export const ACTION_ICONS = {
   sortDesc: ArrowDownWideNarrow,
   refresh: RotateCcw,
   chevronDown: ChevronDown,
+  chevronUp: ChevronUp,
 }
 
 // ═══════════════════════════════════════════
@@ -280,6 +304,7 @@ export const MATERIALE_ICONS = {
   warehouse: Warehouse,
   viewList: List,
   viewGrid: LayoutGrid,
+  viewProduct: Layers,
 }
 
 // ═══════════════════════════════════════════
@@ -393,6 +418,10 @@ export const LOGISTICA_PERSONE_ICONS = {
   trasporto: Plane,
   bus: Bus,
   bed: Bed,
+  esigenze_alimentari: UtensilsCrossed,
+  esigenze_accessibilita: Accessibility,
+  note: StickyNote,
+  timeline: ToggleLeft,
 }
 
 // ═══════════════════════════════════════════
@@ -480,6 +509,7 @@ export const DOCUMENTO_ICONS = {
   spreadsheet: FileSpreadsheet,
   print: Printer,
   dossier: FileDown,
+  replace: RotateCcw,
 }
 
 // ═══════════════════════════════════════════
@@ -516,4 +546,68 @@ export const COMPLIANCE_ICONS = {
   segnalato: FileWarning,
   registrato: Clock,
   gavel: Gavel,
+}
+
+// ═══════════════════════════════════════════
+// Stato richiesta materiale
+// ═══════════════════════════════════════════
+export const STATO_MATERIALE_RICHIESTA_ICONS = {
+  richiesto: Clock,
+  approvato: CheckCircle,
+  rifiutato: XCircle,
+}
+
+// ═══════════════════════════════════════════
+// Stato documento
+// ═══════════════════════════════════════════
+export const STATO_DOCUMENTO_ICONS = {
+  caricato: File,
+  da_approvare: FileClock,
+  approvato: FileCheck,
+  rifiutato: FileWarning,
+  in_revisione: FileClock,
+}
+
+// ═══════════════════════════════════════════
+// Stato rientro materiale
+// ═══════════════════════════════════════════
+export const STATO_RIENTRO_ICONS = {
+  integro: PackageCheck,
+  parziale: PackageMinus,
+  danneggiato: PackageX,
+}
+
+// ═══════════════════════════════════════════
+// Tipo brand
+// ═══════════════════════════════════════════
+export const TIPO_BRAND_ICONS = {
+  produttore: Factory,
+  distributore: Store,
+  fornitore: Handshake,
+}
+
+// ═══════════════════════════════════════════
+// Tipo contatto
+// ═══════════════════════════════════════════
+export const TIPO_CONTATTO_ICONS = {
+  medico: Stethoscope,
+  specializzando: GraduationCap,
+  infermiere: HeartPulse,
+  agente: Briefcase,
+  fornitore: Building,
+  tecnico: UserCog,
+  istituzionale: Building2,
+  altro: User,
+}
+
+// ═══════════════════════════════════════════
+// Tipo prodotto
+// ═══════════════════════════════════════════
+export const TIPO_PRODOTTO_ICONS = {
+  demo_kit: Layers,
+  strumentario: FlaskConical,
+  montaggio: Wrench,
+  pezzo_sfuso: Cpu,
+  gadget: Gift,
+  ossa: Bone,
 }

@@ -24,6 +24,18 @@ export const MODALITA_EVENTO = {
   contributo: 'Solo contributo economico',
 }
 
+export const MODALITA_EVENTO_SHORT = {
+  interno: 'Nostro',
+  esterno: 'Esterno',
+  contributo: 'Contributo',
+}
+
+export const MODALITA_COLORE = {
+  interno: 'mikai',
+  esterno: 'gray',
+  contributo: 'yellow',
+}
+
 export const STATO_EVENTO = {
   proposto: 'In attesa di approvazione',
   confermato: 'Approvato',
@@ -113,11 +125,26 @@ export const STATO_MATERIALE_RICHIESTA = {
   rifiutato: 'Rifiutato',
 }
 
+export const STATO_MATERIALE_RICHIESTA_COLORE = {
+  richiesto: 'yellow',
+  approvato: 'green',
+  rifiutato: 'red',
+}
+
 export const STATO_DOCUMENTO = {
-  bozza: 'Bozza',
-  in_revisione: 'In revisione',
+  caricato: 'Caricato',
+  da_approvare: 'Da approvare',
   approvato: 'Approvato',
-  definitivo: 'Definitivo',
+  rifiutato: 'Rifiutato',
+  in_revisione: 'In revisione',
+}
+
+export const STATO_DOCUMENTO_COLORE = {
+  caricato: 'gray',
+  da_approvare: 'yellow',
+  approvato: 'green',
+  rifiutato: 'red',
+  in_revisione: 'blue',
 }
 
 export const STATO_ISCRIZIONE = {
@@ -137,16 +164,32 @@ export const STATO_ISCRIZIONE_COLORE = {
 // Tipo contatto
 export const TIPO_CONTATTO = {
   medico: 'Medico',
+  specializzando: 'Specializzando',
+  infermiere: 'Infermiere',
+  agente: 'Agente',
   fornitore: 'Fornitore',
   tecnico: 'Tecnico',
   istituzionale: 'Istituzionale',
   altro: 'Altro',
 }
 
+export const TIPO_CONTATTO_COLORE = {
+  medico: 'blue',
+  specializzando: 'mikai',
+  infermiere: 'emerald',
+  agente: 'yellow',
+  fornitore: 'orange',
+  tecnico: 'purple',
+  istituzionale: 'gray',
+  altro: 'gray',
+}
+
 // Tipologia per import in blocco — labels familiari, mapping a tipo_contatto + ruolo_medico
 export const TIPOLOGIA_IMPORT = {
   medico:          { label: 'Medico',          tipo_contatto: 'medico',        ruolo_medico: 'medico' },
-  specializzando:  { label: 'Specializzando',  tipo_contatto: 'medico',        ruolo_medico: 'specializzando' },
+  specializzando:  { label: 'Specializzando',  tipo_contatto: 'specializzando', ruolo_medico: 'specializzando' },
+  infermiere:      { label: 'Infermiere',       tipo_contatto: 'infermiere',    ruolo_medico: null },
+  agente:          { label: 'Agente',           tipo_contatto: 'agente',        ruolo_medico: null },
   strumentista:    { label: 'Strumentista',     tipo_contatto: 'tecnico',       ruolo_medico: 'strumentista' },
   fornitore:       { label: 'Fornitore',        tipo_contatto: 'fornitore',     ruolo_medico: null },
   tecnico:         { label: 'Tecnico',          tipo_contatto: 'tecnico',       ruolo_medico: null },
@@ -297,10 +340,22 @@ export const STATO_RIENTRO = {
   danneggiato: 'Danneggiato',
 }
 
+export const STATO_RIENTRO_COLORE = {
+  integro: 'green',
+  parziale: 'yellow',
+  danneggiato: 'red',
+}
+
 export const TIPO_BRAND = {
   produttore: 'Produttore',
   distributore: 'Distributore',
   fornitore: 'Fornitore',
+}
+
+export const TIPO_BRAND_COLORE = {
+  produttore: 'blue',
+  distributore: 'purple',
+  fornitore: 'orange',
 }
 
 // Material list row statuses — keyed by DB enum values (richiesto/approvato/rifiutato)
@@ -326,6 +381,16 @@ export const TIPO_PRODOTTO = {
   montaggio: 'Montaggio',
   pezzo_sfuso: 'Pezzo sfuso',
   gadget: 'Gadget',
+  ossa: 'Ossa',
+}
+
+export const TIPO_PRODOTTO_COLORE = {
+  demo_kit: 'blue',
+  strumentario: 'emerald',
+  montaggio: 'purple',
+  pezzo_sfuso: 'yellow',
+  gadget: 'orange',
+  ossa: 'amber',
 }
 
 // Role permission presets (assigned at user creation)
@@ -540,6 +605,17 @@ export const TIPO_EVENTO_CHART_COLOR = {
   convegno: '#f59e0b',
   cadaver_lab: '#10b981',
   live_surgery: '#ef4444',
+}
+
+// Semantic color → Tailwind pill classes (used in calendar pills, badges)
+export const PILL_COLORS = {
+  yellow: 'bg-yellow-100 text-yellow-900',
+  blue: 'bg-blue-100 text-blue-900',
+  mikai: 'bg-mikai-100 text-mikai-800',
+  green: 'bg-green-100 text-green-900',
+  emerald: 'bg-emerald-100 text-emerald-900',
+  gray: 'bg-gray-100 text-gray-700',
+  red: 'bg-red-100 text-red-900',
 }
 
 // ═══════════════════════════════════════════

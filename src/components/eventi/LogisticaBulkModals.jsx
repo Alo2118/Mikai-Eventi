@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useTavoliStore } from '../../hooks/useTavoli'
+import { useHotelTemplatesStore } from '../../hooks/useHotelTemplates'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { toISO } from '../../lib/date-utils'
 import { Modal } from '../ui/Modal'
 import { MEZZO_TRASPORTO, STATO_PRENOTAZIONE, INPUT_STYLE } from '../../lib/constants'
-import { toLocalDateTime } from '../../lib/date-utils'
 
 // ─── Tavolo Modal ───────────────────────────────────────────────
 export function TavoloModal({ selectedPeople, eventId, tavoli, onDone, onClose }) {
@@ -55,19 +55,40 @@ export function TavoloModal({ selectedPeople, eventId, tavoli, onDone, onClose }
 
 // ─── Hotel Modal ────────────────────────────────────────────────
 export function HotelModal({ selectedPeople, eventId, onDone, onClose }) {
-  const [form, setForm] = useState({ nome_hotel: '', check_in: '', check_out: '', stato: 'da_prenotare', note: '' })
+  const [form, setForm] = useState({ nome_hotel: '', indirizzo_hotel: '', check_in: '', check_out: '', stato: 'da_prenotare', note: '' })
   const [loading, setLoading] = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const createHotel = useLogisticsStore(s => s.createHotel)
   const updateHotel = useLogisticsStore(s => s.updateHotel)
   const hotels = useLogisticsStore(s => s.hotels)
+  const templates = useHotelTemplatesStore(s => s.templates)
+  const fetchTemplates = useHotelTemplatesStore(s => s.fetchTemplates)
+  const createTemplate = useHotelTemplatesStore(s => s.createTemplate)
   const addToast = useToastStore(s => s.add)
 
+  useEffect(() => { fetchTemplates() }, [])
+
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  const handleApplyTemplate = (templateId) => {
+    const tpl = templates.find(t => t.id === templateId)
+    if (tpl) setForm(f => ({ ...f, nome_hotel: tpl.nome_hotel || '', indirizzo_hotel: tpl.indirizzo_hotel || '' }))
+  }
+
+  const handleSaveTemplate = async () => {
+    if (!form.nome_hotel.trim()) return
+    setSavingTemplate(true)
+    const { error } = await createTemplate({ nome_hotel: form.nome_hotel.trim(), indirizzo_hotel: form.indirizzo_hotel.trim() || null })
+    setSavingTemplate(false)
+    if (error) addToast('Errore salvataggio template', 'error')
+    else addToast('Template salvato', 'success')
+  }
 
   const handleAssign = async () => {
     setLoading(true)
     const updates = {
       nome_hotel: form.nome_hotel.trim() || null,
+      indirizzo_hotel: form.indirizzo_hotel.trim() || null,
       check_in: form.check_in || null,
       check_out: form.check_out || null,
       stato: form.stato,
@@ -97,9 +118,22 @@ export function HotelModal({ selectedPeople, eventId, onDone, onClose }) {
   return (
     <Modal open={true} onClose={onClose} size="md" title="Imposta hotel" subtitle={`${selectedPeople.length} persone selezionate`}>
       <div className="space-y-3">
+        {templates.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Usa template</label>
+            <select className={INPUT_STYLE} onChange={e => handleApplyTemplate(e.target.value)} defaultValue="">
+              <option value="">— Seleziona template —</option>
+              {templates.map(t => <option key={t.id} value={t.id}>{t.nome_hotel}{t.indirizzo_hotel ? ` — ${t.indirizzo_hotel}` : ''}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Nome hotel</label>
-          <input className={INPUT_STYLE} value={form.nome_hotel} onChange={e => set('nome_hotel', e.target.value)} placeholder="G Hotel Vicenza, Via Carpaneda 5..." />
+          <input className={INPUT_STYLE} value={form.nome_hotel} onChange={e => set('nome_hotel', e.target.value)} placeholder="G Hotel Vicenza..." />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Indirizzo</label>
+          <input className={INPUT_STYLE} value={form.indirizzo_hotel} onChange={e => set('indirizzo_hotel', e.target.value)} placeholder="Via Roma 1, Monteviale (VI)" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -121,9 +155,16 @@ export function HotelModal({ selectedPeople, eventId, onDone, onClose }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
           <textarea className={INPUT_STYLE + ' min-h-[64px]'} value={form.note} onChange={e => set('note', e.target.value)} placeholder="Es: no hotel per Margherita Valerio" rows={2} />
         </div>
-        <Button onClick={handleAssign} loading={loading}>
-          Assegna a {selectedPeople.length} persone
-        </Button>
+        <div className="flex items-center justify-between gap-3">
+          <Button onClick={handleAssign} loading={loading}>
+            Assegna a {selectedPeople.length} persone
+          </Button>
+          {form.nome_hotel.trim() && (
+            <button onClick={handleSaveTemplate} disabled={savingTemplate} className="text-sm text-mikai-500 hover:text-mikai-700">
+              {savingTemplate ? 'Salvataggio...' : 'Salva come template'}
+            </button>
+          )}
+        </div>
       </div>
     </Modal>
   )

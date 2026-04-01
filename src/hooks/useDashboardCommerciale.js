@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { toISO } from '../lib/date-utils'
+import { toISO, todayISO } from '../lib/date-utils'
 
 export const useDashboardCommercialeStore = create((set, get) => ({
   myEvents: [],
   myActivities: [],
+  participantStats: null,
   zoneSummary: null,
   recentContacts: [],
   loading: false,
@@ -18,7 +19,19 @@ export const useDashboardCommercialeStore = create((set, get) => ({
       get().fetchZoneSummary(userId, isManager, profile),
       get().fetchRecentContacts(userId),
     ])
-    set({ myEvents: events, myActivities: activities, zoneSummary: zone, recentContacts: contacts, loading: false })
+    // Fetch participant stats after events are loaded (needs event IDs)
+    const upcomingEventIds = events
+      .filter(e => e.data_inizio >= todayISO())
+      .map(e => e.id)
+    const participantStats = await get().fetchParticipantStats(upcomingEventIds)
+    set({
+      myEvents: events,
+      myActivities: activities,
+      participantStats,
+      zoneSummary: zone,
+      recentContacts: contacts,
+      loading: false,
+    })
   },
 
   fetchMyEvents: async (userId, isManager) => {
@@ -42,6 +55,20 @@ export const useDashboardCommercialeStore = create((set, get) => ({
       .order('deadline', { ascending: true, nullsFirst: false })
       .limit(10)
     return data || []
+  },
+
+  fetchParticipantStats: async (eventIds) => {
+    if (!eventIds || eventIds.length === 0) return null
+    const { data } = await supabase
+      .from('event_participants')
+      .select('stato_iscrizione')
+      .in('event_id', eventIds)
+    if (!data || data.length === 0) return null
+    const total = data.length
+    const confermati = data.filter(p =>
+      p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente'
+    ).length
+    return { total, confermati, percentuale: Math.round((confermati / total) * 100) }
   },
 
   fetchZoneSummary: async (userId, isManager, profile) => {

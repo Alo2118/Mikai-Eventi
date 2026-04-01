@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { formatDateRange, formatDate } from '../../lib/date-utils'
 import { EventStatusFlow } from './EventStatusFlow'
 import { EventApprovalBar } from './EventApprovalBar'
@@ -43,10 +43,16 @@ export function EventInfoTab({ event, onUpdate }) {
   const handleStartEdit = () => {
     setFields({
       titolo: event.titolo || '',
+      tipo_evento: event.tipo_evento || '',
+      modalita: event.modalita || '',
       luogo: event.luogo || '',
       sede_dettaglio: event.sede_dettaglio || '',
       data_inizio: event.data_inizio || '',
+      ora_inizio: event.ora_inizio || '',
       data_fine: event.data_fine || '',
+      desk_richiesto: event.desk_richiesto ?? false,
+      n_postazioni: event.n_postazioni ?? '',
+      certificato_previsto: event.certificato_previsto ?? false,
       budget_previsto: event.budget_previsto ?? '',
       indirizzo_spedizione: event.indirizzo_spedizione || '',
       note: event.note || '',
@@ -63,6 +69,8 @@ export function EventInfoTab({ event, onUpdate }) {
     const payload = {
       ...fields,
       budget_previsto: fields.budget_previsto !== '' ? Number(fields.budget_previsto) : null,
+      n_postazioni: fields.desk_richiesto && fields.n_postazioni !== '' ? Number(fields.n_postazioni) : null,
+      ora_inizio: fields.ora_inizio || null,
       data_fine: fields.data_fine || fields.data_inizio,
       deadline_preparazione: fields.deadline_preparazione || null,
       deadline_partecipanti: fields.deadline_partecipanti || null,
@@ -102,6 +110,24 @@ export function EventInfoTab({ event, onUpdate }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Titolo <span className="text-red-500">*</span></label>
             <input className={INPUT_STYLE} value={fields.titolo} onChange={set('titolo')} />
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo evento <span className="text-red-500">*</span></label>
+              <select className={SELECT_STYLE} value={fields.tipo_evento} onChange={set('tipo_evento')}>
+                {Object.entries(TIPO_EVENTO).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Modalità <span className="text-red-500">*</span></label>
+              <select className={SELECT_STYLE} value={fields.modalita} onChange={set('modalita')}>
+                {Object.entries(MODALITA_EVENTO).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Luogo</label>
             <input className={INPUT_STYLE} value={fields.luogo} onChange={set('luogo')} />
@@ -110,14 +136,46 @@ export function EventInfoTab({ event, onUpdate }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Dettaglio sede</label>
             <input className={INPUT_STYLE} value={fields.sede_dettaglio} onChange={set('sede_dettaglio')} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio <span className="text-red-500">*</span></label>
               <input type="date" className={INPUT_STYLE} value={fields.data_inizio} onChange={set('data_inizio')} />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio</label>
+              <input type="time" className={INPUT_STYLE} value={fields.ora_inizio} onChange={set('ora_inizio')} />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data fine</label>
               <input type="date" className={INPUT_STYLE} value={fields.data_fine} min={fields.data_inizio} onChange={set('data_fine')} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3 min-h-[48px]">
+              <input
+                type="checkbox"
+                id="desk_richiesto"
+                className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
+                checked={fields.desk_richiesto}
+                onChange={e => setFields(f => ({ ...f, desk_richiesto: e.target.checked }))}
+              />
+              <label htmlFor="desk_richiesto" className="text-sm font-medium text-gray-700">Desk richiesto</label>
+            </div>
+            {fields.desk_richiesto && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">N. postazioni</label>
+                <input type="number" min="1" className={INPUT_STYLE} value={fields.n_postazioni} onChange={set('n_postazioni')} />
+              </div>
+            )}
+            <div className="flex items-center gap-3 min-h-[48px]">
+              <input
+                type="checkbox"
+                id="certificato_previsto"
+                className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
+                checked={fields.certificato_previsto}
+                onChange={e => setFields(f => ({ ...f, certificato_previsto: e.target.checked }))}
+              />
+              <label htmlFor="certificato_previsto" className="text-sm font-medium text-gray-700">Certificato previsto</label>
             </div>
           </div>
           <div>
@@ -163,6 +221,7 @@ export function EventInfoTab({ event, onUpdate }) {
           <InfoRow label="Tipo evento" icon={TIPO_EVENTO_ICONS[event.tipo_evento]} value={TIPO_EVENTO[event.tipo_evento]} />
           <InfoRow label="Modalità" icon={MODALITA_ICONS[event.modalita]} value={MODALITA_EVENTO[event.modalita]} />
           <InfoRow label="Date" icon={NAV_ICONS.eventi} value={formatDateRange(event.data_inizio, event.data_fine)} />
+          <InfoRow label="Ora inizio" icon={NAV_ICONS.eventi} value={event.ora_inizio ? event.ora_inizio.substring(0, 5) : null} />
           <InfoRow label="Luogo" icon={INFO_EVENTO_ICONS.luogo} value={event.luogo} />
           <InfoRow label="Dettaglio sede" icon={INFO_EVENTO_ICONS.sede} value={event.sede_dettaglio} />
           <InfoRow

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useActivitiesStore } from '../../hooks/useActivities'
 import { useAnalyticsStore } from '../../hooks/useAnalytics'
@@ -24,14 +24,14 @@ import { ACTION_ICONS } from '../../lib/icons'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
-import { formatDate, formatDateRange, todayISO } from '../../lib/date-utils'
+import { formatDate, formatDateRange, todayISO, formatDayISO } from '../../lib/date-utils'
 import { formatCurrency, formatPercentage } from '../../lib/format-utils'
 
 function defaultTimeRange() {
   const now = new Date()
   const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
   const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
-  return { type: 'trimestre', start: qStart.toISOString().slice(0, 10), end: qEnd.toISOString().slice(0, 10) }
+  return { type: 'trimestre', start: formatDayISO(qStart), end: formatDayISO(qEnd) }
 }
 
 function SemaphoreIcon({ status }) {
@@ -95,6 +95,7 @@ export function DashboardStrategica() {
   const permissions = useAuthStore(s => s.permissions)
   const addToast = useToastStore(s => s.add)
 
+  const navigate = useNavigate()
   const [approvingId, setApprovingId] = useState(null)
   const [approving, setApproving] = useState(false)
   const [rejectingId, setRejectingId] = useState(null)
@@ -185,7 +186,7 @@ export function DashboardStrategica() {
 
   return (
     <div>
-      <div className="px-4 md:px-8 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[{ label: 'Dashboard Direzione' }]} />
       </div>
       <div className="md:hidden">
@@ -202,7 +203,7 @@ export function DashboardStrategica() {
         }
       />
 
-      <div className="px-4 md:px-8 space-y-8 pb-8">
+      <div className="px-4 md:px-6 space-y-8 pb-8">
         {loading && !events.length ? (
           <LoadingSkeleton lines={6} />
         ) : (
@@ -213,16 +214,30 @@ export function DashboardStrategica() {
                 <p className="text-sm text-gray-500">Eventi attivi</p>
                 <p className="text-2xl md:text-3xl font-bold text-gray-900">{attivi}</p>
               </div>
-              <div className={CARD_STYLE}>
+              <button
+                onClick={() => navigate('/eventi?stato=proposto')}
+                className={CARD_STYLE + ' cursor-pointer hover:shadow-md transition-shadow text-left w-full'}
+              >
                 <p className="text-sm text-gray-500">In attesa</p>
                 <p className={`text-2xl md:text-3xl font-bold ${proposti.length > 0 ? 'text-yellow-600' : 'text-gray-400'}`}>{proposti.length}</p>
-                {proposti.length > 0 && <p className="text-xs text-yellow-500 mt-1">Da approvare</p>}
-              </div>
-              <div className={CARD_STYLE}>
+                {proposti.length > 0
+                  ? <p className="text-xs text-yellow-500 mt-1">Da approvare</p>
+                  : <p className="text-xs text-gray-400 mt-1">Nessuna</p>
+                }
+                <p className="text-xs text-mikai-500 mt-1">Vedi tutti →</p>
+              </button>
+              <button
+                onClick={() => navigate('/eventi?stato=in_preparazione')}
+                className={CARD_STYLE + ' cursor-pointer hover:shadow-md transition-shadow text-left w-full'}
+              >
                 <p className="text-sm text-gray-500">Con ritardi</p>
                 <p className={`text-2xl md:text-3xl font-bold ${semaphoreOverdue > 0 ? 'text-red-600' : 'text-green-600'}`}>{semaphoreOverdue}</p>
-                {semaphoreOverdue > 0 && <p className="text-xs text-red-500 mt-1">Richiede attenzione</p>}
-              </div>
+                {semaphoreOverdue > 0
+                  ? <p className="text-xs text-red-500 mt-1">Richiede attenzione</p>
+                  : <p className="text-xs text-green-500 mt-1">Tutto in ordine</p>
+                }
+                <p className="text-xs text-mikai-500 mt-1">Vedi tutti →</p>
+              </button>
               <div className={CARD_STYLE}>
                 <p className="text-sm text-gray-500">Budget trimestre</p>
                 <p className="text-2xl md:text-3xl font-bold text-mikai-500">{formatCurrency(quarterBudget)}</p>
@@ -262,7 +277,7 @@ export function DashboardStrategica() {
               ) : (
                 <div className="space-y-3">
                   {filteredProposti.map(event => (
-                    <div key={event.id} className="bg-white rounded-xl border-l-4 border-l-yellow-400 border border-gray-200 p-4">
+                    <div key={event.id} className={CARD_STYLE + ' border-l-4 border-l-yellow-400'}>
                       <div className="flex items-start justify-between gap-3">
                         <Link to={`/eventi/${event.id}`} className="flex-1 min-w-0 hover:underline">
                           <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>

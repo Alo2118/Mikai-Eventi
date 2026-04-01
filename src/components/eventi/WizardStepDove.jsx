@@ -4,15 +4,26 @@ import { FormField } from '../ui/FormField'
 import { VenueAutocomplete } from './VenueAutocomplete'
 import { INPUT_STYLE } from '../../lib/constants'
 
-export function WizardStepDove({ data, onChange }) {
+export function WizardStepDove({ data, onChange, showErrors }) {
   const [touched, setTouched] = useState({})
   const update = (field, value) => onChange({ ...data, [field]: value })
   const touch = (field) => setTouched(t => ({ ...t, [field]: true }))
 
+  // A field shows its error if it has been individually touched OR if the user tried to advance
+  const isTouched = (field) => touched[field] || showErrors
+
+  const dateFineError = (() => {
+    if (!isTouched('data_fine') || !data.data_fine || !data.data_inizio) return null
+    return data.data_fine < data.data_inizio
+      ? 'La data di fine deve essere successiva alla data di inizio'
+      : null
+  })()
+
   const errors = {
-    titolo: touched.titolo && !data.titolo?.trim() ? 'Il titolo è obbligatorio' : null,
-    data_inizio: touched.data_inizio && !data.data_inizio ? 'La data di inizio è obbligatoria' : null,
-    luogo: touched.luogo && !data.luogo?.trim() ? 'Il luogo è obbligatorio' : null,
+    titolo: isTouched('titolo') && !data.titolo?.trim() ? 'Il titolo è obbligatorio' : null,
+    data_inizio: isTouched('data_inizio') && !data.data_inizio ? 'La data di inizio è obbligatoria' : null,
+    data_fine: dateFineError,
+    luogo: isTouched('luogo') && !data.luogo?.trim() ? 'Il luogo è obbligatorio' : null,
   }
 
   const handleVenueSelect = (venue) => {
@@ -52,9 +63,11 @@ export function WizardStepDove({ data, onChange }) {
           <DatePicker
             label="Data fine"
             value={data.data_fine}
-            onChange={(v) => update('data_fine', v)}
+            onChange={(v) => { update('data_fine', v); touch('data_fine') }}
+            onBlur={() => touch('data_fine')}
             min={data.data_inizio}
             hint="Facoltativo"
+            error={errors.data_fine}
           />
         </div>
 

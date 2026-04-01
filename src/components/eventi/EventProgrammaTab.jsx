@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
+import { useActivitiesStore } from '../../hooks/useActivities'
+import { useCostsStore } from '../../hooks/useCosts'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -22,12 +24,15 @@ export function EventProgrammaTab({ event }) {
   const updateSubActivity = useSubActivitiesStore(s => s.updateSubActivity)
   const removeSubActivity = useSubActivitiesStore(s => s.removeSubActivity)
 
+  const instantiateProgramTemplate = useActivitiesStore(s => s.instantiateProgramTemplate)
+  const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
   const addToast = useToastStore(s => s.add)
 
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [deleting, setDeleting] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [applying, setApplying] = useState(false)
 
   useEffect(() => {
     fetchEventSubActivities(event.id)
@@ -62,23 +67,41 @@ export function EventProgrammaTab({ event }) {
     if (error) addToast('Errore', 'error')
   }
 
+  const handleApplyTemplate = async () => {
+    setApplying(true)
+    const { data, error } = await instantiateProgramTemplate(event.id, event.tipo_evento, event.modalita, event.data_inizio)
+    setApplying(false)
+    if (error) { addToast(error, 'warning'); return }
+    addToast(`Programma creato da template (${data.length} voci)`, 'success')
+    fetchEventSubActivities(event.id)
+  }
+
   const handleDelete = async () => {
     const { error } = await removeSubActivity(deleting.id)
     setDeleting(null)
     if (error) { addToast('Errore', 'error'); return }
+    // Refresh preventivi — CASCADE in DB deletes linked quotes
+    fetchEventPreventivi(event.id)
     addToast('Attività rimossa', 'success')
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold text-lg">Programma</h3>
-        {!showForm && (
-          <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
-            <Icon icon={ACTION_ICONS.add} size={16} />
-            <span className="ml-1">Aggiungi</span>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {subActivities.length === 0 && !showForm && (
+            <Button variant="secondary" size="sm" onClick={handleApplyTemplate} loading={applying}>
+              Applica template
+            </Button>
+          )}
+          {!showForm && (
+            <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+              <Icon icon={ACTION_ICONS.add} size={16} />
+              <span className="ml-1">Aggiungi</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {showForm && (

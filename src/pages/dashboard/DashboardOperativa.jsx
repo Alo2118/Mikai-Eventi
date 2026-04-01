@@ -13,14 +13,12 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { CATEGORIA_ATTIVITA, CARD_STYLE, CARD_HOVER_STYLE, SUMMARY_BAR_STYLE } from '../../lib/constants'
 import { CATEGORIA_ICONS, FEEDBACK_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS } from '../../lib/icons'
-import { formatDate, todayISO } from '../../lib/date-utils'
+import { formatDate, todayISO, subtractDays } from '../../lib/date-utils'
 
 function urgencyGroup(activities) {
   const today = todayISO()
-  const d3 = new Date(); d3.setDate(d3.getDate() + 3)
-  const d7 = new Date(); d7.setDate(d7.getDate() + 7)
-  const in3 = d3.toISOString().slice(0, 10)
-  const in7 = d7.toISOString().slice(0, 10)
+  const in3 = subtractDays(today, -3)
+  const in7 = subtractDays(today, -7)
 
   const groups = { overdue: [], today: [], in3days: [], in7days: [], noDeadline: [] }
   for (const act of activities) {
@@ -61,7 +59,7 @@ function ActivityCard({ act, colorClass, iconClass, onComplete, onAssign, comple
         <button
           onClick={(e) => { e.preventDefault(); onComplete(act.id) }}
           disabled={completing === act.id}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors min-h-[36px] md:min-h-[40px]"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors min-h-[48px]"
           aria-label={`Completa attività: ${act.descrizione}`}
         >
           <Icon icon={ACTION_ICONS.check} size={14} />
@@ -70,7 +68,7 @@ function ActivityCard({ act, colorClass, iconClass, onComplete, onAssign, comple
         {!act.assegnato && (
           <button
             onClick={(e) => { e.preventDefault(); onAssign(act.id) }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-mikai-700 bg-mikai-50 hover:bg-mikai-100 rounded-lg transition-colors min-h-[36px] md:min-h-[40px]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-mikai-700 bg-mikai-50 hover:bg-mikai-100 rounded-lg transition-colors min-h-[48px]"
             aria-label={`Assegna a me: ${act.descrizione}`}
           >
             <Icon icon={ACTION_ICONS.add} size={14} />
@@ -188,7 +186,7 @@ export function DashboardOperativa({ warehouseOnly = false }) {
 
   return (
     <div>
-      <div className="px-4 md:px-8 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[{ label: title }]} />
       </div>
       <div className="md:hidden">
@@ -205,26 +203,42 @@ export function DashboardOperativa({ warehouseOnly = false }) {
         }
       />
 
-      <div className="px-4 md:px-8">
+      <div className="px-4 md:px-6">
         {/* KPI Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">Aperte</p>
             <p className="text-2xl md:text-3xl font-bold text-gray-900">{totalOpen}</p>
+            <p className="text-xs text-gray-400 mt-1">—&nbsp;Totale attività</p>
           </div>
           <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">In ritardo</p>
             <p className={`text-2xl md:text-3xl font-bold ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
-            {overdueCount > 0 && <p className="text-xs text-red-500 mt-1">Richiede attenzione</p>}
+            {overdueCount === 0 && (
+              <p className="text-xs text-green-600 mt-1">↓&nbsp;Nessun ritardo</p>
+            )}
+            {overdueCount > 0 && overdueCount <= 5 && (
+              <p className="text-xs text-yellow-600 mt-1">↑&nbsp;Richiede attenzione</p>
+            )}
+            {overdueCount > 5 && (
+              <p className="text-xs text-red-500 mt-1">↑↑&nbsp;Situazione critica</p>
+            )}
           </div>
           <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">Scadono oggi</p>
             <p className={`text-2xl md:text-3xl font-bold ${todayCount > 0 ? 'text-yellow-600' : 'text-gray-400'}`}>{todayCount}</p>
+            {todayCount === 0
+              ? <p className="text-xs text-gray-400 mt-1">—&nbsp;Nessuna oggi</p>
+              : <p className="text-xs text-yellow-600 mt-1">↑&nbsp;Da completare oggi</p>
+            }
           </div>
           <div className={CARD_STYLE}>
             <p className="text-sm text-gray-500">Non assegnate</p>
             <p className={`text-2xl md:text-3xl font-bold ${unassignedCount > 0 ? 'text-red-500' : 'text-green-600'}`}>{unassignedCount}</p>
-            {unassignedCount > 0 && <p className="text-xs text-red-400 mt-1">Da assegnare</p>}
+            {unassignedCount === 0
+              ? <p className="text-xs text-green-600 mt-1">↓&nbsp;Tutte assegnate</p>
+              : <p className="text-xs text-red-400 mt-1">↑&nbsp;Da assegnare</p>
+            }
           </div>
         </div>
 

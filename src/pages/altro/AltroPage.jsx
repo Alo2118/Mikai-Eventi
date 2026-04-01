@@ -2,12 +2,11 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Icon } from '../../components/ui/Icon'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
-import { NAV_ICONS, ADMIN_ICONS, COMPLIANCE_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { CARD_STYLE, CARD_HOVER_STYLE, GROUP_HEADING_STYLE } from '../../lib/constants'
+import { NAV_ICONS, ADMIN_ICONS, COMPLIANCE_ICONS } from '../../lib/icons'
 
 const sections = [
-  { to: '/eventi/nuovo', label: 'Nuovo evento', icon: NAV_ICONS.nuovo },
-  { to: '/eventi/calendario', label: 'Calendario', icon: NAV_ICONS.calendario },
+  { to: '/eventi/calendario', label: 'Calendario eventi', icon: NAV_ICONS.calendario },
   { to: '/materiale', label: 'Magazzino', icon: NAV_ICONS.materiale, permissions: ['gestione_magazzino', 'gestione_spedizioni'] },
   { to: '/logistica', label: 'Logistica', icon: NAV_ICONS.logistica, permissions: ['gestione_spedizioni', 'gestione_magazzino'] },
   { to: '/costi', label: 'Costi', icon: NAV_ICONS.costi, permissions: ['gestione_costi', 'approva_preventivi'] },
@@ -17,10 +16,14 @@ const sections = [
 
 const adminSections = [
   { to: '/admin/utenti', label: 'Utenti', icon: ADMIN_ICONS.utenti, permissions: ['gestione_utenti'] },
+  { to: '/admin/audit', label: 'Audit Trail', icon: COMPLIANCE_ICONS.audit, permissions: ['gestione_utenti'] },
   { to: '/admin/brand', label: 'Brand', icon: ADMIN_ICONS.brand },
+  { to: '/admin/distretti', label: 'Distretti', icon: ADMIN_ICONS.distretti },
   { to: '/admin/prodotti', label: 'Prodotti & Kit', icon: ADMIN_ICONS.prodotti },
   { to: '/admin/materiali', label: 'Materiali', icon: ADMIN_ICONS.materiali },
   { to: '/admin/sedi', label: 'Sedi & Corrieri', icon: ADMIN_ICONS.sedi },
+  { to: '/admin/zone', label: 'Zone', icon: ADMIN_ICONS.zone },
+  { to: '/admin/sotto-attivita', label: 'Sotto-attività', icon: ADMIN_ICONS.sottoattivita },
   { to: '/admin/template', label: 'Template attività', icon: NAV_ICONS.checklist },
 ]
 
@@ -39,8 +42,8 @@ export function AltroPage() {
   const visibleAdmin = showAdmin ? adminSections.filter(canSee) : []
 
   return (
-    <div className="space-y-6 px-4 py-4">
-      <MobileHeader title="Altro" />
+    <div className="space-y-4 px-4 py-4 pb-24">
+      <MobileHeader title="Altro" showBack={false} />
 
       {profile && (
         <div className={CARD_STYLE}>
@@ -49,44 +52,48 @@ export function AltroPage() {
         </div>
       )}
 
-      <div className="space-y-2">
-        {visibleSections.map(item => (
-          <Link
-            key={item.to}
-            to={item.to}
-            className={'flex items-center gap-3 ' + CARD_HOVER_STYLE + ' min-h-[48px]'}
-          >
-            <Icon icon={item.icon} size={20} className="text-gray-500" />
-            <span className="font-medium text-base">{item.label}</span>
-          </Link>
-        ))}
-      </div>
-
-      {visibleAdmin.length > 0 && (
-        <>
-          <h3 className="font-semibold text-lg text-gray-600">Amministrazione</h3>
-          <div className="space-y-2">
-            {visibleAdmin.map(item => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={'flex items-center gap-3 ' + CARD_HOVER_STYLE + ' min-h-[48px]'}
-              >
-                <Icon icon={item.icon} size={20} className="text-gray-500" />
-                <span className="font-medium text-base">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </>
+      {visibleSections.length > 0 && (
+        <div className="space-y-3">
+          <p className={GROUP_HEADING_STYLE}>Sezioni</p>
+          {visibleSections.map(item => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={'flex items-center gap-3 ' + CARD_HOVER_STYLE + ' min-h-[48px]'}
+            >
+              <Icon icon={item.icon} size={20} className="text-mikai-400" />
+              <span className="font-medium text-base">{item.label}</span>
+            </Link>
+          ))}
+        </div>
       )}
 
-      <button
-        onClick={signOut}
-        className={'flex items-center gap-3 w-full ' + CARD_HOVER_STYLE + ' min-h-[48px] text-red-600'}
-      >
-        <Icon icon={ACTION_ICONS.close} size={20} />
-        <span className="font-medium text-base">Esci</span>
-      </button>
+      {visibleAdmin.length > 0 && (
+        <div className="space-y-3">
+          <p className={GROUP_HEADING_STYLE}>Amministrazione</p>
+          {visibleAdmin.map(item => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={'flex items-center gap-3 ' + CARD_HOVER_STYLE + ' min-h-[48px]'}
+            >
+              <Icon icon={item.icon} size={20} className="text-mikai-400" />
+              <span className="font-medium text-base">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <p className={GROUP_HEADING_STYLE}>Account</p>
+        <button
+          onClick={signOut}
+          className={'flex items-center gap-3 w-full ' + CARD_HOVER_STYLE + ' min-h-[48px] text-red-600'}
+        >
+          <Icon icon={NAV_ICONS.logout} size={20} />
+          <span className="font-medium text-base">Esci dall'app</span>
+        </button>
+      </div>
     </div>
   )
 }

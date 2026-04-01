@@ -2,48 +2,103 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { nowISO, todayISO, toISO } from '../lib/date-utils'
 
-export const useMaterialsStore = create((set, get) => ({
+export const useMaterialsStore = create((set, get) => {
+  let filterDebounceTimer = null
+  return {
   materials: [],
+  eventMaterials: [],
   logisticsTimeline: [],
   overdueReturns: [],
   materialAnalytics: null,
   upcomingBookings: [],
+  stockProducts: [],
   loading: false,
+  loadingMore: false,
   timelineLoading: false,
   overdueLoading: false,
   analyticsLoading: false,
+  stockLoading: false,
   error: null,
+  page: 0,
+  pageSize: 30,
+  hasMore: true,
+  totalCount: 0,
   filters: { search: '', tipo: '', posizione: '', brand: '', section: '' },
 
   setFilter: (key, value) => {
-    set((s) => ({ filters: { ...s.filters, [key]: value } }))
-    get().fetchMaterials()
+    set((s) => ({ filters: { ...s.filters, [key]: value }, page: 0, materials: [], hasMore: true }))
+    clearTimeout(filterDebounceTimer)
+    filterDebounceTimer = setTimeout(() => get().fetchMaterials(), 300)
   },
 
   resetFilters: () => {
-    set({ filters: { search: '', tipo: '', posizione: '', brand: '', section: '' } })
+    set({ filters: { search: '', tipo: '', posizione: '', brand: '', section: '' }, page: 0, materials: [], hasMore: true })
+    clearTimeout(filterDebounceTimer)
     get().fetchMaterials()
   },
 
   fetchMaterials: async () => {
+    const { page, pageSize } = get()
+    const from = page * pageSize
+    const to = from + pageSize - 1
+
     set({ loading: true, error: null })
     let query = supabase.from('materials').select(`
       *,
-      product:products(id, nome, codice, brand:brands(id, nome)),
+      product:products(id, nome, codice, foto_url, brand:brands(id, nome)),
       magazzino:magazzini(id, nome),
       agente:users!materials_presso_utente_id_fkey(id, nome, cognome)
-    `).eq('attivo', true).order('nome')
+    `, { count: 'exact' }).eq('attivo', true).order('nome')
 
     const { search, tipo, posizione, brand } = get().filters
     if (search) query = query.ilike('nome', `%${search}%`)
     if (tipo) query = query.eq('tipo', tipo)
     if (posizione) query = query.eq('posizione_attuale', posizione)
 
-    const { data, error } = await query.limit(300)
-    let results = data || []
+    query = query.range(from, to)
+
+    const { data, error, count } = await query
+    let rows = data || []
     // Client-side brand filter (avoids !inner join that would exclude materials without product)
-    if (brand) results = results.filter(m => m.product?.brand?.id === brand)
-    set({ materials: results, loading: false, error: error?.message || null })
+    if (brand) rows = rows.filter(m => m.product?.brand?.id === brand)
+    set({ materials: rows, loading: false, error: error?.message || null, totalCount: count ?? 0, hasMore: (data || []).length === pageSize })
+  },
+
+  loadMore: async () => {
+    const { loadingMore, hasMore } = get()
+    if (loadingMore || !hasMore) return
+    const { page, pageSize } = get()
+    const nextPage = page + 1
+    const from = nextPage * pageSize
+    const to = from + pageSize - 1
+
+    set({ loadingMore: true })
+    let query = supabase.from('materials').select(`
+      *,
+      product:products(id, nome, codice, foto_url, brand:brands(id, nome)),
+      magazzino:magazzini(id, nome),
+      agente:users!materials_presso_utente_id_fkey(id, nome, cognome)
+    `, { count: 'exact' }).eq('attivo', true).order('nome')
+
+    const { search, tipo, posizione, brand } = get().filters
+    if (search) query = query.ilike('nome', `%${search}%`)
+    if (tipo) query = query.eq('tipo', tipo)
+    if (posizione) query = query.eq('posizione_attuale', posizione)
+
+    query = query.range(from, to)
+
+    const { data, error, count } = await query
+    let rows = data || []
+    // Client-side brand filter (avoids !inner join that would exclude materials without product)
+    if (brand) rows = rows.filter(m => m.product?.brand?.id === brand)
+    set((s) => ({
+      materials: [...s.materials, ...rows],
+      loadingMore: false,
+      error: error?.message || null,
+      page: nextPage,
+      totalCount: count ?? s.totalCount,
+      hasMore: (data || []).length === pageSize,
+    }))
   },
 
   fetchMaterial: async (id) => {
@@ -128,7 +183,7 @@ export const useMaterialsStore = create((set, get) => ({
   fetchEventMovements: async (eventId) => {
     const { data, error } = await supabase
       .from('material_movements')
-      .select('*, material:materials(nome, codice_inventario), responsabile:users!material_movements_responsabile_id_fkey(nome, cognome)')
+      .select('*, material:materials(nome, codice_inventario), responsabile:users!material_movements_responsabile_id_fkey(nome, cognome), event:events(titolo)')
       .eq('event_id', eventId)
       .order('data_movimento', { ascending: false })
     return { data: data || [], error: error?.message || null }
@@ -218,6 +273,7 @@ export const useMaterialsStore = create((set, get) => ({
       .select('*, product:products(id, nome, codice, descrizione, foto_url, tipo, quantita_disponibile, soglia_minima, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome)')
       .eq('event_id', eventId)
       .order('data_richiesta', { ascending: true })
+    set({ eventMaterials: data || [] })
     return { data: data || [], error: error?.message || null }
   },
 
@@ -367,6 +423,23 @@ export const useMaterialsStore = create((set, get) => ({
     return { data: data || [], error: error?.message || null }
   },
 
+  // Batch: fetch material status for multiple events in ONE query
+  fetchBatchMaterialStatus: async (eventIds) => {
+    if (!eventIds?.length) return {}
+    const { data, error } = await supabase
+      .from('event_materials')
+      .select('event_id, stato')
+      .in('event_id', eventIds)
+    if (error || !data) return {}
+    const map = {}
+    for (const row of data) {
+      if (!map[row.event_id]) map[row.event_id] = { total: 0, approvato: 0, in_preparazione: 0, richiesto: 0, rifiutato: 0 }
+      map[row.event_id].total++
+      if (map[row.event_id][row.stato] !== undefined) map[row.event_id][row.stato]++
+    }
+    return map
+  },
+
   // Batch: fetch availability for multiple products in ONE query
   fetchBatchAvailability: async (productIds) => {
     if (!productIds?.length) return {}
@@ -387,6 +460,18 @@ export const useMaterialsStore = create((set, get) => ({
       else entry.pressoEvento++
     }
     return map
+  },
+
+  fetchStockProducts: async () => {
+    set({ stockLoading: true })
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, brand:brands(id, nome)')
+      .eq('serializzato', false)
+      .eq('attivo', true)
+      .order('nome')
+    set({ stockProducts: data || [], stockLoading: false })
+    return { data: data || [], error: error?.message || null }
   },
 
   fetchMagazzini: async () => {
@@ -504,7 +589,8 @@ export const useMaterialsStore = create((set, get) => ({
     set({ upcomingBookings: data || [] })
     return data || []
   },
-}))
+  }
+})
 
 function computeMaterialMetrics(usageData, movementsData, fuoriData) {
   // Frequency by material_id (consistent key for all maps)

@@ -16,7 +16,7 @@ function guessDocumentType(mimeType, filename) {
   return 'altro'
 }
 
-export function DocumentUploadModal({ files, onClose, onUpload }) {
+export function DocumentUploadModal({ files, onClose, onUpload, activityId = null, activityLabel = null }) {
   const [fileConfigs, setFileConfigs] = useState(
     files.map(f => ({
       file: f,
@@ -37,7 +37,7 @@ export function DocumentUploadModal({ files, onClose, onUpload }) {
     for (let i = 0; i < fileConfigs.length; i++) {
       setProgress(i + 1)
       const { file, tipo, note } = fileConfigs[i]
-      const { error } = await onUpload(file, tipo, note)
+      const { error } = await onUpload(file, tipo, note, activityId)
       if (error) {
         setUploading(false)
         return
@@ -47,7 +47,9 @@ export function DocumentUploadModal({ files, onClose, onUpload }) {
     onClose()
   }
 
-  const title = single ? 'Carica documento' : `Carica ${files.length} documenti`
+  const title = activityLabel
+    ? `Carica documento per: ${activityLabel}`
+    : single ? 'Carica documento' : `Carica ${files.length} documenti`
 
   return (
     <Modal
@@ -69,6 +71,11 @@ export function DocumentUploadModal({ files, onClose, onUpload }) {
       }
     >
       <div className="space-y-4">
+        {activityId && (
+          <p className="text-sm text-yellow-600 bg-yellow-50 rounded-lg px-3 py-2">
+            Il documento dovrà essere approvato per completare l&apos;attività
+          </p>
+        )}
         {fileConfigs.map((config, idx) => (
           <div key={idx} className={`${files.length > 1 ? 'p-3 bg-gray-50 rounded-lg' : ''}`}>
             <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">

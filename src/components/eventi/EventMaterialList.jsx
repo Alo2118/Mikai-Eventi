@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
+import { useActivitiesStore } from '../../hooks/useActivities'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
+import { BulkActionBar } from '../ui/BulkActionBar'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ACTION_ICONS, MATERIALE_ICONS, NAV_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { SUMMARY_BAR_STYLE, CARD_STYLE, INPUT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { useEventsStore } from '../../hooks/useEvents'
@@ -24,6 +27,9 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const [bulkConfirming, setBulkConfirming] = useState(false)
   const [bulkPrepping, setBulkPrepping] = useState(false)
   const [rejectTarget, setRejectTarget] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [bulkActionLoading, setBulkActionLoading] = useState(false)
+  const [showBulkRejectConfirm, setShowBulkRejectConfirm] = useState(false)
   const [movements, setMovements] = useState([])
   const [availability, setAvailability] = useState({})
   const [packingItems, setPackingItems] = useState([])
@@ -49,13 +55,25 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const rejectMaterialRow = useMaterialsStore(s => s.rejectMaterialRow)
   const restoreGadgetStock = useMaterialsStore(s => s.restoreGadgetStock)
 
+  const instantiateMaterialTemplate = useActivitiesStore(s => s.instantiateMaterialTemplate)
+
   const user = useAuthStore(s => s.user)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const addToast = useToastStore(s => s.add)
+  const [applyingTemplate, setApplyingTemplate] = useState(false)
 
   const closedStates = ['concluso', 'cancellato', 'rifiutato']
   const canEdit = hasPermission('richiedi_materiale') && !closedStates.includes(event.stato)
   const canApprove = hasPermission('approva_materiale')
+
+  const handleApplyTemplate = async () => {
+    setApplyingTemplate(true)
+    const { data, error } = await instantiateMaterialTemplate(event.id, event.tipo_evento, event.modalita, user.id)
+    setApplyingTemplate(false)
+    if (error) { addToast(error, 'warning'); return }
+    addToast(`Materiale caricato da template (${data.length} prodotti)`, 'success')
+    loadData()
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -163,6 +181,59 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     else { addToast('In preparazione', 'success'); loadData() }
   }
 
+  // ── Bulk helpers ──────────────────────────────────────────────
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll(ids) {
+    setSelectedIds(prev => {
+      if (ids.every(id => prev.has(id))) return new Set()
+      return new Set(ids)
+    })
+  }
+
+  async function handleBulkApprove() {
+    setBulkActionLoading(true)
+    const ids = [...selectedIds]
+    const results = await Promise.all(
+      ids.map(id => {
+        const row = rows.find(r => r.id === id)
+        return confirmMaterialRow(id, row?.quantita || 1)
+      })
+    )
+    const errors = results.filter(r => r.error).length
+    setBulkActionLoading(false)
+    setSelectedIds(new Set())
+    if (errors > 0) {
+      addToast(`${ids.length - errors} approvati, ${errors} errori`, 'warning')
+    } else {
+      addToast(`${ids.length} ${ids.length === 1 ? 'approvato' : 'approvati'}`, 'success')
+    }
+    loadData()
+  }
+
+  async function handleBulkReject() {
+    setShowBulkRejectConfirm(false)
+    setBulkActionLoading(true)
+    const ids = [...selectedIds]
+    const results = await Promise.all(ids.map(id => rejectMaterialRow(id, null)))
+    const errors = results.filter(r => r.error).length
+    setBulkActionLoading(false)
+    setSelectedIds(new Set())
+    if (errors > 0) {
+      addToast(`${ids.length - errors} rifiutati, ${errors} errori`, 'warning')
+    } else {
+      addToast(`${ids.length} ${ids.length === 1 ? 'rifiutato' : 'rifiutati'}`, 'success')
+    }
+    loadData()
+  }
+
   if (loading) return <LoadingSkeleton lines={5} />
 
   const pendingCount = rows.filter(r => r.stato === 'richiesto').length
@@ -243,6 +314,11 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
               Packing list
             </Button>
           )}
+          {canEdit && rows.length === 0 && (
+            <Button variant="secondary" size="sm" onClick={handleApplyTemplate} loading={applyingTemplate}>
+              Applica template
+            </Button>
+          )}
           {canEdit && (
             <Button onClick={() => setShowCatalog(!showCatalog)}>
               <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
@@ -310,32 +386,73 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
           description={canEdit ? 'Aggiungi il materiale necessario per questo evento.' : undefined}
         />
       ) : rows.length > 0 ? (
-        <div className="space-y-4">
-          {groups.map(group => (
-            <div key={group.key}>
-              <div className="flex items-center gap-2 mb-2">
-                <Icon icon={group.icon} size={16} className={group.color} />
-                <span className={`text-sm font-semibold ${group.color}`}>{group.label} ({group.rows.length})</span>
-              </div>
-              <div className="space-y-3">
-                {group.rows.map((row) => (
-                  <MaterialListRow
-                    key={row.id}
-                    row={row}
-                    availability={availability[row.product_id]}
-                    canEdit={canEdit}
-                    canApprove={canApprove}
-                    onUpdate={handleUpdate}
-                    onRemove={handleRemove}
-                    onConfirm={handleConfirm}
-                    onReject={(id, name) => setRejectTarget({ id, productName: name })}
-                    onStartPreparation={handleStartPreparation}
-                  />
-                ))}
-              </div>
+        <>
+          {/* Select-all — only for approvers and when pending rows exist */}
+          {canApprove && pendingCount > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer min-h-[48px] px-1 select-none">
+                <input
+                  type="checkbox"
+                  checked={
+                    rows.filter(r => r.stato === 'richiesto').every(r => selectedIds.has(r.id)) &&
+                    rows.some(r => r.stato === 'richiesto')
+                  }
+                  onChange={() => toggleSelectAll(rows.filter(r => r.stato === 'richiesto').map(r => r.id))}
+                  className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
+                  aria-label="Seleziona tutte le righe da confermare"
+                />
+                <span className="text-sm text-gray-600 font-medium">Seleziona da confermare</span>
+              </label>
             </div>
-          ))}
-        </div>
+          )}
+
+          <div className="space-y-4">
+            {groups.map(group => {
+              const isApprovableGroup = group.key === 'richiesto' && canApprove
+              return (
+                <div key={group.key}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon={group.icon} size={16} className={group.color} />
+                    <span className={`text-sm font-semibold ${group.color}`}>{group.label} ({group.rows.length})</span>
+                  </div>
+                  <div className="space-y-3">
+                    {group.rows.map((row) => (
+                      <div key={row.id} className="flex items-start gap-2">
+                        {/* Checkbox — only for pending rows when user can approve */}
+                        <div className="flex items-center justify-center min-h-[48px] min-w-[48px] shrink-0 pt-0.5">
+                          {isApprovableGroup ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(row.id)}
+                              onChange={() => toggleSelect(row.id)}
+                              className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
+                              aria-label={`Seleziona: ${row.product?.nome || 'materiale'}`}
+                            />
+                          ) : (
+                            <span className="w-5 h-5" aria-hidden="true" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <MaterialListRow
+                            row={row}
+                            availability={availability[row.product_id]}
+                            canEdit={canEdit}
+                            canApprove={canApprove}
+                            onUpdate={handleUpdate}
+                            onRemove={handleRemove}
+                            onConfirm={handleConfirm}
+                            onReject={(id, name) => setRejectTarget({ id, productName: name })}
+                            onStartPreparation={handleStartPreparation}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
       ) : null}
 
       <RejectMaterialDialog
@@ -344,6 +461,41 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
         onConfirm={handleReject}
         onCancel={() => setRejectTarget(null)}
       />
+
+      {/* Bulk reject confirm dialog */}
+      <ConfirmDialog
+        open={showBulkRejectConfirm}
+        title="Rifiuta materiali selezionati"
+        message={`Vuoi rifiutare ${selectedIds.size} ${selectedIds.size === 1 ? 'materiale selezionato' : 'materiali selezionati'}?`}
+        confirmLabel="Rifiuta"
+        onConfirm={handleBulkReject}
+        onCancel={() => setShowBulkRejectConfirm(false)}
+        danger
+      />
+
+      {/* Bulk action bar */}
+      {canApprove && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onDeselectAll={() => setSelectedIds(new Set())}
+          actions={[
+            {
+              label: 'Approva',
+              icon: ACTION_ICONS.approve,
+              variant: 'success',
+              loading: bulkActionLoading,
+              onClick: handleBulkApprove,
+            },
+            {
+              label: 'Rifiuta',
+              icon: ACTION_ICONS.reject,
+              variant: 'danger',
+              loading: bulkActionLoading,
+              onClick: () => setShowBulkRejectConfirm(true),
+            },
+          ]}
+        />
+      )}
 
       {/* Shipping section — event level, driven by packing list data */}
       {rows.length > 0 && (

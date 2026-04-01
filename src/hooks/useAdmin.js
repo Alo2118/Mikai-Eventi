@@ -141,12 +141,25 @@ export const useAdminStore = create((set, get) => ({
     return { data: data || [], error: error?.message || null }
   },
 
+  // Fetches specimens for a specific product (serialized units)
+  fetchProductSpecimens: async (productId) => {
+    const { data, error } = await supabase
+      .from('materials')
+      .select('*, magazzino:magazzini(id, nome)')
+      .eq('product_id', productId)
+      .eq('attivo', true)
+      .order('codice_inventario')
+    return { data: data || [], error: error?.message || null }
+  },
+
+  // Accepts numero_serie for serialized products
   createSpecimen: async (specimen) => {
     const { data, error } = await supabase.from('materials').insert(specimen).select().single()
     if (!error) get().fetchSpecimens()
     return { data, error: error?.message || null }
   },
 
+  // Accepts numero_serie for serialized products
   updateSpecimen: async (id, updates) => {
     const { data, error } = await supabase.from('materials').update(updates).eq('id', id).select().single()
     if (!error) get().fetchSpecimens()
@@ -157,6 +170,28 @@ export const useAdminStore = create((set, get) => ({
     const { error } = await supabase.from('materials').delete().eq('id', id)
     if (!error) get().fetchSpecimens()
     return { error: error?.message || null }
+  },
+
+  // Fetches stock levels for quantity-tracked (non-serialized) products
+  fetchProductStock: async (productId) => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('quantita_disponibile, soglia_minima')
+      .eq('id', productId)
+      .single()
+    return { data, error: error?.message || null }
+  },
+
+  // Updates stock levels for quantity-tracked products
+  updateProductStock: async (productId, quantita_disponibile, soglia_minima) => {
+    const { data, error } = await supabase
+      .from('products')
+      .update({ quantita_disponibile, soglia_minima })
+      .eq('id', productId)
+      .select()
+      .single()
+    if (!error) get().fetchProducts()
+    return { data, error: error?.message || null }
   },
 
   // === Venues ===
@@ -303,15 +338,13 @@ export const useAdminStore = create((set, get) => ({
   },
 
   setUserPermissions: async (userId, permissions) => {
-    const { error: delError } = await supabase.from('user_permissions').delete().eq('user_id', userId)
-    if (delError) return { error: delError.message }
-    if (permissions.length > 0) {
-      const { error: insError } = await supabase.from('user_permissions').insert(
-        permissions.map(p => ({ user_id: userId, permission: p }))
-      )
-      if (insError) return { error: insError.message }
-    }
-    return { error: null }
+    // Use SECURITY DEFINER RPC to avoid self-lockout:
+    // separate DELETE+INSERT calls would fail RLS when editing own permissions
+    const { error } = await supabase.rpc('set_user_permissions', {
+      target_user_id: userId,
+      new_permissions: permissions,
+    })
+    return { error: error?.message || null }
   },
 
   createUser: async ({ email, password, nome, cognome, ruolo }) => {

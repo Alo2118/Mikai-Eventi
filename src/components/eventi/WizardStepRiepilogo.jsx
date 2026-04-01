@@ -1,8 +1,16 @@
+import { useState } from 'react'
 import { TIPO_EVENTO, MODALITA_EVENTO, FORM_CONTAINER_STYLE, INPUT_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
 import { formatDateRange } from '../../lib/date-utils'
 import { FormField } from '../ui/FormField'
 
 export function WizardStepRiepilogo({ data, onChange, promotoreNome, managerNome }) {
+  const [touched, setTouched] = useState({})
+  const touch = (field) => setTouched(t => ({ ...t, [field]: true }))
+
+  const budgetError = touched.budget_previsto && data.budget_previsto !== '' && data.budget_previsto !== null && Number(data.budget_previsto) < 0
+    ? 'Il budget non può essere negativo'
+    : null
+
   return (
     <div>
       <h2 className="text-xl font-semibold text-gray-900 mb-2">Riepilogo</h2>
@@ -49,13 +57,13 @@ export function WizardStepRiepilogo({ data, onChange, promotoreNome, managerNome
       </div>
 
       <div className="space-y-4">
-        <FormField label="Budget previsto (€)" hint="Facoltativo">
+        <FormField label="Budget previsto (€)" hint="Facoltativo" error={budgetError}>
           <input
             type="number"
-            min="0"
             step="100"
-            value={data.budget_previsto || ''}
-            onChange={e => onChange({ budget_previsto: e.target.value ? Number(e.target.value) : null })}
+            value={data.budget_previsto ?? ''}
+            onChange={e => onChange({ budget_previsto: e.target.value !== '' ? Number(e.target.value) : null })}
+            onBlur={() => touch('budget_previsto')}
             placeholder="Es. 5000"
             className={INPUT_STYLE}
           />

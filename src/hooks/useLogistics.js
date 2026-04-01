@@ -123,6 +123,27 @@ export const useLogisticsStore = create((set, get) => ({
     return { data, error: error?.message || null }
   },
 
+  // Batch: fetch logistics status for multiple events in ONE query
+  fetchBatchLogisticsStatus: async (eventIds) => {
+    if (!eventIds?.length) return {}
+    const [hotelRes, transportRes] = await Promise.all([
+      supabase.from('event_hotel').select('event_id, stato').in('event_id', eventIds),
+      supabase.from('event_trasporti').select('event_id, stato, direzione').in('event_id', eventIds),
+    ])
+    const map = {}
+    for (const h of (hotelRes.data || [])) {
+      if (!map[h.event_id]) map[h.event_id] = { hotelTotal: 0, hotelConfermato: 0, trasportoTotal: 0, trasportoConfermato: 0 }
+      map[h.event_id].hotelTotal++
+      if (h.stato === 'confermato') map[h.event_id].hotelConfermato++
+    }
+    for (const t of (transportRes.data || [])) {
+      if (!map[t.event_id]) map[t.event_id] = { hotelTotal: 0, hotelConfermato: 0, trasportoTotal: 0, trasportoConfermato: 0 }
+      map[t.event_id].trasportoTotal++
+      if (t.stato === 'confermato') map[t.event_id].trasportoConfermato++
+    }
+    return map
+  },
+
   // Cross-event queries for /logistica page
   fetchAllPendingHotels: async () => {
     const { data, error } = await supabase

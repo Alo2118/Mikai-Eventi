@@ -5,6 +5,7 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { ACTION_ICONS, MATERIALE_ICONS, POSIZIONE_ICONS } from '../../lib/icons'
 import { POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE } from '../../lib/constants'
 import { useMaterialsStore } from '../../hooks/useMaterials'
+import { toDriveImageUrl } from '../../lib/format-utils'
 
 function PositionBadge({ posizione }) {
   const label = POSIZIONE_MATERIALE[posizione] ?? posizione
@@ -134,6 +135,18 @@ export function CatalogProductModal({ product, cartQuantity, onAdd, onClose }) {
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+
+          {/* Product image */}
+          {product.foto_url && (
+            <div className="flex justify-center mb-4">
+              <img
+                src={toDriveImageUrl(product.foto_url)}
+                alt={product.nome}
+                className="max-h-48 object-contain rounded-lg"
+                onError={(e) => { e.target.style.display = 'none' }}
+              />
+            </div>
+          )}
 
           {/* Badges: tipo + codice */}
           <div className="flex flex-wrap gap-2">
