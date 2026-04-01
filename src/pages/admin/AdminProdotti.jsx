@@ -10,7 +10,6 @@ import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Icon } from '../../components/ui/Icon'
 import { ACTION_ICONS, ADMIN_ICONS, POSIZIONE_ICONS } from '../../lib/icons'
 import {
-  TIPO_PRODOTTO,
   POSIZIONE_MATERIALE,
   POSIZIONE_MATERIALE_COLORE,
   INPUT_STYLE,
@@ -18,6 +17,7 @@ import {
   FORM_CONTAINER_STYLE,
   SUMMARY_BAR_STYLE,
 } from '../../lib/constants'
+import { useProductTypes } from '../../hooks/useProductTypes'
 import { toDriveImageUrl } from '../../lib/format-utils'
 
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
@@ -71,6 +71,7 @@ export function AdminProdotti() {
   const fetchProductStock = useAdminStore(s => s.fetchProductStock)
   const updateProductStock = useAdminStore(s => s.updateProductStock)
   const addToast = useToastStore(s => s.add)
+  const { productTypes, labels: tipoLabels } = useProductTypes()
 
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -352,7 +353,7 @@ export function AdminProdotti() {
       </div>
     )},
     { key: 'brand_nome', label: 'Brand', render: (r) => r.brand?.nome || '-' },
-    { key: 'tipo', label: 'Tipo', render: (r) => TIPO_PRODOTTO[r.tipo] || r.tipo },
+    { key: 'tipo', label: 'Tipo', render: (r) => tipoLabels[r.tipo] || r.tipo },
     { key: 'inventario', label: 'Inventario', render: (r) => {
       const serializzato = r.serializzato !== undefined ? r.serializzato : defaultSerializzato(r.tipo)
       if (serializzato) {
@@ -411,7 +412,7 @@ export function AdminProdotti() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
                   <select className={INPUT_STYLE} value={editing.tipo || 'demo_kit'} onChange={e => handleTipoChange(e.target.value)}>
-                    {Object.entries(TIPO_PRODOTTO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {productTypes.filter(pt => pt.attivo).map(pt => <option key={pt.codice} value={pt.codice}>{pt.nome}</option>)}
                   </select>
                 </div>
               </div>

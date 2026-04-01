@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useActivitiesStore } from '../../hooks/useActivities'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useAuthStore } from '../../hooks/useAuth'
+import { useStaffStore } from '../../hooks/useStaff'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -58,6 +59,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const user = useAuthStore(s => s.user)
   const profile = useAuthStore(s => s.profile)
   const hasPermission = useAuthStore(s => s.hasPermission)
+  const eventStaff = useStaffStore(s => s.staff)
   const addToast = useToastStore(s => s.add)
 
   const [viewMode, setViewMode] = useState('kanban') // 'kanban' | 'lista'
@@ -128,7 +130,8 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     if (error) {
       addToast('Impossibile assegnare l\'attività. Riprova.', 'error')
     } else {
-      addToast('Attività assegnata a te.', 'success')
+      const msg = userId === user?.id ? 'Attività assegnata a te.' : 'Attività assegnata.'
+      addToast(msg, 'success')
       fetchEventActivities(event.id)
     }
   }
@@ -415,6 +418,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
         canApproveDoc={canApproveDoc}
         linkedDoc={docByActivity[activity.id] || null}
         currentUserId={user?.id}
+        eventStaff={eventStaff}
       />
     )
   }
@@ -572,6 +576,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
                         canApproveDoc={canApproveDoc}
                         linkedDoc={docByActivity[activity.id] || null}
                         currentUserId={user?.id}
+                        eventStaff={eventStaff}
                       />
                     ))
                   )}

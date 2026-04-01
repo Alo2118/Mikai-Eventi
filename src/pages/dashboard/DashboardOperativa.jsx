@@ -11,7 +11,7 @@ import { Icon } from '../../components/ui/Icon'
 import { useToastStore } from '../../components/ui/Toast'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { CATEGORIA_ATTIVITA, CARD_STYLE, CARD_HOVER_STYLE, SUMMARY_BAR_STYLE } from '../../lib/constants'
+import { CATEGORIA_ATTIVITA, CARD_STYLE, CARD_HOVER_STYLE, SUMMARY_BAR_STYLE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
 import { CATEGORIA_ICONS, FEEDBACK_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS } from '../../lib/icons'
 import { formatDate, todayISO, subtractDays } from '../../lib/date-utils'
 
@@ -42,6 +42,13 @@ function ActivityCard({ act, colorClass, iconClass, onComplete, onAssign, comple
             <p className="text-base font-medium text-gray-900 truncate">{act.descrizione}</p>
             <p className="text-sm text-gray-500 truncate">{act.evento?.titolo}</p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+              {act.permesso_responsabile && (
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                  { purple: 'text-purple-700 bg-purple-100', blue: 'text-blue-700 bg-blue-100', mikai: 'text-mikai-600 bg-mikai-50', emerald: 'text-emerald-700 bg-emerald-100', yellow: 'text-yellow-700 bg-yellow-100', gray: 'text-gray-500 bg-gray-100' }[PERMESSO_BADGE_COLORE[act.permesso_responsabile] || 'gray'] || 'text-gray-500 bg-gray-100'
+                }`}>
+                  {PERMESSO_SHORT_LABELS[act.permesso_responsabile] || act.permesso_responsabile}
+                </span>
+              )}
               {act.deadline && (
                 <span className={`text-xs ${colorClass}`}>Scadenza: {formatDate(act.deadline)}</span>
               )}

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
-import { TIPO_EVENTO_ICONS, STATO_EVENTO_ICONS, MODALITA_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { TIPO_EVENTO_ICONS, STATO_EVENTO_ICONS, MODALITA_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS, ADMIN_ICONS } from '../../lib/icons'
 import { STATO_EVENTO_COLORE, STATO_EVENTO, TIPO_EVENTO, MODALITA_EVENTO_SHORT, MODALITA_COLORE, PILL_COLORS } from '../../lib/constants'
 
 const MODALITA_BORDER = {
@@ -14,7 +14,7 @@ const ATTENTION_DOT = {
   overdue: 'bg-red-500',
 }
 
-export function CalendarEventPill({ event, compact = false, showStatus = false, attention = null }) {
+export function CalendarEventPill({ event, compact = false, showStatus = false, attention = null, indicators = null }) {
   const color = STATO_EVENTO_COLORE[event.stato] || 'gray'
   const TipoIcon = TIPO_EVENTO_ICONS[event.tipo_evento]
   const StatoIcon = STATO_EVENTO_ICONS[event.stato]
@@ -35,6 +35,8 @@ export function CalendarEventPill({ event, compact = false, showStatus = false, 
       >
         {TipoIcon && <Icon icon={TipoIcon} size={12} className="flex-shrink-0" />}
         <span className="truncate">{event.titolo}</span>
+        {indicators?.hasMaterials && <Icon icon={MATERIALE_ICONS.package} size={10} className="flex-shrink-0 opacity-50" />}
+        {indicators?.hasPeople && <Icon icon={ADMIN_ICONS.utenti} size={10} className="flex-shrink-0 opacity-50" />}
         {attention && (
           <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${ATTENTION_DOT[attention]} ring-1 ring-white animate-pulse`} />
         )}
@@ -60,6 +62,17 @@ export function CalendarEventPill({ event, compact = false, showStatus = false, 
           {event.luogo && <span className="truncate">· {event.luogo}</span>}
         </span>
       </div>
+      {/* Indicators */}
+      {indicators?.hasMaterials && (
+        <span className="flex items-center gap-0.5 text-xs opacity-60 flex-shrink-0" title="Materiale previsto">
+          <Icon icon={MATERIALE_ICONS.package} size={14} />
+        </span>
+      )}
+      {indicators?.hasPeople && (
+        <span className="flex items-center gap-0.5 text-xs opacity-60 flex-shrink-0" title="Persone assegnate">
+          <Icon icon={ADMIN_ICONS.utenti} size={14} />
+        </span>
+      )}
       {/* Status icon */}
       {showStatus && StatoIcon && (
         <Icon icon={StatoIcon} size={14} className="flex-shrink-0 opacity-60" />

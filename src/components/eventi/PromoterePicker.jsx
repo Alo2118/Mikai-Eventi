@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAdminStore } from '../../hooks/useAdmin'
+import { useContactsStore } from '../../hooks/useContacts'
 import { FormField } from '../ui/FormField'
 import { SELECT_STYLE } from '../../lib/constants'
 
@@ -29,31 +30,54 @@ function groupUsersByRole(users) {
 export function PromoterePicker({ value, onChange, currentUserId, error, onBlur }) {
   const users = useAdminStore(s => s.users)
   const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const agents = useContactsStore(s => s.agents)
+  const fetchAgents = useContactsStore(s => s.fetchAgents)
 
   useEffect(() => {
-    if (!users || users.length === 0) {
-      fetchUsers()
-    }
+    if (!users || users.length === 0) fetchUsers()
+    if (!agents || agents.length === 0) fetchAgents()
   }, [])
 
   const activeUsers = (users || []).filter(u => u.attivo !== false)
+  const activeAgents = (agents || []).filter(a => a.attivo !== false)
   const grouped = groupUsersByRole(activeUsers)
 
   function handleChange(e) {
-    const userId = e.target.value
-    if (!userId) {
+    const raw = e.target.value
+    if (!raw) {
       onChange(null)
       return
     }
-    const user = activeUsers.find(u => u.id === userId)
-    if (user) onChange(user)
+    // Value format: "user:UUID" or "contact:UUID"
+    const [type, id] = raw.split(':')
+    if (type === 'contact') {
+      const agent = activeAgents.find(a => a.id === id)
+      if (agent) onChange({ ...agent, _type: 'contact' })
+    } else {
+      const user = activeUsers.find(u => u.id === id)
+      if (user) onChange({ ...user, _type: 'user' })
+    }
+  }
+
+  // Determine current select value
+  let selectValue = ''
+  if (value) {
+    if (typeof value === 'string') {
+      // Legacy: just an ID — check if it's a user or contact
+      const isAgent = activeAgents.some(a => a.id === value)
+      selectValue = isAgent ? `contact:${value}` : `user:${value}`
+    } else if (value._type === 'contact') {
+      selectValue = `contact:${value.id}`
+    } else {
+      selectValue = `user:${value.id || value}`
+    }
   }
 
   return (
     <FormField label="Promotore" required error={error}>
       <select
         className={SELECT_STYLE + ' min-h-[48px]'}
-        value={value || ''}
+        value={selectValue}
         onChange={handleChange}
         onBlur={onBlur}
         aria-label="Seleziona promotore"
@@ -66,13 +90,22 @@ export function PromoterePicker({ value, onChange, currentUserId, error, onBlur 
           return (
             <optgroup key={role} label={RUOLO_LABEL[role] || role}>
               {group.map(user => (
-                <option key={user.id} value={user.id}>
+                <option key={user.id} value={`user:${user.id}`}>
                   {user.cognome} {user.nome} ({RUOLO_LABEL[user.ruolo] || user.ruolo})
                 </option>
               ))}
             </optgroup>
           )
         })}
+        {activeAgents.length > 0 && (
+          <optgroup label="Agenti">
+            {activeAgents.map(agent => (
+              <option key={agent.id} value={`contact:${agent.id}`}>
+                {agent.cognome} {agent.nome}{agent.azienda ? ` (${agent.azienda})` : ''}
+              </option>
+            ))}
+          </optgroup>
+        )}
       </select>
     </FormField>
   )

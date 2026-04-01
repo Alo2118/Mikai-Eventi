@@ -12,6 +12,13 @@ const STATUS_LABELS = {
   incomplete: 'Incompleto',
 }
 
+const DETAIL_COLORS = {
+  green: 'text-green-600',
+  yellow: 'text-yellow-600',
+  red: 'text-red-600',
+  gray: 'text-gray-400',
+}
+
 export function Tabs({ tabs, activeTab, onChange }) {
   const navRef = useRef(null)
   const activeRef = useRef(null)
@@ -79,8 +86,11 @@ export function Tabs({ tabs, activeTab, onChange }) {
           >
             <span className="flex items-center gap-1.5">
               {tab.label}
-              {tab.status && (
+              {tab.status && !tab.detail && (
                 <span className={`w-2 h-2 rounded-full ${DOT_COLORS[tab.status] || ''}`} aria-label={STATUS_LABELS[tab.status] || tab.status} />
+              )}
+              {tab.detail && (
+                <span className={`text-xs font-normal ${DETAIL_COLORS[tab.detail.color] || 'text-gray-400'}`}>{tab.detail.text}</span>
               )}
             </span>
           </button>

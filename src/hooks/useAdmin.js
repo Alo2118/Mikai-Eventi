@@ -315,6 +315,35 @@ export const useAdminStore = create((set, get) => ({
     return { error: null }
   },
 
+  // === Product Types ===
+  productTypes: [],
+  productTypesLoading: false,
+
+  fetchProductTypes: async () => {
+    set({ productTypesLoading: true })
+    const { data, error } = await supabase.from('product_types').select('*').order('ordine')
+    set({ productTypes: data || [], productTypesLoading: false })
+    return { data: data || [], error: error?.message || null }
+  },
+
+  createProductType: async (pt) => {
+    const { data, error } = await supabase.from('product_types').insert(pt).select().single()
+    if (!error) get().fetchProductTypes()
+    return { data, error: error?.message || null }
+  },
+
+  updateProductType: async (id, updates) => {
+    const { data, error } = await supabase.from('product_types').update(updates).eq('id', id).select().single()
+    if (!error) get().fetchProductTypes()
+    return { data, error: error?.message || null }
+  },
+
+  deleteProductType: async (id) => {
+    const { error } = await supabase.from('product_types').delete().eq('id', id)
+    if (!error) get().fetchProductTypes()
+    return { error: error?.message || null }
+  },
+
   // === Users (for admin) ===
   users: [],
   usersLoading: false,

@@ -14,7 +14,7 @@ function getAttentionReason(event, semaphores) {
   return null
 }
 
-export function CalendarGrid({ date, events, viewMode = 'month', semaphores = {} }) {
+export function CalendarGrid({ date, events, viewMode = 'month', semaphores = {}, indicators = {} }) {
   const [selectedDay, setSelectedDay] = useState(null)
 
   const days = useMemo(() => getMonthDays(date), [date])
@@ -92,6 +92,7 @@ export function CalendarGrid({ date, events, viewMode = 'month', semaphores = {}
                     event={e}
                     showStatus
                     attention={getAttentionReason(e, semaphores)}
+                    indicators={indicators[e.id]}
                   />
                 ))}
               </div>
@@ -154,6 +155,7 @@ export function CalendarGrid({ date, events, viewMode = 'month', semaphores = {}
                       event={e}
                       compact
                       attention={getAttentionReason(e, semaphores)}
+                      indicators={indicators[e.id]}
                     />
                   ))}
                   {hasOverflow && (
@@ -179,6 +181,7 @@ export function CalendarGrid({ date, events, viewMode = 'month', semaphores = {}
         date={selectedDay ? formatDayISO(selectedDay) : null}
         events={selectedDayEvents}
         semaphores={semaphores}
+        indicators={indicators}
       />
     </>
   )

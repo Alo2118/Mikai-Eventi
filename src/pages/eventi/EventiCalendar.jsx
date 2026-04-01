@@ -16,6 +16,7 @@ import {
   PILL_COLORS, SUMMARY_BAR_STYLE
 } from '../../lib/constants'
 import { formatMonth, addOneMonth, subtractOneMonth, getMonthIndex, getFullYear, todayISO } from '../../lib/date-utils'
+import { getPromotoreName } from '../../lib/format-utils'
 
 const MODALITA_BORDER_LEGEND = {
   mikai: 'bg-mikai-400',
@@ -28,11 +29,13 @@ export function EventiCalendar() {
   const [viewMode, setViewMode] = useState(() => window.innerWidth < 768 ? 'agenda' : 'month')
   const [showLegend, setShowLegend] = useState(false)
   const [semaphores, setSemaphores] = useState({})
+  const [indicators, setIndicators] = useState({})
   const events = useEventsStore(s => s.events)
   const loading = useEventsStore(s => s.loading)
   const filters = useEventsStore(s => s.filters)
   const setFilter = useEventsStore(s => s.setFilter)
   const fetchEventSemaphores = useActivitiesStore(s => s.fetchEventSemaphores)
+  const fetchEventIndicators = useEventsStore(s => s.fetchEventIndicators)
   const touchStartX = useRef(null)
 
   // Set month filter for data fetching
@@ -41,15 +44,22 @@ export function EventiCalendar() {
     return () => setFilter('mese', null)
   }, [currentDate])
 
-  // Fetch semaphores for active events
+  // Fetch semaphores + indicators for events
   useEffect(() => {
-    if (!events.length) { setSemaphores({}); return }
+    if (!events.length) { setSemaphores({}); setIndicators({}); return }
+    const allIds = events.map(e => e.id)
     const activeIds = events
       .filter(e => ['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(e.stato))
       .map(e => e.id)
-    if (!activeIds.length) { setSemaphores({}); return }
-    fetchEventSemaphores(activeIds).then(result => {
-      if (result && typeof result === 'object') setSemaphores(result)
+    if (activeIds.length) {
+      fetchEventSemaphores(activeIds).then(result => {
+        if (result && typeof result === 'object') setSemaphores(result)
+      })
+    } else {
+      setSemaphores({})
+    }
+    fetchEventIndicators(allIds).then(result => {
+      if (result && typeof result === 'object') setIndicators(result)
     })
   }, [events])
 
@@ -61,8 +71,7 @@ export function EventiCalendar() {
       result = result.filter(e =>
         e.titolo?.toLowerCase().includes(s) ||
         e.luogo?.toLowerCase().includes(s) ||
-        e.promotore?.nome?.toLowerCase().includes(s) ||
-        e.promotore?.cognome?.toLowerCase().includes(s)
+        (getPromotoreName(e) || '').toLowerCase().includes(s)
       )
     }
     if (filters.tipo) {
@@ -312,6 +321,7 @@ export function EventiCalendar() {
               events={filteredEvents}
               viewMode={viewMode}
               semaphores={semaphores}
+              indicators={indicators}
             />
           )}
         </div>

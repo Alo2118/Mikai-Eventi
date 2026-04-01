@@ -8,6 +8,7 @@ export const useContactsStore = create((set, get) => {
   return {
   contacts: [],
   contact: null,
+  agents: [],
   loading: false,
   loadingMore: false,
   error: null,
@@ -150,6 +151,7 @@ export const useContactsStore = create((set, get) => {
       .eq('tipo_contatto', 'agente')
       .eq('attivo', true)
       .order('cognome')
+    set({ agents: data || [] })
     return { data: data || [], error: error?.message || null }
   },
 

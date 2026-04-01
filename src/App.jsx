@@ -16,7 +16,6 @@ const MaterialeDetail = lazy(() => import('./pages/materiale/MaterialeDetail').t
 const AdminBrand = lazy(() => import('./pages/admin/AdminBrand').then(m => ({ default: m.AdminBrand })))
 const AdminDistretti = lazy(() => import('./pages/admin/AdminDistretti').then(m => ({ default: m.AdminDistretti })))
 const AdminProdotti = lazy(() => import('./pages/admin/AdminProdotti').then(m => ({ default: m.AdminProdotti })))
-const AdminMateriali = lazy(() => import('./pages/admin/AdminMateriali').then(m => ({ default: m.AdminMateriali })))
 const AdminSedi = lazy(() => import('./pages/admin/AdminSedi').then(m => ({ default: m.AdminSedi })))
 const AdminZone = lazy(() => import('./pages/admin/AdminZone').then(m => ({ default: m.AdminZone })))
 const AdminUtenti = lazy(() => import('./pages/admin/AdminUtenti').then(m => ({ default: m.AdminUtenti })))
@@ -28,6 +27,7 @@ const ContattiDetail = lazy(() => import('./pages/contatti/ContattiDetail').then
 const CostiPage = lazy(() => import('./pages/costi/CostiPage').then(m => ({ default: m.CostiPage })))
 const AdminSottoAttivita = lazy(() => import('./pages/admin/AdminSottoAttivita').then(m => ({ default: m.AdminSottoAttivita })))
 const AdminTemplate = lazy(() => import('./pages/admin/AdminTemplate').then(m => ({ default: m.AdminTemplate })))
+const AdminTipoProdotto = lazy(() => import('./pages/admin/AdminTipoProdotto').then(m => ({ default: m.AdminTipoProdotto })))
 const NotifichePage = lazy(() => import('./pages/notifiche/NotifichePage').then(m => ({ default: m.NotifichePage })))
 const ReportMaterialePage = lazy(() => import('./pages/report/ReportMaterialePage').then(m => ({ default: m.ReportMaterialePage })))
 const ComplianceDashboard = lazy(() => import('./pages/compliance/ComplianceDashboard').then(m => ({ default: m.ComplianceDashboard })))
@@ -86,7 +86,6 @@ function App() {
           <Route path="/admin/brand" element={<AdminBrand />} />
           <Route path="/admin/distretti" element={<AdminDistretti />} />
           <Route path="/admin/prodotti" element={<AdminProdotti />} />
-          <Route path="/admin/materiali" element={<AdminMateriali />} />
           <Route path="/admin/sedi" element={<AdminSedi />} />
           <Route path="/admin/zone" element={<AdminZone />} />
           <Route path="/contatti" element={<ContattiList />} />
@@ -94,6 +93,7 @@ function App() {
           <Route path="/costi" element={<CostiPage />} />
           <Route path="/admin/sotto-attivita" element={<AdminSottoAttivita />} />
           <Route path="/admin/template" element={<AdminTemplate />} />
+          <Route path="/admin/tipo-prodotto" element={<AdminTipoProdotto />} />
           <Route path="/compliance" element={<ComplianceDashboard />} />
           <Route path="/compliance/tov" element={<TovList />} />
           <Route path="/compliance/tov/nuovo" element={<TovForm />} />

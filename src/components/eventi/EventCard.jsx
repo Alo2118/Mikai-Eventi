@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icon'
 import { TIPO_EVENTO, STATO_EVENTO_COLORE, MODALITA_EVENTO } from '../../lib/constants'
 import { TIPO_EVENTO_ICONS, FEEDBACK_ICONS, NAV_ICONS, MATERIALE_ICONS, INFO_EVENTO_ICONS, CATEGORIA_ICONS, COSTI_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS } from '../../lib/icons'
 import { formatDateRange, todayISO } from '../../lib/date-utils'
-import { formatCurrency } from '../../lib/format-utils'
+import { formatCurrency, getPromotoreName } from '../../lib/format-utils'
 
 const bandaColore = { yellow: 'bg-yellow-400', blue: 'bg-blue-400', mikai: 'bg-mikai-400', green: 'bg-green-400', emerald: 'bg-emerald-400', gray: 'bg-gray-400', red: 'bg-red-400' }
 const SEMAPHORE_STATES = new Set(['in_preparazione', 'pronto', 'confermato'])
@@ -48,7 +48,7 @@ export function EventCard({ event, semaphore, readiness }) {
   const today = todayISO()
   const daysUntil = event.data_inizio ? Math.ceil((new Date(event.data_inizio) - new Date(today)) / 86400000) : null
   const isPast = daysUntil !== null && daysUntil < 0
-  const promotore = event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : null
+  const promotore = getPromotoreName(event)
   const sem = semaphore && SEMAPHORE_STATES.has(event.stato) ? SEMAPHORE_CFG[semaphore] : null
   const showReadiness = readiness && READINESS_STATES.has(event.stato)
   const areas = showReadiness ? computeAreas(readiness) : null

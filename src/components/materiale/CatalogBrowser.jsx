@@ -7,7 +7,7 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ACTION_ICONS, CATALOGO_ICONS } from '../../lib/icons'
-import { TIPO_PRODOTTO } from '../../lib/constants'
+import { useProductTypes } from '../../hooks/useProductTypes'
 import { CatalogSidebar } from './CatalogSidebar'
 import { CatalogProductCard } from './CatalogProductCard'
 import { CatalogProductModal } from './CatalogProductModal'
@@ -15,6 +15,7 @@ import { CatalogCartFloating } from './CatalogCartFloating'
 import { ActiveFiltersChips } from './ActiveFiltersChips'
 
 export function CatalogBrowser({ existingRows, onSave, onClose }) {
+  const { labels: tipoLabels } = useProductTypes()
   const [brands, setBrands] = useState([])
   const [sections, setSections] = useState([])
   const [products, setProducts] = useState([])
@@ -150,7 +151,7 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
     }).filter(Boolean),
     ...tipi.map(key => ({
       id: `tipo:${key}`,
-      label: TIPO_PRODOTTO[key] || key,
+      label: tipoLabels[key] || key,
     })),
   ]
 

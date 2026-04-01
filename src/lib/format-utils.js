@@ -30,6 +30,13 @@ export function formatPercentage(value, decimals = 0) {
   return Number(value).toFixed(decimals) + '%'
 }
 
+// Returns promotore display name from event object (user or contact agente)
+export function getPromotoreName(event) {
+  if (event?.promotore) return `${event.promotore.nome} ${event.promotore.cognome}`
+  if (event?.promotore_agente) return `${event.promotore_agente.nome} ${event.promotore_agente.cognome}`
+  return null
+}
+
 /**
  * Extracts Google Drive file ID from various Drive URL formats:
  * - https://drive.google.com/file/d/FILE_ID/view?usp=sharing

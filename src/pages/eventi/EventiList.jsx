@@ -19,6 +19,7 @@ import { NAV_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { TIPO_EVENTO, STATO_EVENTO, SUMMARY_BAR_STYLE, SELECT_STYLE } from '../../lib/constants'
 import { formatDate, todayISO } from '../../lib/date-utils'
+import { getPromotoreName } from '../../lib/format-utils'
 
 const EXPORT_COLUMNS_EVENTI = [
   { key: 'titolo', label: 'Titolo', width: 30 },
@@ -27,7 +28,7 @@ const EXPORT_COLUMNS_EVENTI = [
   { key: 'data_inizio', label: 'Data inizio', format: v => v ? formatDate(v) : '' },
   { key: 'data_fine', label: 'Data fine', format: v => v ? formatDate(v) : '' },
   { key: 'luogo', label: 'Luogo', width: 25 },
-  { key: 'promotore', label: 'Promotore', format: v => v ? `${v.nome} ${v.cognome}` : '' },
+  { key: 'promotore', label: 'Promotore', format: (v, row) => getPromotoreName(row) || '' },
   { key: 'budget_previsto', label: 'Budget previsto' },
 ]
 
@@ -140,23 +141,25 @@ export function EventiList() {
     return events.filter(e =>
       e.titolo?.toLowerCase().includes(s) ||
       e.luogo?.toLowerCase().includes(s) ||
-      e.promotore?.nome?.toLowerCase().includes(s) ||
-      e.promotore?.cognome?.toLowerCase().includes(s)
+      (getPromotoreName(e) || '').toLowerCase().includes(s)
     )
   }, [events, filters.search])
 
-  // Promotore filter (client-side)
+  // Promotore filter (client-side) — includes both users and agent contacts
   const promotori = useMemo(() => {
     const map = new Map()
     for (const e of events) {
-      if (e.promotore) map.set(e.promotore.id, e.promotore)
+      if (e.promotore) map.set(`user:${e.promotore.id}`, { ...e.promotore, _key: `user:${e.promotore.id}` })
+      if (e.promotore_agente) map.set(`contact:${e.promotore_agente.id}`, { ...e.promotore_agente, _key: `contact:${e.promotore_agente.id}` })
     }
-    return [...map.values()].sort((a, b) => a.cognome.localeCompare(b.cognome))
+    return [...map.values()].sort((a, b) => (a.cognome || '').localeCompare(b.cognome || ''))
   }, [events])
 
   const filteredEvents = useMemo(() => {
     if (!filterPromotore) return searchFiltered
-    return searchFiltered.filter(e => e.promotore?.id === filterPromotore)
+    const [type, id] = filterPromotore.split(':')
+    if (type === 'contact') return searchFiltered.filter(e => e.promotore_agente?.id === id)
+    return searchFiltered.filter(e => e.promotore?.id === id)
   }, [searchFiltered, filterPromotore])
 
   // View mode: '3months' (default), 'all', 'past'
@@ -335,7 +338,7 @@ export function EventiList() {
           >
             <option value="">Tutti i promotori</option>
             {promotori.map(p => (
-              <option key={p.id} value={p.id}>{p.cognome} {p.nome}</option>
+              <option key={p._key} value={p._key}>{p.cognome} {p.nome}</option>
             ))}
           </select>
         </div>

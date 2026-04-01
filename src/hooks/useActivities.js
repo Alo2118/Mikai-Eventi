@@ -8,13 +8,16 @@ export const useActivitiesStore = create((set, get) => ({
   eventActivities: [],     // activities for a single event (convergence dashboard)
   myActivities: [],        // activities assigned to current user (banner + "le mie attività")
   dashboardActivities: [], // cross-event activities by permission (dashboard operativa)
+  unclaimedActivities: [], // unassigned activities in user's permission domain
   // Fix 6: scoped loading/error per fetch type
   eventLoading: false,
   myLoading: false,
   dashboardLoading: false,
+  unclaimedLoading: false,
   eventError: null,
   myError: null,
   dashboardError: null,
+  unclaimedError: null,
 
   fetchEventActivities: async (eventId) => {
     set({ eventLoading: true, eventError: null })
@@ -68,6 +71,27 @@ export const useActivitiesStore = create((set, get) => ({
 
     const { data, error } = await query
     set({ dashboardActivities: data || [], dashboardLoading: false, dashboardError: error?.message })
+    return { data, error }
+  },
+
+  fetchUnclaimedActivities: async (permissions) => {
+    set({ unclaimedLoading: true, unclaimedError: null })
+    let query = supabase
+      .from('event_activities')
+      .select(`
+        *,
+        evento:events!event_activities_event_id_fkey(id, titolo, data_inizio, data_fine, stato)
+      `)
+      .in('stato', ['da_fare', 'in_corso'])
+      .is('assegnato_a', null)
+      .order('deadline', { ascending: true, nullsFirst: false })
+
+    if (permissions && permissions.length > 0) {
+      query = query.in('permesso_responsabile', permissions)
+    }
+
+    const { data, error } = await query
+    set({ unclaimedActivities: data || [], unclaimedLoading: false, unclaimedError: error?.message })
     return { data, error }
   },
 
@@ -186,6 +210,7 @@ export const useActivitiesStore = create((set, get) => ({
       set(state => ({
         eventActivities: state.eventActivities.map(a => a.id === id ? { ...a, ...data } : a),
         myActivities: state.myActivities.map(a => a.id === id ? { ...a, ...data } : a),
+        unclaimedActivities: state.unclaimedActivities.filter(a => a.id !== id || !data.assegnato_a),
       }))
     }
     return { data, error }

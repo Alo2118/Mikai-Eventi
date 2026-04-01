@@ -9,7 +9,7 @@ function getAttentionReason(event, semaphores) {
   return null
 }
 
-export function CalendarDayModal({ open, onClose, date, events, semaphores = {} }) {
+export function CalendarDayModal({ open, onClose, date, events, semaphores = {}, indicators = {} }) {
   const label = date ? formatDate(date) : ''
 
   return (
@@ -24,6 +24,7 @@ export function CalendarDayModal({ open, onClose, date, events, semaphores = {} 
               event={e}
               showStatus
               attention={getAttentionReason(e, semaphores)}
+              indicators={indicators[e.id]}
             />
           ))}
         </div>

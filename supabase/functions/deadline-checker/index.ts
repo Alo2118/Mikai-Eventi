@@ -56,6 +56,7 @@ Deno.serve(async (_req) => {
     let deadlineNotifications = 0
     let overdueNotifications = 0
     let escalationNotifications = 0
+    let unassignedNotifications = 0
     let approvalReminders = 0
 
     // 1. Fetch open activities with deadlines
@@ -181,7 +182,43 @@ Deno.serve(async (_req) => {
       }
     }
 
-    // 2. Check pending approvals (events pending > 48 hours)
+    // 2. Unassigned activities approaching deadline (within 3 days, no assegnato_a)
+    for (const activity of activeActivities) {
+      if (activity.assegnato_a) continue
+      if (!activity.permesso_responsabile) continue
+
+      const deadline = new Date(activity.deadline as string)
+      const diffDays = Math.ceil(
+        (deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      )
+      if (diffDays > 3 || diffDays < 0) continue // only 0-3 days before deadline
+
+      const evento = activity.evento as { id: string; titolo: string }
+      const gruppo = `unassigned_${activity.id}_${todayStr}`
+      const exists = await dedupCheck(supabase, gruppo)
+      if (exists) continue
+
+      const users = await getUsersWithPermission(
+        supabase,
+        activity.permesso_responsabile as string
+      )
+      for (const userId of users) {
+        await insertNotification(supabase, {
+          user_id: userId,
+          tipo: 'attivita_non_assegnata',
+          titolo: `Attivita non assegnata: ${activity.descrizione}`,
+          messaggio: `Scade tra ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} per "${evento.titolo}" e non ha un responsabile`,
+          link: `/eventi/${evento.id}`,
+          link_label: 'Vai all\'evento',
+          entity_type: 'event_activity',
+          entity_id: activity.id as string,
+          gruppo,
+        })
+        unassignedNotifications++
+      }
+    }
+
+    // 3. Check pending approvals (events pending > 48 hours)
     const { data: pendingEvents } = await supabase
       .from('events')
       .select('id, titolo, promotore_id, updated_at')
@@ -255,6 +292,7 @@ Deno.serve(async (_req) => {
           deadlineNotifications,
           overdueNotifications,
           escalationNotifications,
+          unassignedNotifications,
           approvalReminders,
           activitiesChecked: activeActivities.length,
         },

@@ -8,9 +8,10 @@ import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, TIPO_EVENTO_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS } from '../../lib/icons'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAdminStore } from '../../hooks/useAdmin'
+import { useContactsStore } from '../../hooks/useContacts'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
-import { formatCurrency } from '../../lib/format-utils'
+import { formatCurrency, getPromotoreName } from '../../lib/format-utils'
 
 function InfoRow({ label, icon, value }) {
   if (!value) return null
@@ -35,6 +36,8 @@ export function EventInfoTab({ event, onUpdate }) {
   const updateEvent = useEventsStore(s => s.updateEvent)
   const users = useAdminStore(s => s.users)
   const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const agents = useContactsStore(s => s.agents)
+  const fetchAgents = useContactsStore(s => s.fetchAgents)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
@@ -45,11 +48,16 @@ export function EventInfoTab({ event, onUpdate }) {
 
   const handleStartEdit = () => {
     if (!users || users.length === 0) fetchUsers()
+    if (!agents || agents.length === 0) fetchAgents()
+    // Encode promotore as "user:ID" or "contact:ID" for the combined select
+    let promotoreValue = ''
+    if (event.promotore_id) promotoreValue = `user:${event.promotore_id}`
+    else if (event.promotore_contact_id) promotoreValue = `contact:${event.promotore_contact_id}`
     setFields({
       titolo: event.titolo || '',
       tipo_evento: event.tipo_evento || '',
       modalita: event.modalita || '',
-      promotore_id: event.promotore_id || '',
+      promotore_combined: promotoreValue,
       manager_user_id: event.manager_user_id || '',
       luogo: event.luogo || '',
       sede_dettaglio: event.sede_dettaglio || '',
@@ -72,9 +80,12 @@ export function EventInfoTab({ event, onUpdate }) {
 
   const handleSave = async () => {
     setSaving(true)
+    // Decode combined promotore field
+    const [pType, pId] = (fields.promotore_combined || '').split(':')
     const payload = {
       ...fields,
-      promotore_id: fields.promotore_id || null,
+      promotore_id: pType === 'user' ? pId : null,
+      promotore_contact_id: pType === 'contact' ? pId : null,
       manager_user_id: fields.manager_user_id || null,
       budget_previsto: fields.budget_previsto !== '' ? Number(fields.budget_previsto) : null,
       n_postazioni: fields.desk_richiesto && fields.n_postazioni !== '' ? Number(fields.n_postazioni) : null,
@@ -85,6 +96,7 @@ export function EventInfoTab({ event, onUpdate }) {
       data_consegna_prevista: fields.data_consegna_prevista || null,
       data_spedizione_prevista: fields.data_spedizione_prevista || null,
     }
+    delete payload.promotore_combined
     const { error } = await updateEvent(event.id, payload)
     setSaving(false)
     if (error) {
@@ -139,11 +151,20 @@ export function EventInfoTab({ event, onUpdate }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Promotore</label>
-              <select className={SELECT_STYLE} value={fields.promotore_id} onChange={set('promotore_id')}>
+              <select className={SELECT_STYLE} value={fields.promotore_combined} onChange={set('promotore_combined')}>
                 <option value="">Nessuno</option>
-                {(users || []).filter(u => u.attivo !== false).map(u => (
-                  <option key={u.id} value={u.id}>{u.cognome} {u.nome}</option>
-                ))}
+                <optgroup label="Utenti interni">
+                  {(users || []).filter(u => u.attivo !== false).map(u => (
+                    <option key={u.id} value={`user:${u.id}`}>{u.cognome} {u.nome}</option>
+                  ))}
+                </optgroup>
+                {(agents || []).length > 0 && (
+                  <optgroup label="Agenti">
+                    {agents.filter(a => a.attivo !== false).map(a => (
+                      <option key={a.id} value={`contact:${a.id}`}>{a.cognome} {a.nome}{a.azienda ? ` (${a.azienda})` : ''}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
             <div>
@@ -255,7 +276,7 @@ export function EventInfoTab({ event, onUpdate }) {
           <InfoRow
             label="Promotore"
             icon={NAV_ICONS.profilo}
-            value={event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : null}
+            value={getPromotoreName(event)}
           />
           <InfoRow
             label="Area Manager"

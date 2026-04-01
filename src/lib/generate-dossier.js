@@ -1,6 +1,6 @@
 import { TIPO_EVENTO, MODALITA_EVENTO, STATO_EVENTO, STATO_ISCRIZIONE, STATO_MATERIALE_LISTA, STATO_PRENOTAZIONE, STATO_PREVENTIVO, RUOLO_EVENTO, TIPO_PARTECIPANTE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO, STATO_ATTIVITA, TIPO_DOCUMENTO, STATO_DOCUMENTO, PDF_COLORS } from './constants'
 import { formatDate, formatDateRange, formatTime, formatDayISO } from './date-utils'
-import { formatCurrency, formatFileSize } from './format-utils'
+import { formatCurrency, formatFileSize, getPromotoreName } from './format-utils'
 
 function personName(row) {
   if (row.user) return `${row.user.nome} ${row.user.cognome}`
@@ -135,8 +135,7 @@ function addInfoSection(doc, event, y) {
   y = addKeyValue(doc, 'Tipo evento', TIPO_EVENTO[event.tipo_evento] || event.tipo_evento, y)
   y = addKeyValue(doc, 'Modalità', MODALITA_EVENTO[event.modalita] || event.modalita, y)
   y = addKeyValue(doc, 'Stato', STATO_EVENTO[event.stato] || event.stato, y)
-  const promotoreName = event.promotore ? `${event.promotore.nome} ${event.promotore.cognome}` : '—'
-  y = addKeyValue(doc, 'Promotore', promotoreName, y)
+  y = addKeyValue(doc, 'Promotore', getPromotoreName(event) || '—', y)
   const managerName = event.manager ? `${event.manager.nome} ${event.manager.cognome}` : '—'
   y = addKeyValue(doc, 'Area Manager', managerName, y)
   y = addKeyValue(doc, 'Luogo', event.luogo || '—', y)

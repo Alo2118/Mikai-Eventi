@@ -1,6 +1,6 @@
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
-import { TIPO_PRODOTTO } from '../../lib/constants'
+import { useProductTypes } from '../../hooks/useProductTypes'
 
 function FilterCheckbox({ checked, onChange, label, imageUrl }) {
   return (
@@ -38,6 +38,7 @@ function FilterGroup({ title, children }) {
 function SidebarContent({
   brands,
   sections,
+  productTypes,
   selectedBrandIds,
   selectedSectionIds,
   selectedTipi,
@@ -78,12 +79,12 @@ function SidebarContent({
       </FilterGroup>
 
       <FilterGroup title="Tipo prodotto">
-        {Object.entries(TIPO_PRODOTTO).map(([key, label]) => (
+        {(productTypes || []).map(pt => (
           <FilterCheckbox
-            key={key}
-            checked={selectedTipi.includes(key)}
-            onChange={() => onToggleTipo(key)}
-            label={label}
+            key={pt.codice}
+            checked={selectedTipi.includes(pt.codice)}
+            onChange={() => onToggleTipo(pt.codice)}
+            label={pt.nome}
           />
         ))}
       </FilterGroup>
@@ -103,6 +104,7 @@ export function CatalogSidebar({
   open,
   onClose,
 }) {
+  const { productTypes } = useProductTypes()
   return (
     <>
       {/* Desktop: static sidebar */}
@@ -113,6 +115,7 @@ export function CatalogSidebar({
         <SidebarContent
           brands={brands}
           sections={sections}
+          productTypes={productTypes}
           selectedBrandIds={selectedBrandIds}
           selectedSectionIds={selectedSectionIds}
           selectedTipi={selectedTipi}

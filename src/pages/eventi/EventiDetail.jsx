@@ -17,7 +17,7 @@ import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCostsStore } from '../../hooks/useCosts'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useTavoliStore } from '../../hooks/useTavoli'
-import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI, SUMMARY_BAR_STYLE } from '../../lib/constants'
+import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI } from '../../lib/constants'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
@@ -71,8 +71,6 @@ function getVisibleTabs(event, profile, permissions) {
 
 
 const READINESS_DETAIL_STATES = new Set(['confermato', 'in_preparazione', 'pronto', 'in_corso'])
-const READINESS_COLOR = { green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600', gray: 'text-gray-400' }
-const READINESS_DOT = { green: 'bg-green-500', yellow: 'bg-yellow-500', red: 'bg-red-500', gray: 'bg-gray-300' }
 
 function computeDetailReadiness({ eventActivities, eventMaterials, preventivi, hotels, trasporti }) {
   const today = todayISO()
@@ -235,19 +233,26 @@ export function EventiDetail() {
   }
 
   const tabStatuses = computeTabStatus()
+  const readinessAreas = READINESS_DETAIL_STATES.has(event.stato)
+    ? computeDetailReadiness({ eventActivities, eventMaterials, preventivi, hotels, trasporti })
+    : null
+
+  // Build readiness detail map: tab id → { text, color }
+  const readinessMap = {}
+  if (readinessAreas) {
+    readinessAreas.forEach(a => { readinessMap[a.tab] = { text: a.text, color: a.color } })
+  }
+
   const tabs = getVisibleTabs(event, profile, permissions).map(tab => ({
     ...tab,
     status: tabStatuses[tab.id],
+    detail: readinessMap[tab.id] || null,
   }))
   const subtitle = `${TIPO_EVENTO[event.tipo_evento]} \u00B7 ${formatDateRange(event.data_inizio, event.data_fine)}${event.luogo ? ` \u00B7 ${event.luogo}` : ''}`
 
   const refreshEvent = () => {
     fetchEvent(id).then(({ data }) => { if (data) setEvent(data) })
   }
-
-  const readinessAreas = READINESS_DETAIL_STATES.has(event.stato)
-    ? computeDetailReadiness({ eventActivities, eventMaterials, preventivi, hotels, trasporti })
-    : null
 
   const DOSSIER_STATES = ['confermato', 'in_preparazione', 'pronto', 'in_corso', 'concluso']
 
@@ -329,28 +334,6 @@ export function EventiDetail() {
         </div>
       ) : (
         <>
-          {readinessAreas && (
-            <div className="px-4 md:px-6 mt-3">
-              <div className={SUMMARY_BAR_STYLE + ' flex flex-wrap gap-1'}>
-                {readinessAreas.map(a => (
-                  <button
-                    key={a.tab}
-                    type="button"
-                    onClick={() => setActiveTab(a.tab)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg min-h-[48px] transition-colors hover:bg-white/60 ${
-                      activeTab === a.tab ? 'bg-white shadow-sm ring-1 ring-gray-200' : ''
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${READINESS_DOT[a.color]}`} />
-                    <Icon icon={a.icon} size={16} className={READINESS_COLOR[a.color]} />
-                    <span className="text-sm text-gray-700 font-medium">{a.label}</span>
-                    <span className={`text-sm ${READINESS_COLOR[a.color]}`}>{a.text}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="sticky top-[73px] md:static z-20 bg-white px-4 md:px-6 mt-4 md:mt-4">
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
           </div>

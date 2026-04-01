@@ -455,6 +455,7 @@ export const NOTIFICA_ICONS = {
   attivita_scaduta: Timer,
   attivita_in_scadenza: AlertTriangle,
   attivita_assegnata: UserCheck,
+  attivita_non_assegnata: UserPlus,
   conflitto_materiale: AlertTriangle,
   rientro_scaduto: RotateCcw,
   preventivo_stato: FileText,

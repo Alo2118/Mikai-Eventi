@@ -53,7 +53,7 @@ export const useEventsStore = create((set, get) => {
     set({ loading: true, error: null })
     let query = supabase
       .from('events')
-      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)', { count: 'exact' })
+      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, promotore_contact_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)', { count: 'exact' })
       .order('data_inizio', { ascending: true })
 
     const { search, stato, tipo, mese } = get().filters
@@ -97,7 +97,7 @@ export const useEventsStore = create((set, get) => {
     set({ loadingMore: true })
     let query = supabase
       .from('events')
-      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)', { count: 'exact' })
+      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, promotore_contact_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)', { count: 'exact' })
       .order('data_inizio', { ascending: true })
 
     const { search, stato, tipo, mese } = get().filters
@@ -134,7 +134,7 @@ export const useEventsStore = create((set, get) => {
   fetchEvent: async (id) => {
     const { data, error } = await supabase
       .from('events')
-      .select('*, promotore:users!events_promotore_id_fkey(id, nome, cognome, ruolo), manager:users!events_manager_user_id_fkey(id, nome, cognome)')
+      .select('*, promotore:users!events_promotore_id_fkey(id, nome, cognome, ruolo), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome, azienda), manager:users!events_manager_user_id_fkey(id, nome, cognome)')
       .eq('id', id)
       .single()
     if (error) return { data: null, error: error.message }
@@ -218,6 +218,24 @@ export const useEventsStore = create((set, get) => {
       .single()
     if (!error) await get().fetchEvents()
     return { data, error: error?.message || null }
+  },
+
+  // Batch fetch indicators (has materials, has people) for calendar display
+  fetchEventIndicators: async (eventIds) => {
+    if (!eventIds?.length) return {}
+    const [matRes, staffRes, partRes] = await Promise.all([
+      supabase.from('event_materials').select('event_id').in('event_id', eventIds),
+      supabase.from('event_staff').select('event_id').in('event_id', eventIds),
+      supabase.from('event_participants').select('event_id').in('event_id', eventIds),
+    ])
+    const indicators = {}
+    for (const eid of eventIds) {
+      indicators[eid] = {
+        hasMaterials: (matRes.data || []).some(r => r.event_id === eid),
+        hasPeople: (staffRes.data || []).some(r => r.event_id === eid) || (partRes.data || []).some(r => r.event_id === eid),
+      }
+    }
+    return indicators
   },
   }
 })

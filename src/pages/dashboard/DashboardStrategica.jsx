@@ -25,7 +25,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
 import { formatDate, formatDateRange, todayISO, formatDayISO } from '../../lib/date-utils'
-import { formatCurrency, formatPercentage } from '../../lib/format-utils'
+import { formatCurrency, formatPercentage, getPromotoreName } from '../../lib/format-utils'
 
 function defaultTimeRange() {
   const now = new Date()
@@ -160,8 +160,7 @@ export function DashboardStrategica() {
     const s = searchApproval.toLowerCase()
     return proposti.filter(e =>
       e.titolo?.toLowerCase().includes(s) ||
-      e.promotore?.nome?.toLowerCase().includes(s) ||
-      e.promotore?.cognome?.toLowerCase().includes(s)
+      (getPromotoreName(e) || '').toLowerCase().includes(s)
     )
   }, [proposti, searchApproval])
 
@@ -282,7 +281,7 @@ export function DashboardStrategica() {
                         <Link to={`/eventi/${event.id}`} className="flex-1 min-w-0 hover:underline">
                           <p className="text-base font-semibold text-gray-900 truncate">{event.titolo}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
-                            {event.promotore ? `${event.promotore.cognome} ${event.promotore.nome}` : '\u2014'}
+                            {getPromotoreName(event) || '\u2014'}
                             {event.data_inizio && ` \u00B7 ${formatDate(event.data_inizio)}`}
                           </p>
                         </Link>

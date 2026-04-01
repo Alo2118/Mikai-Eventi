@@ -70,11 +70,14 @@ export function EventiWizard() {
   const users = useAdminStore(s => s.users)
   const addToast = useToastStore(s => s.add)
 
-  // Auto-calcolo manager dal promotore selezionato
+  const isAgentPromotore = promotore?._type === 'contact'
+
+  // Auto-calcolo manager dal promotore selezionato (solo per utenti interni)
   const manager = useMemo(() => {
+    if (isAgentPromotore) return null
     if (!promotore?.responsabile_id || !users?.length) return null
     return users.find(u => u.id === promotore.responsabile_id) || null
-  }, [promotore, users])
+  }, [promotore, users, isAgentPromotore])
 
   const promotoreNome = promotore ? `${promotore.cognome} ${promotore.nome}` : null
   const managerNome = manager ? `${manager.cognome} ${manager.nome}` : null
@@ -119,16 +122,24 @@ export function EventiWizard() {
 
   const handleSubmit = async () => {
     setLoading(true)
-    const { data: created, error } = await createEvent({
+    const payload = {
       ...data,
       budget_previsto: data.budget_previsto === '' ? null : data.budget_previsto,
       note: data.note || null,
       data_fine: data.data_fine || data.data_inizio,
-      promotore_id: promotore.id,
       created_by: user.id,
-      manager_user_id: promotore.responsabile_id || null,
       stato: 'proposto',
-    })
+    }
+    if (isAgentPromotore) {
+      payload.promotore_contact_id = promotore.id
+      payload.promotore_id = null
+      payload.manager_user_id = null
+    } else {
+      payload.promotore_id = promotore.id
+      payload.promotore_contact_id = null
+      payload.manager_user_id = promotore.responsabile_id || null
+    }
+    const { data: created, error } = await createEvent(payload)
     setLoading(false)
     if (error) {
       addToast(error, 'error')

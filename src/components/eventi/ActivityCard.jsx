@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { AssigneePickerModal } from './AssigneePickerModal'
 import { STATO_ATTIVITA, CATEGORIA_ATTIVITA, STATO_ATTIVITA_COLORE, CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
 import { ATTIVITA_STATO_ICONS, CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, STATO_DOCUMENTO_ICONS } from '../../lib/icons'
 import { formatDate } from '../../lib/date-utils'
@@ -89,9 +90,11 @@ export function ActivityCard({
   canApproveDoc,
   currentUserId,
   linkedDoc,
+  eventStaff,
   compact = false,
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showAssignPicker, setShowAssignPicker] = useState(false)
   const now = new Date()
   const deadline = activity.deadline ? new Date(activity.deadline) : null
   const isOverdue = ['da_fare', 'in_corso'].includes(activity.stato) && deadline && deadline < now
@@ -118,6 +121,7 @@ export function ActivityCard({
   const canRevertToInCorso = activity.stato === 'completata'
   const canRevertToDaFare = activity.stato === 'in_corso'
   const canAssign = !activity.assegnato_a
+  const canReassign = !!activity.assegnato_a && activity.stato !== 'completata'
   // Can upload document when activity is in_corso and no approved doc yet
   const canUploadDoc = isDocumentType && activity.stato === 'in_corso' && (!linkedDoc || linkedDoc.stato === 'rifiutato' || linkedDoc.stato === 'in_revisione')
 
@@ -218,10 +222,18 @@ export function ActivityCard({
             <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
               {canAssign && (
                 <button
-                  onClick={() => onAssign?.(activity.id, currentUserId)}
+                  onClick={() => setShowAssignPicker(true)}
                   className="text-xs text-mikai-600 hover:text-mikai-700 font-medium min-h-[32px] px-2 rounded hover:bg-mikai-50 transition-colors"
                 >
-                  Assegna a me
+                  Assegna
+                </button>
+              )}
+              {canReassign && (
+                <button
+                  onClick={() => setShowAssignPicker(true)}
+                  className="text-xs text-gray-500 hover:text-mikai-600 font-medium min-h-[32px] px-2 rounded hover:bg-gray-100 transition-colors"
+                >
+                  Riassegna
                 </button>
               )}
               {canStart && !isBlocked && (
@@ -286,6 +298,15 @@ export function ActivityCard({
           onCancel={() => setShowDeleteConfirm(false)}
           danger
         />
+        <AssigneePickerModal
+          open={showAssignPicker}
+          onClose={() => setShowAssignPicker(false)}
+          onAssign={(userId) => onAssign?.(activity.id, userId)}
+          currentUserId={currentUserId}
+          permessoResponsabile={activity.permesso_responsabile}
+          eventStaff={eventStaff}
+          activityDescription={activity.descrizione}
+        />
       </div>
     )
   }
@@ -342,15 +363,18 @@ export function ActivityCard({
       {/* Meta row */}
       <div className="flex flex-wrap items-center gap-2 text-sm">
         {activity.categoria && <CategoryBadge categoria={activity.categoria} />}
+        <ResponsabileBadge permesso={activity.permesso_responsabile} />
         {deadline && (
           <span className={`text-xs ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
             Scadenza: {formatDate(activity.deadline)}
           </span>
         )}
-        {assigneeName && (
+        {assigneeName ? (
           <span className="text-xs text-gray-500">
             Assegnata a: <span className="font-medium text-gray-700">{assigneeName}</span>
           </span>
+        ) : activity.stato !== 'completata' && (
+          <span className="text-xs font-semibold text-red-500">Non assegnata</span>
         )}
       </div>
 
@@ -388,15 +412,24 @@ export function ActivityCard({
       )}
 
       {/* Action buttons */}
-      {(canAssign || canStart || canComplete || canUploadDoc || canRevertToDaFare || canRevertToInCorso) && (
+      {(canAssign || canReassign || canStart || canComplete || canUploadDoc || canRevertToDaFare || canRevertToInCorso) && (
         <div className="flex flex-wrap gap-2 pt-1">
           {canAssign && (
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => onAssign && onAssign(activity.id, currentUserId)}
+              onClick={() => setShowAssignPicker(true)}
             >
-              Assegna a me
+              Assegna
+            </Button>
+          )}
+          {canReassign && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAssignPicker(true)}
+            >
+              Riassegna
             </Button>
           )}
           {canStart && !isBlocked && (
@@ -461,6 +494,15 @@ export function ActivityCard({
         onConfirm={() => { setShowDeleteConfirm(false); onDisable(activity.id) }}
         onCancel={() => setShowDeleteConfirm(false)}
         danger
+      />
+      <AssigneePickerModal
+        open={showAssignPicker}
+        onClose={() => setShowAssignPicker(false)}
+        onAssign={(userId) => onAssign?.(activity.id, userId)}
+        currentUserId={currentUserId}
+        permessoResponsabile={activity.permesso_responsabile}
+        eventStaff={eventStaff}
+        activityDescription={activity.descrizione}
       />
     </div>
     </div>

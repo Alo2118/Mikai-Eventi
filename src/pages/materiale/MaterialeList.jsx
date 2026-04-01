@@ -12,7 +12,8 @@ import { Button } from '../../components/ui/Button'
 import { ExportButton } from '../../components/ui/ExportButton'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { Icon } from '../../components/ui/Icon'
-import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, SUMMARY_BAR_STYLE, CARD_STYLE, TIPO_PRODOTTO } from '../../lib/constants'
+import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, SUMMARY_BAR_STYLE, CARD_STYLE } from '../../lib/constants'
+import { useProductTypes } from '../../hooks/useProductTypes'
 import { POSIZIONE_ICONS, MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { toDriveImageUrl } from '../../lib/format-utils'
 
@@ -36,10 +37,10 @@ const POSIZIONE_BG = {
 
 // ── Stock product card ──────────────────────────────────────────────────────
 
-function StockProductCard({ product }) {
+function StockProductCard({ product, tipoLabels }) {
   const imgUrl = toDriveImageUrl(product.foto_url)
   const sottoSoglia = product.soglia_minima != null && product.quantita_disponibile <= product.soglia_minima
-  const tipo = TIPO_PRODOTTO[product.tipo] || product.tipo
+  const tipo = tipoLabels[product.tipo] || product.tipo
 
   return (
     <div className={CARD_STYLE + ' flex gap-4 items-start'}>
@@ -211,6 +212,7 @@ export function MaterialeList() {
   const stockLoading = useMaterialsStore(s => s.stockLoading)
   const fetchStockProducts = useMaterialsStore(s => s.fetchStockProducts)
   const { exporting, handleExport } = useExportHandler()
+  const { labels: tipoLabels } = useProductTypes()
   // viewMode: 'product' (default) | 'list' | 'grouped'
   const [viewMode, setViewMode] = useState('product')
   const [mainTab, setMainTab] = useState('esemplari') // 'esemplari' | 'stock'
@@ -550,7 +552,7 @@ export function MaterialeList() {
             ) : (
               <div className="space-y-3">
                 {filteredStock.map(p => (
-                  <StockProductCard key={p.id} product={p} />
+                  <StockProductCard key={p.id} product={p} tipoLabels={tipoLabels} />
                 ))}
               </div>
             )}
