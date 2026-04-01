@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { ExportButton } from '../../components/ui/ExportButton'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { CARD_STYLE } from '../../lib/constants'
@@ -9,6 +11,7 @@ import { TopMaterialiChart } from '../../components/report/TopMaterialiChart'
 import { MaterialeFuoriList } from '../../components/report/MaterialeFuoriList'
 import { MetricheMaterialeTable } from '../../components/report/MetricheMaterialeTable'
 import { ProssimePrenotazioni } from '../../components/report/ProssimePrenotazioni'
+import { useExportHandler } from '../../hooks/useExportHandler'
 
 export function ReportMaterialePage() {
   const materialAnalytics = useMaterialsStore(s => s.materialAnalytics)
@@ -31,6 +34,33 @@ export function ReportMaterialePage() {
     fetchProductNames(ids).then(map => setProductNames(map))
   }, [materialAnalytics?.topUsed])
 
+  const exportColumns = [
+    { key: 'nome', label: 'Prodotto', width: 30 },
+    { key: 'utilizzi', label: 'Utilizzi', width: 12 },
+    { key: 'giorniMedi', label: 'Giorni medi fuori', width: 18 },
+    { key: 'ratePuntuale', label: 'Rientro puntuale %', width: 18 },
+  ]
+
+  const exportRows = (materialAnalytics?.topUsed || []).map(item => ({
+    nome: productNames[item.id] || item.id,
+    utilizzi: item.count,
+    giorniMedi: item.avgDays ?? '—',
+    ratePuntuale: item.onTimeRate ?? '—',
+  }))
+
+  const { handleExport, exporting } = useExportHandler({
+    columns: exportColumns,
+    rows: exportRows,
+    filename: 'report_materiale',
+    sheetName: 'Report Materiale',
+  })
+
+  const hasData = materialAnalytics && (
+    materialAnalytics.totalUsages > 0 ||
+    materialAnalytics.totalMovements > 0 ||
+    materialAnalytics.fuori?.length > 0
+  )
+
   return (
     <div>
       <div className="px-4 md:px-8 pt-4">
@@ -45,11 +75,19 @@ export function ReportMaterialePage() {
       <PageHeader
         title="Report Materiale"
         subtitle="Analisi utilizzo e disponibilità del materiale"
+        actions={hasData ? [
+          <ExportButton key="export" onClick={handleExport} loading={exporting} label="Esporta Excel" />,
+        ] : []}
       />
 
       <div className="px-4 md:px-8 space-y-6 pb-8">
         {loading && !materialAnalytics ? (
           <LoadingSkeleton lines={8} />
+        ) : !hasData ? (
+          <EmptyState
+            title="Nessun dato disponibile"
+            description="Non ci sono ancora dati di utilizzo materiale da analizzare."
+          />
         ) : (
           <>
             {/* Summary KPIs */}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
-import { STATO_ATTIVITA, CATEGORIA_ATTIVITA, STATO_ATTIVITA_COLORE, CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE } from '../../lib/constants'
+import { STATO_ATTIVITA, CATEGORIA_ATTIVITA, STATO_ATTIVITA_COLORE, CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
 import { ATTIVITA_STATO_ICONS, CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, STATO_DOCUMENTO_ICONS } from '../../lib/icons'
 import { formatDate } from '../../lib/date-utils'
 import { StatusBadge } from '../ui/StatusBadge'
@@ -58,6 +58,18 @@ function DocumentStatusInfo({ linkedDoc, onPreview }) {
       </button>
       <StatusBadge stato={linkedDoc.stato} labels={STATO_DOCUMENTO} colors={STATO_DOCUMENTO_COLORE} />
     </div>
+  )
+}
+
+function ResponsabileBadge({ permesso }) {
+  if (!permesso) return null
+  const label = PERMESSO_SHORT_LABELS[permesso] || permesso
+  const color = PERMESSO_BADGE_COLORE[permesso] || 'gray'
+  const classes = COLOR_CLASSES[color] || COLOR_CLASSES.gray
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
+      {label}
+    </span>
   )
 }
 
@@ -188,9 +200,14 @@ export function ActivityCard({
                 <span className="text-[11px] text-gray-500">Richiede documento</span>
               </label>
             )}
-            {assigneeName && (
-              <p className="text-xs text-gray-400">{assigneeName}</p>
-            )}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <ResponsabileBadge permesso={activity.permesso_responsabile} />
+              {assigneeName ? (
+                <span className="text-xs text-gray-400">{assigneeName}</span>
+              ) : activity.stato !== 'completata' && (
+                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Non assegnata</span>
+              )}
+            </div>
             {isBlocked && (
               <p className="text-xs text-gray-400 flex items-center gap-1">
                 <Icon icon={ATTIVITA_STATO_ICONS.bloccata} size={10} />

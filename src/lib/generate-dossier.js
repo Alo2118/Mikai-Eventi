@@ -1,6 +1,6 @@
-import { TIPO_EVENTO, MODALITA_EVENTO, STATO_EVENTO, STATO_ISCRIZIONE, STATO_MATERIALE_LISTA, STATO_PRENOTAZIONE, STATO_PREVENTIVO, RUOLO_EVENTO, TIPO_PARTECIPANTE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO, STATO_ATTIVITA, PDF_COLORS } from './constants'
+import { TIPO_EVENTO, MODALITA_EVENTO, STATO_EVENTO, STATO_ISCRIZIONE, STATO_MATERIALE_LISTA, STATO_PRENOTAZIONE, STATO_PREVENTIVO, RUOLO_EVENTO, TIPO_PARTECIPANTE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO, STATO_ATTIVITA, TIPO_DOCUMENTO, STATO_DOCUMENTO, PDF_COLORS } from './constants'
 import { formatDate, formatDateRange, formatTime, formatDayISO } from './date-utils'
-import { formatCurrency } from './format-utils'
+import { formatCurrency, formatFileSize } from './format-utils'
 
 function personName(row) {
   if (row.user) return `${row.user.nome} ${row.user.cognome}`
@@ -10,29 +10,29 @@ function personName(row) {
 
 function addSectionTitle(doc, title, y) {
   const pageWidth = doc.internal.pageSize.getWidth()
-  y = checkPageBreak(doc, 20, y)
-  doc.setFontSize(14)
+  y = checkPageBreak(doc, 16, y)
+  doc.setFontSize(11)
   doc.setTextColor(PDF_COLORS.section)
   doc.setFont('helvetica', 'bold')
   doc.text(title, 14, y)
   doc.setDrawColor(PDF_COLORS.primary)
-  doc.setLineWidth(0.5)
-  doc.line(14, y + 2, pageWidth - 14, y + 2)
+  doc.setLineWidth(0.4)
+  doc.line(14, y + 1.5, pageWidth - 14, y + 1.5)
   doc.setTextColor(PDF_COLORS.text)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  return y + 8
+  doc.setFontSize(9)
+  return y + 6
 }
 
 function addKeyValue(doc, label, value, y) {
-  y = checkPageBreak(doc, 8, y)
+  y = checkPageBreak(doc, 6, y)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
+  doc.setFontSize(9)
   doc.text(`${label}:`, 14, y)
   doc.setFont('helvetica', 'normal')
   const labelWidth = doc.getTextWidth(`${label}: `)
   doc.text(String(value || '—'), 14 + labelWidth + 2, y)
-  return y + 6
+  return y + 4.5
 }
 
 function checkPageBreak(doc, neededHeight, currentY) {
@@ -54,22 +54,23 @@ function addAutoTable(doc, head, body, startY) {
       fillColor: PDF_COLORS.headerBg,
       textColor: PDF_COLORS.text,
       fontStyle: 'bold',
-      fontSize: 9,
+      fontSize: 8,
+      cellPadding: 1.5,
     },
     bodyStyles: {
-      fontSize: 9,
+      fontSize: 8,
       textColor: PDF_COLORS.text,
     },
     alternateRowStyles: {
       fillColor: PDF_COLORS.altRow,
     },
     styles: {
-      cellPadding: 3,
+      cellPadding: 1.5,
       lineWidth: 0.1,
       lineColor: PDF_COLORS.border,
     },
   })
-  return doc.lastAutoTable.finalY + 8
+  return doc.lastAutoTable.finalY + 5
 }
 
 function addFooter(doc) {
@@ -89,12 +90,12 @@ function addFooter(doc) {
 }
 
 function addEmptyMessage(doc, message, y) {
-  y = checkPageBreak(doc, 8, y)
-  doc.setFontSize(10)
+  y = checkPageBreak(doc, 6, y)
+  doc.setFontSize(8)
   doc.setTextColor(PDF_COLORS.muted)
   doc.text(message, 14, y)
   doc.setTextColor(PDF_COLORS.text)
-  return y + 8
+  return y + 5
 }
 
 function addCoverPage(doc, event) {
@@ -110,7 +111,7 @@ function addCoverPage(doc, event) {
 
   doc.setFontSize(12)
   doc.setFont('helvetica', 'normal')
-  doc.text('DOSSIER EVENTO', 14, 40)
+  doc.text('RIEPILOGO EVENTO', 14, 40)
 
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
@@ -151,7 +152,7 @@ function addInfoSection(doc, event, y) {
   if (event.note) {
     y = addKeyValue(doc, 'Note', event.note, y)
   }
-  return y + 4
+  return y + 2
 }
 
 function addStaffSection(doc, staff, y) {
@@ -210,13 +211,12 @@ function addMaterialSection(doc, materials, event, y) {
 }
 
 function addSubtableHeader(doc, title, y) {
-  y = checkPageBreak(doc, 10, y)
-  doc.setFontSize(11)
+  y = checkPageBreak(doc, 8, y)
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
   doc.text(title, 14, y)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  return y + 4
+  return y + 3
 }
 
 function addLogisticsSection(doc, hotels, trasporti, event, y) {
@@ -228,7 +228,6 @@ function addLogisticsSection(doc, hotels, trasporti, event, y) {
 
   if (event.indirizzo_spedizione) {
     y = addKeyValue(doc, 'Indirizzo spedizione', event.indirizzo_spedizione, y)
-    y += 2
   }
 
   if (hasHotels) {
@@ -284,12 +283,26 @@ function addCostsSection(doc, preventivi, permissions, y) {
   return addAutoTable(doc, head, body, y)
 }
 
+function addDocumentsSection(doc, documents, y) {
+  if (!documents || documents.length === 0) return y
+  y = addSectionTitle(doc, 'Documenti', y)
+  const head = ['Nome', 'Tipo', 'Stato', 'Dimensione', 'Caricato da']
+  const body = documents.map(d => [
+    d.nome || '—',
+    TIPO_DOCUMENTO[d.tipo_documento] || d.tipo_documento || '—',
+    STATO_DOCUMENTO[d.stato] || d.stato || '—',
+    formatFileSize(d.file_size),
+    d.uploader ? `${d.uploader.nome} ${d.uploader.cognome}` : '—',
+  ])
+  return addAutoTable(doc, head, body, y)
+}
+
 function addPreparationSection(doc, activities, y) {
   if (!activities || activities.length === 0) return y
   y = addSectionTitle(doc, 'Stato Preparazione', y)
   const head = ['Attivita', 'Stato', 'Scadenza', 'Responsabile']
   const body = activities.map(a => [
-    a.nome || a.titolo || '—',
+    a.descrizione || '—',
     STATO_ATTIVITA[a.stato] || a.stato || '—',
     a.deadline ? formatDate(a.deadline) : '—',
     a.assegnato ? `${a.assegnato.nome} ${a.assegnato.cognome}` : '—',
@@ -297,7 +310,7 @@ function addPreparationSection(doc, activities, y) {
   return addAutoTable(doc, head, body, y)
 }
 
-export async function generateEventDossier({ event, staff, participants, subActivities, materials, hotels, trasporti, preventivi, activities, permissions }) {
+export async function generateEventDossier({ event, staff, participants, subActivities, materials, hotels, trasporti, preventivi, activities, documents, permissions }) {
   const { jsPDF } = await import('jspdf')
   await import('jspdf-autotable')
 
@@ -311,6 +324,7 @@ export async function generateEventDossier({ event, staff, participants, subActi
   y = addMaterialSection(doc, materials, event, y)
   y = addLogisticsSection(doc, hotels, trasporti, event, y)
   y = addCostsSection(doc, preventivi, permissions, y)
+  y = addDocumentsSection(doc, documents, y)
   y = addPreparationSection(doc, activities, y)
 
   addFooter(doc)

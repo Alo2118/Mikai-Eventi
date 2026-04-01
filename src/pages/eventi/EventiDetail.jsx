@@ -15,6 +15,7 @@ import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useActivitiesStore } from '../../hooks/useActivities'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCostsStore } from '../../hooks/useCosts'
+import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useTavoliStore } from '../../hooks/useTavoli'
 import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI, SUMMARY_BAR_STYLE } from '../../lib/constants'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
@@ -254,13 +255,14 @@ export function EventiDetail() {
     setGenerating(true)
     try {
       // Fetch all data in parallel to ensure freshness
-      const [matRes, subActRes] = await Promise.all([
+      const [matRes, subActRes, , , , , docRes] = await Promise.all([
         fetchEventMaterialList(event.id),
         useSubActivitiesStore.getState().fetchEventSubActivities(event.id),
         fetchEventStaff(event.id),
         fetchEventParticipants(event.id),
         fetchEventLogistics(event.id),
         fetchEventPreventivi(event.id),
+        useDocumentsStore.getState().fetchEventDocuments(event.id),
       ])
       // Read fresh data from stores
       const freshStaff = useStaffStore.getState().staff
@@ -268,6 +270,7 @@ export function EventiDetail() {
       const freshHotels = useLogisticsStore.getState().hotels
       const freshTrasporti = useLogisticsStore.getState().trasporti
       const freshPreventivi = useCostsStore.getState().preventivi
+      const freshDocuments = useDocumentsStore.getState().documents
 
       const doc = await generateEventDossier({
         event,
@@ -279,12 +282,13 @@ export function EventiDetail() {
         trasporti: freshTrasporti,
         preventivi: freshPreventivi,
         activities: eventActivities,
+        documents: freshDocuments,
         permissions,
       })
-      doc.save(`dossier_${event.titolo.replace(/\s+/g, '_')}_${todayISO()}.pdf`)
-      addToast('Dossier PDF generato', 'success')
+      doc.save(`riepilogo_${event.titolo.replace(/\s+/g, '_')}_${todayISO()}.pdf`)
+      addToast('Riepilogo evento generato', 'success')
     } catch {
-      addToast('Errore nella generazione del dossier', 'error')
+      addToast('Errore nella generazione del riepilogo', 'error')
     }
     setGenerating(false)
   }
@@ -313,7 +317,7 @@ export function EventiDetail() {
           {DOSSIER_STATES.includes(event.stato) && (
             <Button variant="secondary" onClick={handleGenerateDossier} loading={generating}>
               <Icon icon={DOCUMENTO_ICONS.dossier} size={18} className="mr-2" />
-              Genera dossier
+              Riepilogo evento
             </Button>
           )}
         </div>

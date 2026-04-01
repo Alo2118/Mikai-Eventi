@@ -729,12 +729,20 @@ export function EventLogisticaTab({ event, users = [] }) {
 
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-base">
+            <table className="w-full text-base table-fixed">
+              <colgroup>
+                {canEdit && <col style={{ width: 40 }} />}
+                <col style={{ width: '35%' }} />
+                {hasTavoli && <col style={{ width: '8%' }} />}
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '17%' }} />
+              </colgroup>
               {gi === 0 && (
                 <thead>
                   <tr className="text-left text-sm text-gray-500 border-b">
                     {canEdit && (
-                      <th className="pb-2 px-2 w-10">
+                      <th className="pb-2 px-2">
                         <input type="checkbox" checked={selected.size === filteredPeople.length && filteredPeople.length > 0} onChange={toggleSelectAll}
                           className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400" />
                       </th>

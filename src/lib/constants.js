@@ -289,6 +289,40 @@ export const PERMESSI = {
   approva_preventivi: 'Approva preventivi',
 }
 
+// Label brevi per badge attività (permesso_responsabile → chip)
+export const PERMESSO_SHORT_LABELS = {
+  gestione_magazzino: 'Magazzino',
+  gestione_spedizioni: 'Spedizioni',
+  gestione_marketing: 'Marketing',
+  gestione_organizzazione: 'Organizzazione',
+  gestione_costi: 'Costi',
+  gestione_logistica: 'Logistica',
+  approva_preventivi: 'Preventivi',
+  gestione_contatti: 'Contatti',
+  gestione_staff_evento: 'Staff evento',
+  gestione_gadget: 'Gadget',
+  gestione_sedi: 'Sedi',
+  gestione_catalogo: 'Catalogo',
+  approva_eventi: 'Approvazione',
+  approva_materiale: 'Materiale',
+  gestione_utenti: 'Amministrazione',
+  richiedi_materiale: 'Materiale',
+  compliance: 'Compliance',
+}
+
+// Colori per badge permesso_responsabile
+export const PERMESSO_BADGE_COLORE = {
+  gestione_magazzino: 'purple',
+  gestione_spedizioni: 'blue',
+  gestione_marketing: 'mikai',
+  gestione_organizzazione: 'emerald',
+  gestione_costi: 'yellow',
+  gestione_logistica: 'blue',
+  approva_preventivi: 'yellow',
+  gestione_contatti: 'gray',
+  gestione_staff_evento: 'gray',
+}
+
 export const RUOLI_OPERATIVI = {
   segreteria_org: 'Segreteria organizzativa',
   marketing: 'Marketing',
@@ -560,7 +594,7 @@ export const AUDIT_AZIONE_COLORE = {
   segnalato: 'red',
 }
 
-// Hex colors for PDF dossier generation (jsPDF needs raw hex)
+// Hex colors for PDF riepilogo generation (jsPDF needs raw hex)
 export const PDF_COLORS = {
   primary: '#3296dc',
   headerBg: '#e8f4fc',

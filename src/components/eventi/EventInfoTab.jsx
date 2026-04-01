@@ -7,6 +7,7 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, TIPO_EVENTO_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS } from '../../lib/icons'
 import { useEventsStore } from '../../hooks/useEvents'
+import { useAdminStore } from '../../hooks/useAdmin'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { formatCurrency } from '../../lib/format-utils'
@@ -32,6 +33,8 @@ export function EventInfoTab({ event, onUpdate }) {
   const [fields, setFields] = useState({})
 
   const updateEvent = useEventsStore(s => s.updateEvent)
+  const users = useAdminStore(s => s.users)
+  const fetchUsers = useAdminStore(s => s.fetchUsers)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
@@ -41,10 +44,13 @@ export function EventInfoTab({ event, onUpdate }) {
     (hasPermission('approva_eventi') || event.promotore_id === user?.id)
 
   const handleStartEdit = () => {
+    if (!users || users.length === 0) fetchUsers()
     setFields({
       titolo: event.titolo || '',
       tipo_evento: event.tipo_evento || '',
       modalita: event.modalita || '',
+      promotore_id: event.promotore_id || '',
+      manager_user_id: event.manager_user_id || '',
       luogo: event.luogo || '',
       sede_dettaglio: event.sede_dettaglio || '',
       data_inizio: event.data_inizio || '',
@@ -68,6 +74,8 @@ export function EventInfoTab({ event, onUpdate }) {
     setSaving(true)
     const payload = {
       ...fields,
+      promotore_id: fields.promotore_id || null,
+      manager_user_id: fields.manager_user_id || null,
       budget_previsto: fields.budget_previsto !== '' ? Number(fields.budget_previsto) : null,
       n_postazioni: fields.desk_richiesto && fields.n_postazioni !== '' ? Number(fields.n_postazioni) : null,
       ora_inizio: fields.ora_inizio || null,
@@ -124,6 +132,26 @@ export function EventInfoTab({ event, onUpdate }) {
               <select className={SELECT_STYLE} value={fields.modalita} onChange={set('modalita')}>
                 {Object.entries(MODALITA_EVENTO).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Promotore</label>
+              <select className={SELECT_STYLE} value={fields.promotore_id} onChange={set('promotore_id')}>
+                <option value="">Nessuno</option>
+                {(users || []).filter(u => u.attivo !== false).map(u => (
+                  <option key={u.id} value={u.id}>{u.cognome} {u.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Area Manager</label>
+              <select className={SELECT_STYLE} value={fields.manager_user_id} onChange={set('manager_user_id')}>
+                <option value="">Nessuno</option>
+                {(users || []).filter(u => u.attivo !== false && ['area_manager', 'direzione', 'admin'].includes(u.ruolo)).map(u => (
+                  <option key={u.id} value={u.id}>{u.cognome} {u.nome}</option>
                 ))}
               </select>
             </div>
