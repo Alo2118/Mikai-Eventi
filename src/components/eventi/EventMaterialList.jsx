@@ -5,12 +5,8 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { BulkActionBar } from '../ui/BulkActionBar'
-import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ACTION_ICONS, MATERIALE_ICONS, NAV_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
-import { SUMMARY_BAR_STYLE, CARD_STYLE, INPUT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { useEventsStore } from '../../hooks/useEvents'
-import { formatDateRange, formatDate } from '../../lib/date-utils'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { usePackingListStore } from '../../hooks/usePackingList'
@@ -18,34 +14,38 @@ import { CatalogBrowser } from '../materiale/CatalogBrowser'
 import { MovementHistory } from '../materiale/MovementHistory'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
-import { ProgressIndicator } from '../ui/ProgressIndicator'
+import { MaterialSummaryHeader } from './MaterialSummaryHeader'
+import { EventMaterialShipping } from './EventMaterialShipping'
+import { SUMMARY_BAR_STYLE } from '../../lib/constants'
+import { useMaterialBulkActions } from './useMaterialBulkActions'
+import { ConsumptionReport } from './ConsumptionReport'
+
+// Section header colors per status group
+const SECTION_STYLES = {
+  richiesto: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
+  approvato: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' },
+  in_preparazione: { bg: 'bg-mikai-50', text: 'text-mikai-800', border: 'border-mikai-200' },
+  rifiutato: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200' },
+}
 
 export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCatalog, setShowCatalog] = useState(false)
-  const [bulkConfirming, setBulkConfirming] = useState(false)
-  const [bulkPrepping, setBulkPrepping] = useState(false)
+  const [collapsedSections, setCollapsedSections] = useState(new Set())
   const [rejectTarget, setRejectTarget] = useState(null)
-  const [selectedIds, setSelectedIds] = useState(new Set())
-  const [bulkActionLoading, setBulkActionLoading] = useState(false)
-  const [showBulkRejectConfirm, setShowBulkRejectConfirm] = useState(false)
   const [movements, setMovements] = useState([])
   const [availability, setAvailability] = useState({})
+  const [stockLocations, setStockLocations] = useState({})
+  const [eventZoneId, setEventZoneId] = useState(null)
   const [packingItems, setPackingItems] = useState([])
-  const [showShippingForm, setShowShippingForm] = useState(false)
-  const [shippingForm, setShippingForm] = useState({
-    corriere: event.spedizione_corriere || '',
-    tracking: event.spedizione_tracking || '',
-    colli: event.spedizione_colli || '',
-    data: event.spedizione_data || '',
-    note: event.spedizione_note || '',
-  })
   const updateEvent = useEventsStore(s => s.updateEvent)
 
   const fetchEventMovements = useMaterialsStore(s => s.fetchEventMovements)
   const fetchPackingList = usePackingListStore(s => s.fetchPackingList)
   const fetchBatchAvailability = useMaterialsStore(s => s.fetchBatchAvailability)
+  const fetchStockByLocation = useMaterialsStore(s => s.fetchStockByLocation)
+  const fetchVenueZone = useMaterialsStore(s => s.fetchVenueZone)
 
   const addToMaterialList = useMaterialsStore(s => s.addToMaterialList)
   const fetchEventMaterialList = useMaterialsStore(s => s.fetchEventMaterialList)
@@ -54,6 +54,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const confirmMaterialRow = useMaterialsStore(s => s.confirmMaterialRow)
   const rejectMaterialRow = useMaterialsStore(s => s.rejectMaterialRow)
   const restoreGadgetStock = useMaterialsStore(s => s.restoreGadgetStock)
+  const reportConsumption = useMaterialsStore(s => s.reportConsumption)
 
   const instantiateMaterialTemplate = useActivitiesStore(s => s.instantiateMaterialTemplate)
 
@@ -86,8 +87,17 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     setMovements(movRes.data)
     setPackingItems(packRes.data || [])
     const productIds = [...new Set((matRes.data || []).map(r => r.product_id).filter(Boolean))]
-    const avail = await fetchBatchAvailability(productIds)
+    const [avail, stockLocs] = await Promise.all([
+      fetchBatchAvailability(productIds),
+      fetchStockByLocation(productIds),
+    ])
     setAvailability(avail)
+    setStockLocations(stockLocs.data || {})
+    // Fetch venue zone_id if event has a venue
+    if (event.venue_id) {
+      const zoneId = await fetchVenueZone(event.venue_id)
+      if (zoneId) setEventZoneId(zoneId)
+    }
     setLoading(false)
   }
 
@@ -125,11 +135,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
           else changes++
         }
       } else if (!item.dbRowId && item.quantity > 0) {
-        const { data, error } = await addToMaterialList(event.id, productId, user.id)
+        const { error } = await addToMaterialList(event.id, productId, user.id, item.note, item.quantity)
         if (error) { errors++; continue }
-        if (item.quantity > 1 && data) {
-          await updateMaterialListRow(data.id, { quantita: item.quantity })
-        }
         changes++
       }
     }
@@ -181,71 +188,22 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     else { addToast('In preparazione', 'success'); loadData() }
   }
 
-  // ── Bulk helpers ──────────────────────────────────────────────
-  function toggleSelect(id) {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function toggleSelectAll(ids) {
-    setSelectedIds(prev => {
-      if (ids.every(id => prev.has(id))) return new Set()
-      return new Set(ids)
-    })
-  }
-
-  async function handleBulkApprove() {
-    setBulkActionLoading(true)
-    const ids = [...selectedIds]
-    const results = await Promise.all(
-      ids.map(id => {
-        const row = rows.find(r => r.id === id)
-        return confirmMaterialRow(id, row?.quantita || 1)
-      })
-    )
-    const errors = results.filter(r => r.error).length
-    setBulkActionLoading(false)
-    setSelectedIds(new Set())
-    if (errors > 0) {
-      addToast(`${ids.length - errors} approvati, ${errors} errori`, 'warning')
-    } else {
-      addToast(`${ids.length} ${ids.length === 1 ? 'approvato' : 'approvati'}`, 'success')
-    }
-    loadData()
-  }
-
-  async function handleBulkReject() {
-    setShowBulkRejectConfirm(false)
-    setBulkActionLoading(true)
-    const ids = [...selectedIds]
-    const results = await Promise.all(ids.map(id => rejectMaterialRow(id, null)))
-    const errors = results.filter(r => r.error).length
-    setBulkActionLoading(false)
-    setSelectedIds(new Set())
-    if (errors > 0) {
-      addToast(`${ids.length - errors} rifiutati, ${errors} errori`, 'warning')
-    } else {
-      addToast(`${ids.length} ${ids.length === 1 ? 'rifiutato' : 'rifiutati'}`, 'success')
-    }
-    loadData()
-  }
-
-  if (loading) return <LoadingSkeleton lines={5} />
-
   const pendingCount = rows.filter(r => r.stato === 'richiesto').length
   const confirmedCount = rows.filter(r => r.stato === 'approvato').length
   const inPrepCount = rows.filter(r => r.stato === 'in_preparazione').length
+
+  const bulk = useMaterialBulkActions({
+    rows, canApprove, pendingCount, confirmedCount,
+    confirmMaterialRow, updateMaterialListRow, rejectMaterialRow,
+    loadData,
+  })
+
+  if (loading) return <LoadingSkeleton lines={5} />
   const allPrepared = rows.length > 0 && pendingCount === 0 && confirmedCount === 0
 
-  // Packing list derived data
+  // Packing list derived data for readyToShip
   const packingColliNumbers = [...new Set(packingItems.map(i => i.collo_numero).filter(n => n != null))]
-  const packingTotalItems = packingItems.length
-  const packingPackedCount = packingItems.filter(i => i.imballato).length
-  const allPacked = packingTotalItems > 0 && packingPackedCount === packingTotalItems
+  const allPacked = packingItems.length > 0 && packingItems.every(i => i.imballato)
   const readyToShip = allPrepared && allPacked && packingColliNumbers.length > 0
 
   // Group rows by status for workflow
@@ -258,56 +216,20 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
 
   return (
     <div className="space-y-6">
-      {/* Context header — shipping + deadlines */}
-      <div className={SUMMARY_BAR_STYLE + ' space-y-1'}>
-        {event.indirizzo_spedizione && (
-          <div className="flex items-center gap-2 text-sm text-mikai-700">
-            <Icon icon={MATERIALE_ICONS.truck} size={16} className="flex-shrink-0" />
-            <span className="font-medium">Spedizione:</span>
-            <span>{event.indirizzo_spedizione}</span>
-          </div>
-        )}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-mikai-600">
-          <span className="flex items-center gap-1">
-            <Icon icon={NAV_ICONS.eventi} size={14} />
-            Evento: {formatDateRange(event.data_inizio, event.data_fine)}
-          </span>
-          {event.deadline_preparazione && (
-            <span className="flex items-center gap-1">
-              <Icon icon={FEEDBACK_ICONS.warning} size={14} />
-              Prep. entro: {formatDate(event.deadline_preparazione)}
-            </span>
-          )}
-          {event.data_spedizione_prevista && (
-            <span className="flex items-center gap-1">
-              <Icon icon={MATERIALE_ICONS.truck} size={14} />
-              Sped. entro: {formatDate(event.data_spedizione_prevista)}
-            </span>
-          )}
-          {event.data_consegna_prevista && (
-            <span className="flex items-center gap-1">
-              <Icon icon={ACTION_ICONS.check} size={14} />
-              Consegna: {formatDate(event.data_consegna_prevista)}
-            </span>
-          )}
-        </div>
-      </div>
+      <MaterialSummaryHeader
+        event={event}
+        rows={rows}
+        pendingCount={pendingCount}
+        confirmedCount={confirmedCount}
+        inPrepCount={inPrepCount}
+      />
 
-      {/* Progress + actions */}
-      {rows.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <ProgressIndicator label="Confermati" current={confirmedCount + inPrepCount} total={rows.length} color="green" />
-          <ProgressIndicator label="In preparazione" current={inPrepCount} total={confirmedCount + inPrepCount || 1} color="mikai" />
-          <ProgressIndicator label="Da confermare" current={rows.length - pendingCount} total={rows.length} color={pendingCount > 0 ? 'yellow' : 'green'} />
-        </div>
-      )}
-
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h3 className="font-semibold text-lg flex items-center gap-2">
           <Icon icon={MATERIALE_ICONS.package} size={20} className="text-gray-400" />
           Lista materiale
         </h3>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           {onShowPackingList && rows.length > 0 && (
             <Button variant="secondary" size="sm" onClick={onShowPackingList}>
               <Icon icon={NAV_ICONS.checklist} size={16} className="mr-1" />
@@ -319,56 +241,48 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
               Applica template
             </Button>
           )}
-          {canEdit && (
-            <Button onClick={() => setShowCatalog(!showCatalog)}>
+          {canEdit && !showCatalog && (
+            <Button onClick={() => setShowCatalog(true)}>
               <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
-              {showCatalog ? 'Chiudi catalogo' : 'Aggiungi'}
+              Aggiungi dal catalogo
             </Button>
           )}
         </div>
       </div>
 
-      {/* Bulk actions */}
-      <div className="flex gap-3 flex-wrap">
-        {canApprove && pendingCount > 1 && (
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={bulkConfirming}
-            onClick={async () => {
-              setBulkConfirming(true)
-              const pending = rows.filter(r => r.stato === 'richiesto')
-              for (const r of pending) await confirmMaterialRow(r.id, r.quantita || 1)
-              addToast(`${pending.length} materiali confermati!`, 'success')
-              await loadData()
-              setBulkConfirming(false)
-            }}
-            className="bg-green-50 border-green-200 text-green-800 hover:bg-green-100"
-          >
-            <Icon icon={ACTION_ICONS.check} size={16} className="mr-1" />
-            Conferma tutto ({pendingCount})
-          </Button>
-        )}
-        {canApprove && confirmedCount > 1 && (
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={bulkPrepping}
-            onClick={async () => {
-              setBulkPrepping(true)
-              const confirmed = rows.filter(r => r.stato === 'approvato')
-              for (const r of confirmed) await updateMaterialListRow(r.id, { stato: 'in_preparazione' })
-              addToast(`${confirmed.length} materiali in preparazione!`, 'success')
-              await loadData()
-              setBulkPrepping(false)
-            }}
-            className="bg-mikai-50 border-mikai-200 text-mikai-700 hover:bg-mikai-100"
-          >
-            <Icon icon={ACTION_ICONS.forward} size={16} className="mr-1" />
-            Avvia preparazione ({confirmedCount})
-          </Button>
-        )}
-      </div>
+      {/* Prominent bulk action bar — sticky at top when pending items exist */}
+      {!showCatalog && canApprove && pendingCount > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 sticky top-0 z-10 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Icon icon={FEEDBACK_ICONS.warning} size={18} className="text-yellow-600" />
+            <span className="text-sm font-semibold text-yellow-800">
+              {pendingCount} {pendingCount === 1 ? 'materiale da confermare' : 'materiali da confermare'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            {bulk.selectedIds.size > 0 && (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => bulk.showRejectSelected()}
+              >
+                <Icon icon={ACTION_ICONS.reject} size={16} className="mr-1" />
+                Rifiuta selezionati ({bulk.selectedIds.size})
+              </Button>
+            )}
+            {bulk.renderConfirmAllButton()}
+          </div>
+        </div>
+      )}
+
+      {/* Icon legend for action buttons */}
+      {!showCatalog && canApprove && rows.length > 0 && (
+        <div className="flex items-center gap-4 text-xs text-gray-500 px-1">
+          <span className="flex items-center gap-1"><span className="w-5 h-5 rounded bg-green-100 flex items-center justify-center"><Icon icon={ACTION_ICONS.approve} size={12} className="text-green-700" /></span> Conferma</span>
+          <span className="flex items-center gap-1"><span className="w-5 h-5 rounded bg-red-100 flex items-center justify-center"><Icon icon={ACTION_ICONS.reject} size={12} className="text-red-700" /></span> Rifiuta</span>
+          <span className="flex items-center gap-1"><span className="w-5 h-5 rounded bg-mikai-100 flex items-center justify-center"><Icon icon={ACTION_ICONS.forward} size={12} className="text-mikai-700" /></span> Prepara</span>
+        </div>
+      )}
 
       {/* Catalog browser */}
       {showCatalog && (
@@ -379,43 +293,68 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
         />
       )}
 
-      {/* Material list — grouped by status */}
-      {rows.length === 0 && !showCatalog ? (
+      {/* Material list — hidden when catalog is open */}
+      {showCatalog ? null : rows.length === 0 ? (
         <EmptyState
           title="Nessun materiale nella lista"
           description={canEdit ? 'Aggiungi il materiale necessario per questo evento.' : undefined}
         />
       ) : rows.length > 0 ? (
-        <>
-          {/* Select-all — only for approvers and when pending rows exist */}
-          {canApprove && pendingCount > 0 && (
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 cursor-pointer min-h-[48px] px-1 select-none">
-                <input
-                  type="checkbox"
-                  checked={
-                    rows.filter(r => r.stato === 'richiesto').every(r => selectedIds.has(r.id)) &&
-                    rows.some(r => r.stato === 'richiesto')
-                  }
-                  onChange={() => toggleSelectAll(rows.filter(r => r.stato === 'richiesto').map(r => r.id))}
-                  className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
-                  aria-label="Seleziona tutte le righe da confermare"
-                />
-                <span className="text-sm text-gray-600 font-medium">Seleziona da confermare</span>
-              </label>
-            </div>
-          )}
+        <div className="space-y-4">
+          {groups.map(group => {
+            const isApprovableGroup = group.key === 'richiesto' && canApprove
+            const sectionStyle = SECTION_STYLES[group.key] || SECTION_STYLES.richiesto
+            const isCollapsed = collapsedSections.has(group.key)
 
-          <div className="space-y-4">
-            {groups.map(group => {
-              const isApprovableGroup = group.key === 'richiesto' && canApprove
-              return (
-                <div key={group.key}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon icon={group.icon} size={16} className={group.color} />
-                    <span className={`text-sm font-semibold ${group.color}`}>{group.label} ({group.rows.length})</span>
+            return (
+              <div key={group.key}>
+                {/* Colored section header — collapsible */}
+                <button
+                  onClick={() => setCollapsedSections(prev => {
+                    const next = new Set(prev)
+                    if (next.has(group.key)) next.delete(group.key)
+                    else next.add(group.key)
+                    return next
+                  })}
+                  className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-lg font-medium text-sm cursor-pointer select-none transition-colors ${sectionStyle.bg} ${sectionStyle.text} border ${sectionStyle.border}`}
+                  aria-expanded={!isCollapsed}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon icon={group.icon} size={16} />
+                    <span>{group.label} ({group.rows.length})</span>
+                    {/* Select-all checkbox for pending group */}
+                    {isApprovableGroup && !isCollapsed && (
+                      <label
+                        className="flex items-center gap-1.5 ml-3 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            group.rows.every(r => bulk.selectedIds.has(r.id)) &&
+                            group.rows.length > 0
+                          }
+                          onChange={() => bulk.toggleSelectAll(group.rows.map(r => r.id))}
+                          className="w-4 h-4 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
+                          aria-label="Seleziona tutte le righe da confermare"
+                        />
+                        <span className="text-xs font-normal opacity-75">Seleziona tutto</span>
+                      </label>
+                    )}
                   </div>
-                  <div className="space-y-3">
+                  <Icon
+                    icon={isCollapsed ? ACTION_ICONS.chevronDown : ACTION_ICONS.chevronUp}
+                    size={16}
+                    className="opacity-60"
+                  />
+                </button>
+
+                {/* Bulk prep button for confirmed group */}
+                {group.key === 'approvato' && !isCollapsed && bulk.renderPrepAllButton()}
+
+                {/* Section content */}
+                {!isCollapsed && (
+                  <div className="space-y-3 mt-3">
                     {group.rows.map((row) => (
                       <div key={row.id} className="flex items-start gap-2">
                         {/* Checkbox — only for pending rows when user can approve */}
@@ -423,8 +362,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                           {isApprovableGroup ? (
                             <input
                               type="checkbox"
-                              checked={selectedIds.has(row.id)}
-                              onChange={() => toggleSelect(row.id)}
+                              checked={bulk.selectedIds.has(row.id)}
+                              onChange={() => bulk.toggleSelect(row.id)}
                               className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
                               aria-label={`Seleziona: ${row.product?.nome || 'materiale'}`}
                             />
@@ -436,6 +375,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                           <MaterialListRow
                             row={row}
                             availability={availability[row.product_id]}
+                            stockLocations={stockLocations[row.product_id] || []}
+                            eventZoneId={eventZoneId}
                             canEdit={canEdit}
                             canApprove={canApprove}
                             onUpdate={handleUpdate}
@@ -448,11 +389,11 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                       </div>
                     ))}
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        </>
+                )}
+              </div>
+            )
+          })}
+        </div>
       ) : null}
 
       <RejectMaterialDialog
@@ -462,176 +403,24 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
         onCancel={() => setRejectTarget(null)}
       />
 
-      {/* Bulk reject confirm dialog */}
-      <ConfirmDialog
-        open={showBulkRejectConfirm}
-        title="Rifiuta materiali selezionati"
-        message={`Vuoi rifiutare ${selectedIds.size} ${selectedIds.size === 1 ? 'materiale selezionato' : 'materiali selezionati'}?`}
-        confirmLabel="Rifiuta"
-        onConfirm={handleBulkReject}
-        onCancel={() => setShowBulkRejectConfirm(false)}
-        danger
-      />
-
-      {/* Bulk action bar */}
-      {canApprove && (
-        <BulkActionBar
-          selectedCount={selectedIds.size}
-          onDeselectAll={() => setSelectedIds(new Set())}
-          actions={[
-            {
-              label: 'Approva',
-              icon: ACTION_ICONS.approve,
-              variant: 'success',
-              loading: bulkActionLoading,
-              onClick: handleBulkApprove,
-            },
-            {
-              label: 'Rifiuta',
-              icon: ACTION_ICONS.reject,
-              variant: 'danger',
-              loading: bulkActionLoading,
-              onClick: () => setShowBulkRejectConfirm(true),
-            },
-          ]}
-        />
-      )}
+      {/* Bulk action bar + reject dialog */}
+      {bulk.renderBulkBar()}
 
       {/* Shipping section — event level, driven by packing list data */}
       {rows.length > 0 && (
-        <section className="pt-6 border-t border-gray-200 space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <Icon icon={MATERIALE_ICONS.truck} size={20} className="text-gray-400" />
-              Spedizione
-            </h3>
-            {canApprove && !event.spedizione_data && !showShippingForm && readyToShip && (
-              <Button size="sm" onClick={() => {
-                setShippingForm(f => ({ ...f, colli: packingColliNumbers.length }))
-                setShowShippingForm(true)
-              }}>
-                <Icon icon={MATERIALE_ICONS.truck} size={16} className="mr-1" />
-                Registra spedizione
-              </Button>
-            )}
-          </div>
-
-          {/* Packing status summary */}
-          {!event.spedizione_data && packingTotalItems > 0 && (
-            <div className={SUMMARY_BAR_STYLE + ' flex flex-wrap gap-x-4 gap-y-1 text-sm'}>
-              <span className="text-mikai-700 font-medium">
-                {packingColliNumbers.length > 0 ? `${packingColliNumbers.length} colli` : 'Nessun collo creato'}
-              </span>
-              <span className="text-mikai-600">{packingPackedCount}/{packingTotalItems} imballati</span>
-              {!allPacked && <span className="text-yellow-600 font-medium">Completa l'imballaggio per spedire</span>}
-              {allPacked && packingColliNumbers.length === 0 && <span className="text-yellow-600 font-medium">Assegna le voci ai colli</span>}
-              {readyToShip && <span className="text-green-600 font-medium">Pronto per la spedizione</span>}
-            </div>
-          )}
-          {!event.spedizione_data && packingTotalItems === 0 && (
-            <p className="text-sm text-gray-400">Apri la packing list per preparare i colli</p>
-          )}
-
-          {/* Already shipped — display */}
-          {event.spedizione_data && !showShippingForm && (
-            <div className={CARD_STYLE + ' space-y-2'}>
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                {event.spedizione_corriere && (
-                  <div><span className="text-gray-500">Corriere:</span> <span className="font-medium">{event.spedizione_corriere}</span></div>
-                )}
-                {event.spedizione_tracking && (
-                  <div><span className="text-gray-500">Tracking:</span> <span className="font-medium font-mono">{event.spedizione_tracking}</span></div>
-                )}
-                {event.spedizione_colli != null && (
-                  <div><span className="text-gray-500">Colli:</span> <span className="font-medium">{event.spedizione_colli}</span></div>
-                )}
-                <div><span className="text-gray-500">Data:</span> <span className="font-medium">{formatDate(event.spedizione_data)}</span></div>
-              </div>
-              {event.spedizione_note && <p className="text-sm text-gray-600">{event.spedizione_note}</p>}
-              {canApprove && (
-                <Button variant="ghost" size="sm" onClick={() => setShowShippingForm(true)}>Modifica</Button>
-              )}
-            </div>
-          )}
-
-          {/* Shipping form */}
-          {showShippingForm && (
-            <div className={FORM_CONTAINER_STYLE + ' space-y-3'}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Corriere</label>
-                  <input
-                    value={shippingForm.corriere}
-                    onChange={e => setShippingForm(f => ({ ...f, corriere: e.target.value }))}
-                    placeholder="Es. BRT, DHL, GLS..."
-                    className={INPUT_STYLE}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numero tracking</label>
-                  <input
-                    value={shippingForm.tracking}
-                    onChange={e => setShippingForm(f => ({ ...f, tracking: e.target.value }))}
-                    placeholder="Codice spedizione"
-                    className={INPUT_STYLE}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numero colli</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={shippingForm.colli}
-                    onChange={e => setShippingForm(f => ({ ...f, colli: e.target.value }))}
-                    className={INPUT_STYLE}
-                  />
-                  {packingColliNumbers.length > 0 && (
-                    <p className="text-xs text-gray-400 mt-1">Dalla packing list: {packingColliNumbers.length} colli</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data spedizione</label>
-                  <input
-                    type="date"
-                    value={shippingForm.data}
-                    onChange={e => setShippingForm(f => ({ ...f, data: e.target.value }))}
-                    className={INPUT_STYLE}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Note spedizione</label>
-                <input
-                  value={shippingForm.note}
-                  onChange={e => setShippingForm(f => ({ ...f, note: e.target.value }))}
-                  placeholder="Es. Fermo deposito, chiamare prima..."
-                  className={INPUT_STYLE}
-                />
-              </div>
-              <div className="flex gap-3">
-                <Button onClick={async () => {
-                  const { error } = await updateEvent(event.id, {
-                    spedizione_corriere: shippingForm.corriere || null,
-                    spedizione_tracking: shippingForm.tracking || null,
-                    spedizione_colli: shippingForm.colli ? parseInt(shippingForm.colli) : packingColliNumbers.length || null,
-                    spedizione_data: shippingForm.data || null,
-                    spedizione_note: shippingForm.note || null,
-                  })
-                  if (error) addToast(error, 'error')
-                  else {
-                    addToast('Spedizione registrata', 'success', 6000)
-                    setShowShippingForm(false)
-                    if (onUpdate) onUpdate()
-                  }
-                }}>
-                  <Icon icon={MATERIALE_ICONS.truck} size={16} className="mr-1" />
-                  {event.spedizione_data ? 'Aggiorna spedizione' : 'Registra spedizione'}
-                </Button>
-                <Button variant="secondary" onClick={() => setShowShippingForm(false)}>Annulla</Button>
-              </div>
-            </div>
-          )}
-        </section>
+        <EventMaterialShipping
+          event={event}
+          packingItems={packingItems}
+          readyToShip={readyToShip}
+          canApprove={canApprove}
+          onSaveShipping={async (shippingData) => {
+            const { error } = await updateEvent(event.id, shippingData)
+            if (error) { addToast(error, 'error'); return { ok: false } }
+            addToast('Spedizione registrata', 'success', 6000)
+            if (onUpdate) onUpdate()
+            return { ok: true }
+          }}
+        />
       )}
 
       {/* Movements */}

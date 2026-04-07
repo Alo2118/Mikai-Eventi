@@ -88,6 +88,7 @@ import {
   Map,
   Lock,
   FilterX,
+  ExternalLink,
 
   // Attività
   Calculator,
@@ -184,6 +185,14 @@ import {
   Layers,
   FlaskConical,
   Cpu,
+
+  // Password
+  EyeOff,
+  KeyRound,
+
+  // Misc UI
+  EllipsisVertical,
+  Loader2,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -281,6 +290,8 @@ export const ACTION_ICONS = {
   refresh: RotateCcw,
   chevronDown: ChevronDown,
   chevronUp: ChevronUp,
+  manage: ExternalLink,
+  more: EllipsisVertical,
 }
 
 // ═══════════════════════════════════════════
@@ -313,6 +324,7 @@ export const MATERIALE_ICONS = {
 export const CATALOGO_ICONS = {
   cart: ShoppingCart,
   filters: SlidersHorizontal,
+  group: Layers,
 }
 
 // ═══════════════════════════════════════════
@@ -359,6 +371,17 @@ export const ADMIN_ICONS = {
   utenti: Users,
   corrieri: Truck,
   sottoattivita: ListChecks,
+  resetPassword: KeyRound,
+}
+
+// ═══════════════════════════════════════════
+// Password
+// ═══════════════════════════════════════════
+export const PASSWORD_ICONS = {
+  eye: Eye,
+  eyeOff: EyeOff,
+  key: KeyRound,
+  lock: Lock,
 }
 
 // ═══════════════════════════════════════════
@@ -370,6 +393,7 @@ export const FEEDBACK_ICONS = {
   success: CheckCircle,
   error: XCircle,
   empty: Inbox,
+  loading: Loader2,
 }
 
 // ═══════════════════════════════════════════
@@ -522,6 +546,10 @@ export const DASHBOARD_ICONS = {
   trendDown: TrendingDown,
   newEvent: CalendarPlus,
   newContact: UserPlus,
+  coinvolto_promotore: Megaphone,
+  coinvolto_manager: Briefcase,
+  coinvolto_staff: Users,
+  coinvolto_attivita: ClipboardCheck,
 }
 
 // ═══════════════════════════════════════════
