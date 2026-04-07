@@ -62,6 +62,26 @@ export const useAuthStore = create((set, get) => ({
     return { error }
   },
 
+  changePassword: async (currentPassword, newPassword) => {
+    const email = get().user?.email
+    if (!email) return { error: 'Sessione non valida' }
+
+    // Verify current password using a separate client to avoid session interference
+    const { createClient } = await import('@supabase/supabase-js')
+    const tempClient = createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY,
+      { auth: { persistSession: false } }
+    )
+    const { error: verifyError } = await tempClient.auth.signInWithPassword({ email, password: currentPassword })
+    if (verifyError) return { error: 'La password attuale non è corretta' }
+
+    // Update password on the real session
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) return { error: error.message }
+    return { error: null }
+  },
+
   signOut: async () => {
     await supabase.auth.signOut()
     set({ session: null, user: null, profile: null, permissions: [] })

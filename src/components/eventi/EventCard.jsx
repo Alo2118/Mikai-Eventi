@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { TIPO_EVENTO, STATO_EVENTO_COLORE, MODALITA_EVENTO } from '../../lib/constants'
-import { TIPO_EVENTO_ICONS, FEEDBACK_ICONS, NAV_ICONS, MATERIALE_ICONS, INFO_EVENTO_ICONS, CATEGORIA_ICONS, COSTI_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS } from '../../lib/icons'
+import { TIPO_EVENTO_ICONS, FEEDBACK_ICONS, NAV_ICONS, MATERIALE_ICONS, INFO_EVENTO_ICONS, CATEGORIA_ICONS, COSTI_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS, DASHBOARD_ICONS } from '../../lib/icons'
 import { formatDateRange, todayISO } from '../../lib/date-utils'
 import { formatCurrency, getPromotoreName } from '../../lib/format-utils'
 
@@ -15,7 +15,7 @@ const SEMAPHORE_CFG = {
   green: { dot: 'bg-green-500', text: 'text-green-600', label: 'In ordine' },
 }
 const COLOR = { green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600', gray: 'text-gray-400' }
-const BG = { green: 'bg-green-50', yellow: 'bg-amber-50', red: 'bg-red-50' }
+const BG = { green: 'bg-green-50', yellow: 'bg-yellow-50', red: 'bg-red-50' }
 
 function computeAreas(r) {
   const a = r.attivita || { total: 0, completate: 0, inRitardo: 0 }
@@ -40,26 +40,39 @@ function computeAreas(r) {
   ]
 }
 
-export function EventCard({ event, semaphore, readiness }) {
+const INVOLVEMENT_CFG = [
+  { key: 'promotore', icon: DASHBOARD_ICONS.coinvolto_promotore, label: 'Promotore', color: 'text-mikai-600 bg-mikai-50' },
+  { key: 'manager', icon: DASHBOARD_ICONS.coinvolto_manager, label: 'Manager', color: 'text-purple-600 bg-purple-50' },
+  { key: 'staff', icon: DASHBOARD_ICONS.coinvolto_staff, label: 'Staff', color: 'text-blue-600 bg-blue-50' },
+  { key: 'attivita', icon: DASHBOARD_ICONS.coinvolto_attivita, label: 'Attività', color: 'text-emerald-600 bg-emerald-50' },
+]
+
+export function EventCard({ event, semaphore, readiness, involvement, currentUserId }) {
   const [expanded, setExpanded] = useState(false)
   const navigate = useNavigate()
   const TipoIcon = TIPO_EVENTO_ICONS[event.tipo_evento]
   const color = STATO_EVENTO_COLORE[event.stato] || 'gray'
   const today = todayISO()
-  const daysUntil = event.data_inizio ? Math.ceil((new Date(event.data_inizio) - new Date(today)) / 86400000) : null
-  const isPast = daysUntil !== null && daysUntil < 0
+  const startDate = event.data_inizio ? event.data_inizio.slice(0, 10) : null
+  const daysUntil = startDate ? Math.ceil((new Date(startDate) - new Date(today)) / 86400000) : null
+  const isPast = startDate !== null && startDate < today
   const promotore = getPromotoreName(event)
   const sem = semaphore && SEMAPHORE_STATES.has(event.stato) ? SEMAPHORE_CFG[semaphore] : null
   const showReadiness = readiness && READINESS_STATES.has(event.stato)
   const areas = showReadiness ? computeAreas(readiness) : null
   const overall = areas ? (areas.some(a => a.color === 'red') ? 'red' : areas.some(a => a.color === 'yellow') ? 'yellow' : 'green') : null
   const issues = areas ? areas.filter(a => a.color === 'red' || a.color === 'yellow').length : 0
+  const inv = involvement || (currentUserId ? {
+    promotore: event.promotore_id === currentUserId || event.promotore?.id === currentUserId,
+    manager: event.manager_user_id === currentUserId || event.manager?.id === currentUserId,
+  } : null)
+  const isInvolved = inv && INVOLVEMENT_CFG.some(c => inv[c.key])
 
   return (
     <Link to={`/eventi/${event.id}`}
-      className={`group block bg-white rounded-xl border border-gray-200 hover:shadow-md hover:border-mikai-300 transition-all overflow-hidden ${isPast ? 'opacity-60' : ''}`}>
+      className={`group block bg-white rounded-xl border border-gray-200 hover:shadow-md hover:border-mikai-300 transition-all overflow-hidden ${isPast ? 'border-gray-300' : ''}`}>
       <div className="flex">
-        <div className={`w-1.5 flex-shrink-0 ${bandaColore[color]}`} />
+        <div className={`w-1.5 flex-shrink-0 ${isPast ? 'bg-gray-300' : bandaColore[color]}`} />
         <div className="flex-1 min-w-0 p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -72,9 +85,24 @@ export function EventCard({ event, semaphore, readiness }) {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {sem && <span className={`flex items-center gap-1 text-xs font-medium ${sem.text}`}>
+              {showReadiness && areas && (
+                <span className="flex items-center gap-1" title={areas.map(a => `${a.label}: ${a.text}`).join(' · ')}>
+                  {areas.map(a => (
+                    <span key={a.tab} className={`w-2.5 h-2.5 rounded-full ${
+                      a.color === 'green' ? 'bg-green-500' : a.color === 'yellow' ? 'bg-yellow-500' : a.color === 'red' ? 'bg-red-500' : 'bg-gray-300'
+                    }`} />
+                  ))}
+                </span>
+              )}
+              {sem && !showReadiness && <span className={`flex items-center gap-1 text-xs font-medium ${sem.text}`}>
                 <span className={`w-2 h-2 rounded-full ${sem.dot}`} />{sem.label}
               </span>}
+              {isInvolved && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-mikai-50 text-mikai-700">Coinvolto</span>
+              )}
+              {isPast && event.stato === 'concluso' && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Concluso</span>
+              )}
               <StatusBadge stato={event.stato} />
             </div>
           </div>
@@ -124,9 +152,15 @@ export function EventCard({ event, semaphore, readiness }) {
             {promotore && <span className="text-sm text-gray-500 font-medium flex items-center gap-1">
               <Icon icon={NAV_ICONS.profilo} size={14} className="text-gray-400" />{promotore}
             </span>}
-            {event.budget_previsto > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+            {event.budget_previsto != null && event.budget_previsto > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
               {formatCurrency(event.budget_previsto)}
             </span>}
+            {inv && INVOLVEMENT_CFG.filter(c => inv[c.key]).map(c => (
+              <span key={c.key} className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${c.color}`} title={c.label}>
+                <Icon icon={c.icon} size={12} />
+                {c.label}
+              </span>
+            ))}
           </div>
 
           {(event.stato === 'proposto' || (daysUntil !== null && daysUntil <= 7 && daysUntil >= 0 && !['concluso', 'cancellato'].includes(event.stato)) || (readiness?.attivita?.inRitardo > 0 && SEMAPHORE_STATES.has(event.stato))) && (

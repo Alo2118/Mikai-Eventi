@@ -38,6 +38,7 @@ import {
   TIPO_BRAND_ICONS,
   TIPO_CONTATTO_ICONS,
   TIPO_PRODOTTO_ICONS,
+  PASSWORD_ICONS,
 } from '../../lib/icons'
 
 // Flat lookup per uso con name string
@@ -75,6 +76,7 @@ const ALL_ICONS = {
   ...TIPO_BRAND_ICONS,
   ...TIPO_CONTATTO_ICONS,
   ...TIPO_PRODOTTO_ICONS,
+  ...PASSWORD_ICONS,
 }
 
 export function Icon({

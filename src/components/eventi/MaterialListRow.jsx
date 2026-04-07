@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS, MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
-import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE } from '../../lib/constants'
+import { ACTION_ICONS, MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, FEEDBACK_ICONS, POSIZIONE_ICONS } from '../../lib/icons'
+import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, CARD_ITEM_STYLE, CARD_STYLE } from '../../lib/constants'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Button } from '../ui/Button'
 
@@ -15,9 +15,23 @@ const TIPO_ICON = {
 }
 
 // Uniform action button style — same for all states
-const ACTION_BTN = 'w-9 h-9 rounded-lg flex items-center justify-center transition-colors flex-shrink-0'
+const ACTION_BTN = 'min-h-[48px] min-w-[48px] rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105'
 
-export function MaterialListRow({ row, availability, canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation }) {
+// Action button with optional label on desktop
+function ActionButton({ onClick, className, ariaLabel, icon, iconClass, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={ACTION_BTN + ' flex-col gap-0.5 md:min-w-[52px] ' + className}
+      aria-label={ariaLabel}
+    >
+      <Icon icon={icon} size={18} className={iconClass} />
+      {label && <span className="hidden md:block text-[10px] font-medium leading-tight">{label}</span>}
+    </button>
+  )
+}
+
+export function MaterialListRow({ row, availability, stockLocations = [], eventZoneId, canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation }) {
   const [expanded, setExpanded] = useState(false)
   const isPending = row.stato === 'richiesto'
   const isConfirmed = row.stato === 'approvato'
@@ -25,6 +39,7 @@ export function MaterialListRow({ row, availability, canEdit, canApprove, onUpda
   const isInPrep = row.stato === 'in_preparazione'
   const product = row.product
   const [localQty, setLocalQty] = useState(row.quantita || 1)
+  useEffect(() => { setLocalQty(row.quantita || 1) }, [row.quantita])
   const [showConfirmForm, setShowConfirmForm] = useState(false)
   const [confirmQty, setConfirmQty] = useState(row.quantita || 1)
   const [confirmNote, setConfirmNote] = useState('')
@@ -54,12 +69,12 @@ export function MaterialListRow({ row, availability, canEdit, canApprove, onUpda
   }
 
   return (
-    <div className={`rounded-xl border overflow-hidden transition-all ${
+    <div className={CARD_ITEM_STYLE + ' overflow-hidden transition-all ' + (
       isInPrep ? 'border-mikai-300 bg-mikai-50/30' :
       isConfirmed ? 'border-green-200 bg-green-50/30' :
       isRejected ? 'border-red-200 bg-red-50/30' :
-      'border-gray-200 bg-white'
-    }`}>
+      'bg-white'
+    )}>
       <div
         className="p-3 md:p-4 cursor-pointer"
         onClick={() => setExpanded(!expanded)}
@@ -149,39 +164,42 @@ export function MaterialListRow({ row, availability, canEdit, canApprove, onUpda
           <div className="flex items-center gap-1">
             {canApprove && isPending && (
               <>
-                <button
+                <ActionButton
                   onClick={(e) => { e.stopPropagation(); onConfirm(row.id, row.quantita || 1, '') }}
-                  className={ACTION_BTN + ' bg-green-100 hover:bg-green-200'}
-                  aria-label={`Conferma ${product?.nome}`}
-                >
-                  <Icon icon={ACTION_ICONS.approve} size={16} className="text-green-700" />
-                </button>
-                <button
+                  className="bg-green-100 hover:bg-green-200"
+                  ariaLabel={`Conferma ${product?.nome}`}
+                  icon={ACTION_ICONS.approve}
+                  iconClass="text-green-700"
+                  label="Conferma"
+                />
+                <ActionButton
                   onClick={(e) => { e.stopPropagation(); onReject(row.id, product?.nome) }}
-                  className={ACTION_BTN + ' bg-red-100 hover:bg-red-200'}
-                  aria-label={`Rifiuta ${product?.nome}`}
-                >
-                  <Icon icon={ACTION_ICONS.reject} size={16} className="text-red-700" />
-                </button>
+                  className="bg-red-100 hover:bg-red-200"
+                  ariaLabel={`Rifiuta ${product?.nome}`}
+                  icon={ACTION_ICONS.reject}
+                  iconClass="text-red-700"
+                  label="Rifiuta"
+                />
               </>
             )}
             {canApprove && isConfirmed && onStartPreparation && (
-              <button
+              <ActionButton
                 onClick={(e) => { e.stopPropagation(); onStartPreparation(row.id) }}
-                className={ACTION_BTN + ' bg-mikai-100 hover:bg-mikai-200'}
-                aria-label="Avvia preparazione"
-              >
-                <Icon icon={ACTION_ICONS.forward} size={16} className="text-mikai-700" />
-              </button>
+                className="bg-mikai-100 hover:bg-mikai-200"
+                ariaLabel="Avvia preparazione"
+                icon={ACTION_ICONS.forward}
+                iconClass="text-mikai-700"
+                label="Prepara"
+              />
             )}
             {rowRemovable && (
-              <button
+              <ActionButton
                 onClick={(e) => { e.stopPropagation(); onRemove(row.id) }}
-                className={ACTION_BTN + ' bg-gray-100 hover:bg-red-100'}
-                aria-label={`Rimuovi ${product?.nome}`}
-              >
-                <Icon icon={ACTION_ICONS.close} size={16} className="text-gray-400 hover:text-red-500" />
-              </button>
+                className="bg-gray-100 hover:bg-red-100"
+                ariaLabel={`Rimuovi ${product?.nome}`}
+                icon={ACTION_ICONS.close}
+                iconClass="text-gray-400"
+              />
             )}
           </div>
         </div>
@@ -206,43 +224,84 @@ export function MaterialListRow({ row, availability, canEdit, canApprove, onUpda
             </div>
           )}
 
+          {stockLocations.length > 0 && (isPending || isConfirmed) && (
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-1.5">Disponibilità per posizione</p>
+              <div className="flex flex-wrap gap-1.5">
+                {stockLocations.map(loc => {
+                  const isInZone = eventZoneId && loc.agent?.zone_id === eventZoneId
+                  const label = loc.magazzino
+                    ? loc.magazzino.nome
+                    : `${loc.agent?.cognome || ''} ${loc.agent?.nome || ''}`.trim()
+                  return (
+                    <span
+                      key={loc.id}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                        isInZone
+                          ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      <Icon
+                        icon={loc.magazzino ? POSIZIONE_ICONS.in_magazzino : POSIZIONE_ICONS.magazzino_agente}
+                        size={12}
+                      />
+                      {label}: {loc.quantita} pz
+                      {isInZone && <span className="text-green-600 text-[10px]">(stessa zona)</span>}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {(isConfirmed || isInPrep) && canEdit && (
-            <p className="text-sm text-yellow-700 bg-yellow-50 rounded-lg px-3 py-2">
-              Se modifichi la quantità, la riga tornerà in attesa di conferma.
-            </p>
-          )}
-
-          {/* Notes */}
-          {rowEditable && (isPending || isInPrep) ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">Le tue note</label>
-              <input
-                type="text"
-                value={row.note_commerciale || ''}
-                onChange={(e) => onUpdate(row.id, { note_commerciale: e.target.value })}
-                onClick={(e) => e.stopPropagation()}
-                className={INPUT_STYLE}
-                placeholder="Es. Il chirurgo lo richiede specificamente..."
-              />
-            </div>
-          ) : row.note_commerciale ? (
-            <div>
-              <p className="text-sm font-medium text-gray-500">Note commerciale</p>
-              <p className="text-base text-gray-700">{row.note_commerciale}</p>
-            </div>
-          ) : null}
-
-          {row.note_ufficio && (
-            <div>
-              <p className="text-sm font-medium text-gray-500">Note ufficio</p>
-              <p className="text-base text-gray-700">{row.note_ufficio}</p>
+            <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2.5" role="alert">
+              <Icon icon={FEEDBACK_ICONS.warning} size={16} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-medium text-yellow-800">
+                Se modifichi la quantita, la riga tornera in attesa di conferma.
+              </p>
             </div>
           )}
+
+          {/* Notes — side by side on desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {rowEditable && (isPending || isInPrep) ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Le tue note</label>
+                <input
+                  type="text"
+                  defaultValue={row.note_commerciale || ''}
+                  onBlur={(e) => onUpdate(row.id, { note_commerciale: e.target.value })}
+                  onClick={(e) => e.stopPropagation()}
+                  className={INPUT_STYLE}
+                  placeholder="Es. Il chirurgo lo richiede specificamente..."
+                />
+              </div>
+            ) : row.note_commerciale ? (
+              <div>
+                <p className="text-sm font-medium text-gray-500">Note commerciale</p>
+                <p className="text-base text-gray-700">{row.note_commerciale}</p>
+              </div>
+            ) : null}
+
+            {row.note_ufficio && (
+              <div>
+                <p className="text-sm font-medium text-gray-500">Note ufficio</p>
+                <p className="text-base text-gray-700">{row.note_ufficio}</p>
+              </div>
+            )}
+          </div>
 
           {isRejected && row.motivo_rifiuto && (
-            <div className="bg-red-50 rounded-lg p-3" role="alert">
-              <p className="text-sm font-medium text-red-600">Motivo rifiuto</p>
-              <p className="text-base text-red-800">{row.motivo_rifiuto}</p>
+            <div className={CARD_STYLE + ' bg-red-50 border-red-200'} role="alert">
+              <div className="flex items-start gap-2">
+                <Icon icon={FEEDBACK_ICONS.error} size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700">Motivo rifiuto</p>
+                  <p className="text-base text-red-800 mt-0.5">{row.motivo_rifiuto}</p>
+                </div>
+              </div>
             </div>
           )}
 

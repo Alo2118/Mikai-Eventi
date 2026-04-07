@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -13,6 +13,7 @@ import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { useToastStore } from '../../components/ui/Toast'
 
@@ -63,6 +64,16 @@ export function EventiWizard() {
   const [showDraftBanner, setShowDraftBanner] = useState(() => !!loadDraft())
   // Tracks whether user has attempted to advance on each step (to show inline errors on first attempt)
   const [attemptedStep, setAttemptedStep] = useState({})
+  // Per-field touched state for on-blur validation (steps 0 and 2)
+  const [touched, setTouched] = useState({})
+  // Draft save indicator: 'idle' | 'saving' | 'saved'
+  const [saveStatus, setSaveStatus] = useState('idle')
+  const saveTimerRef = useRef(null)
+  // Exit warning state
+  const [showExitDialog, setShowExitDialog] = useState(false)
+  // Track if form was successfully submitted (to skip exit warning)
+  const submittedRef = useRef(false)
+
   const navigate = useNavigate()
   const createEvent = useEventsStore(s => s.createEvent)
   const user = useAuthStore(s => s.user)
@@ -71,6 +82,24 @@ export function EventiWizard() {
   const addToast = useToastStore(s => s.add)
 
   const isAgentPromotore = promotore?._type === 'contact'
+
+  // Detect if the form has any changes from the initial empty state
+  const hasChanges = useMemo(() => {
+    if (promotore) return true
+    return Object.keys(EMPTY_DATA).some(key => data[key] !== EMPTY_DATA[key])
+  }, [data, promotore])
+
+  // Browser beforeunload warning
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    if (hasChanges && !submittedRef.current) {
+      window.addEventListener('beforeunload', handler)
+    }
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasChanges])
 
   // Auto-calcolo manager dal promotore selezionato (solo per utenti interni)
   const manager = useMemo(() => {
@@ -82,14 +111,39 @@ export function EventiWizard() {
   const promotoreNome = promotore ? `${promotore.cognome} ${promotore.nome}` : null
   const managerNome = manager ? `${manager.cognome} ${manager.nome}` : null
 
-  // Auto-save draft with debounce to avoid saving on every keystroke
+  const handleBlur = useCallback((field) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+  }, [])
+
+  // Helper: is a field showing its error? (touched individually or step advance attempted)
+  const showFieldError = useCallback((field, stepNum) => {
+    return touched[field] || attemptedStep[stepNum]
+  }, [touched, attemptedStep])
+
+  // Auto-save draft with debounce + visual indicator
   useEffect(() => {
     if (showDraftBanner) return
     const timer = setTimeout(() => {
+      setSaveStatus('saving')
       saveDraft(step, data, promotore)
+      // Brief saving state, then show saved
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => {
+        setSaveStatus('saved')
+        saveTimerRef.current = setTimeout(() => {
+          setSaveStatus('idle')
+        }, 2000)
+      }, 300)
     }, 1500)
     return () => clearTimeout(timer)
   }, [step, data, promotore, showDraftBanner])
+
+  // Cleanup save timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [])
 
   const handleRestoreDraft = () => {
     const draft = loadDraft()
@@ -115,6 +169,12 @@ export function EventiWizard() {
   const handleNext = () => {
     if (!canNext()) {
       setAttemptedStep(s => ({ ...s, [step]: true }))
+      // Mark all fields in current step as touched
+      if (step === 0) {
+        setTouched(t => ({ ...t, tipo_evento: true, promotore: true }))
+      } else if (step === 2) {
+        setTouched(t => ({ ...t, modalita: true }))
+      }
       return
     }
     setStep(step + 1)
@@ -144,18 +204,42 @@ export function EventiWizard() {
     if (error) {
       addToast(error, 'error')
     } else {
+      submittedRef.current = true
       clearDraft()
       addToast('Evento proposto!', 'success')
       navigate(`/eventi/${created.id}`)
     }
   }
 
+  // Cancel / exit with unsaved changes check
   const handleCancel = () => {
+    if (hasChanges) {
+      setShowExitDialog(true)
+    } else {
+      clearDraft()
+      navigate('/eventi')
+    }
+  }
+
+  const confirmExit = () => {
+    setShowExitDialog(false)
     clearDraft()
     navigate('/eventi')
   }
 
   const stepLabels = ['Tipo', 'Dove e quando', 'Modalità', 'Riepilogo']
+
+  // Step 0 field errors (on-blur)
+  const step0Errors = {
+    tipo_evento: showFieldError('tipo_evento', 0) && !data.tipo_evento
+      ? 'Seleziona un tipo di evento per continuare' : null,
+    promotore: showFieldError('promotore', 0) && !promotore
+      ? 'Seleziona chi propone l\'evento' : null,
+  }
+
+  // Step 2 field error (on-blur)
+  const step2Error = showFieldError('modalita', 2) && !data.modalita
+    ? 'Scegli una modalità per continuare' : null
 
   return (
     <div>
@@ -168,11 +252,21 @@ export function EventiWizard() {
       <MobileHeader title="Nuova proposta" subtitle={`Passo ${step + 1} di 4 — ${stepLabels[step]}`} />
 
       <div className="hidden md:block px-6 pt-5">
-        <h1 className="text-2xl font-bold text-gray-900">Nuova proposta evento</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Nuova proposta evento</h1>
+          <DraftSaveIndicator status={saveStatus} />
+        </div>
       </div>
 
       <div className="px-4 md:px-6">
-        <WizardStepIndicator current={step} />
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <WizardStepIndicator current={step} />
+          </div>
+          <div className="md:hidden">
+            <DraftSaveIndicator status={saveStatus} />
+          </div>
+        </div>
       </div>
 
       {showDraftBanner && (
@@ -194,19 +288,24 @@ export function EventiWizard() {
             <div>
               <WizardStepTipo
                 value={data.tipo_evento}
-                onChange={(v) => setData({ ...data, tipo_evento: v })}
+                onChange={(v) => { setData({ ...data, tipo_evento: v }); handleBlur('tipo_evento') }}
               />
-              {attemptedStep[0] && !data.tipo_evento && (
-                <p className="text-sm text-red-600 mt-2" role="alert">Seleziona un tipo di evento per continuare</p>
+              {step0Errors.tipo_evento && (
+                <p className="text-sm text-red-600 mt-2" role="alert">{step0Errors.tipo_evento}</p>
               )}
             </div>
-            <PromoterePicker
-              value={promotore?.id}
-              onChange={(u) => { setPromotore(u) }}
-              onBlur={() => setAttemptedStep(s => ({ ...s, [0]: true }))}
-              currentUserId={user?.id}
-              error={attemptedStep[0] && !promotore ? 'Seleziona chi propone l\'evento' : null}
-            />
+            <div>
+              <PromoterePicker
+                value={promotore?.id}
+                onChange={(u) => { setPromotore(u); handleBlur('promotore') }}
+                onBlur={() => handleBlur('promotore')}
+                currentUserId={user?.id}
+                error={step0Errors.promotore}
+              />
+              <p className="text-sm text-gray-500 mt-1.5">
+                Il referente verr\u00e0 assegnato automaticamente in base alla zona del promotore
+              </p>
+            </div>
             {manager && (
               <p className="text-sm text-gray-500">
                 Referente: <span className="font-medium text-gray-700">{managerNome}</span>
@@ -225,10 +324,10 @@ export function EventiWizard() {
           <div>
             <WizardStepModalita
               value={data.modalita}
-              onChange={(v) => setData({ ...data, modalita: v })}
+              onChange={(v) => { setData({ ...data, modalita: v }); handleBlur('modalita') }}
             />
-            {attemptedStep[2] && !data.modalita && (
-              <p className="text-sm text-red-600 mt-2" role="alert">Scegli una modalità per continuare</p>
+            {step2Error && (
+              <p className="text-sm text-red-600 mt-2" role="alert">{step2Error}</p>
             )}
           </div>
         )}
@@ -265,6 +364,38 @@ export function EventiWizard() {
         )}
       </div>
 
+      <ConfirmDialog
+        open={showExitDialog}
+        title="Uscire dalla proposta?"
+        message="Hai modifiche non salvate. La bozza rimarr\u00e0 salvata nel browser, ma potresti perdere le ultime modifiche."
+        confirmLabel="Esci"
+        cancelLabel="Resta"
+        onConfirm={confirmExit}
+        onCancel={() => setShowExitDialog(false)}
+        danger
+      />
+    </div>
+  )
+}
+
+/** Draft auto-save status indicator */
+function DraftSaveIndicator({ status }) {
+  if (status === 'idle') return null
+
+  return (
+    <div className="flex items-center gap-1.5 text-sm shrink-0" role="status">
+      {status === 'saving' && (
+        <>
+          <Icon icon={FEEDBACK_ICONS.loading} size={14} className="text-gray-400 animate-spin" />
+          <span className="text-gray-400">Salvataggio...</span>
+        </>
+      )}
+      {status === 'saved' && (
+        <>
+          <Icon icon={FEEDBACK_ICONS.success} size={14} className="text-green-500" />
+          <span className="text-green-600">Bozza salvata</span>
+        </>
+      )}
     </div>
   )
 }

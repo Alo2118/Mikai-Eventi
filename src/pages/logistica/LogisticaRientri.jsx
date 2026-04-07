@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMaterialsStore } from '../../hooks/useMaterials'
+import { useMaterialAnalyticsStore } from '../../hooks/useMaterialAnalytics'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
@@ -57,9 +57,9 @@ function RientroCard({ movement, onNavigate }) {
 }
 
 export function LogisticaRientri() {
-  const overdueReturns = useMaterialsStore(s => s.overdueReturns)
-  const loading = useMaterialsStore(s => s.overdueLoading)
-  const fetchOverdueReturns = useMaterialsStore(s => s.fetchOverdueReturns)
+  const overdueReturns = useMaterialAnalyticsStore(s => s.overdueReturns)
+  const loading = useMaterialAnalyticsStore(s => s.overdueLoading)
+  const fetchOverdueReturns = useMaterialAnalyticsStore(s => s.fetchOverdueReturns)
   const navigate = useNavigate()
 
   useEffect(() => { fetchOverdueReturns() }, [])

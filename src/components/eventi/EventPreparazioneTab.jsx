@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useActivitiesStore } from '../../hooks/useActivities'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -8,32 +8,20 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
-import { ActivityCard } from './ActivityCard'
 import { ActivityGateBar } from './ActivityGateBar'
 import { Modal } from '../ui/Modal'
 import { DocumentUploadModal } from './DocumentUploadModal'
-import { CATEGORIA_ATTIVITA, CARD_STYLE, FORM_CONTAINER_STYLE, INPUT_STYLE, SELECT_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
-import { CATEGORIA_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { ActivityEditModal } from './ActivityEditModal'
+import { ActivityProgressSection } from './ActivityProgressSection'
+import { DocApprovalDialog } from './DocApprovalDialog'
+import { CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
+import { PreparazioneAddActivityForm } from './PreparazioneAddActivityForm'
+import { PreparazioneKanbanView, PreparazioneListView } from './PreparazioneActivityViews'
+import { usePreparazioneDocHandlers } from './usePreparazioneDocHandlers'
+import { todayISO, calculateDeadline } from '../../lib/date-utils'
+import { CATEGORIA_ATTIVITA, PERMESSO_SHORT_LABELS } from '../../lib/constants'
+import { supabase } from '../../lib/supabase'
 
-function TrafficLight({ total, completed, overdue }) {
-  let status = 'yellow'
-  let label = 'In corso'
-  if (overdue > 0) { status = 'red'; label = `${overdue} in ritardo` }
-  else if (total > 0 && completed === total) { status = 'green'; label = 'Tutto completato' }
-
-  const colors = {
-    red: { bg: 'bg-red-500', ring: 'ring-red-200', text: 'text-red-600' },
-    yellow: { bg: 'bg-yellow-400', ring: 'ring-yellow-200', text: 'text-yellow-600' },
-    green: { bg: 'bg-green-500', ring: 'ring-green-200', text: 'text-green-600' },
-  }
-  const c = colors[status]
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`inline-block w-3.5 h-3.5 rounded-full ${c.bg} ring-2 ${c.ring}`} />
-      <span className={`text-sm font-semibold ${c.text}`}>{label}</span>
-    </div>
-  )
-}
 
 export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const eventActivities = useActivitiesStore(s => s.eventActivities)
@@ -47,14 +35,9 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const instantiateTemplate = useActivitiesStore(s => s.instantiateTemplate)
   const runAutoVerifications = useActivitiesStore(s => s.runAutoVerifications)
   const addCustomActivity = useActivitiesStore(s => s.addCustomActivity)
+  const updateActivity = useActivitiesStore(s => s.updateActivity)
 
-  const documents = useDocumentsStore(s => s.documents)
   const fetchEventDocuments = useDocumentsStore(s => s.fetchEventDocuments)
-  const uploadDocument = useDocumentsStore(s => s.uploadDocument)
-  const approveDocument = useDocumentsStore(s => s.approveDocument)
-  const rejectDocument = useDocumentsStore(s => s.rejectDocument)
-  const requestRevisionDoc = useDocumentsStore(s => s.requestRevision)
-  const getSignedUrl = useDocumentsStore(s => s.getSignedUrl)
 
   const user = useAuthStore(s => s.user)
   const profile = useAuthStore(s => s.profile)
@@ -62,18 +45,32 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const eventStaff = useStaffStore(s => s.staff)
   const addToast = useToastStore(s => s.add)
 
-  const [viewMode, setViewMode] = useState('kanban') // 'kanban' | 'lista'
+  // A. Default to list on mobile, kanban on desktop
+  const [viewMode, setViewMode] = useState(() =>
+    window.innerWidth < 768 ? 'lista' : 'kanban'
+  )
   const [showAddForm, setShowAddForm] = useState(false)
   const [newActivity, setNewActivity] = useState({ descrizione: '', categoria: 'organizzazione', deadline: '', obbligatoria: true, tipo_verifica: 'manuale' })
   const [adding, setAdding] = useState(false)
-  const [uploadForActivity, setUploadForActivity] = useState(null) // activity object to upload doc for
-  const [pendingActivityFiles, setPendingActivityFiles] = useState(null) // { files, activity }
-  const [docActionDialog, setDocActionDialog] = useState(null) // { type: 'approve'|'reject'|'revision', doc, nota }
-  const [previewImage, setPreviewImage] = useState(null)
-  const activityFileInputRef = useRef(null)
+  const [editingActivity, setEditingActivity] = useState(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  // B. Template preview
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false)
+  const [templatePreviewItems, setTemplatePreviewItems] = useState([])
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   const isAdminOrDirezione = profile && ['admin', 'direzione'].includes(profile.ruolo)
   const canApproveDoc = hasPermission('approva_preventivi') || isAdminOrDirezione
+
+  const {
+    docByActivity, docActionDialog, setDocActionDialog,
+    previewImage, setPreviewImage,
+    pendingActivityFiles, setPendingActivityFiles,
+    activityFileInputRef,
+    handlePreviewDoc, handleDocApprovalAction,
+    handleUploadForActivity, handleActivityFilePicked, handleActivityDocUpload,
+  } = usePreparazioneDocHandlers(event.id)
 
   // Activities are already fetched by EventiDetail for tab status dots.
   // Only run auto-verifications here, don't re-fetch.
@@ -82,27 +79,16 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     fetchEventDocuments(event.id)
   }, [event.id])
 
-  // Build activity→document map (most recent doc per activity)
-  const docByActivity = {}
-  for (const doc of documents) {
-    if (doc.activity_id) {
-      // Keep the most recent one per activity
-      if (!docByActivity[doc.activity_id] || new Date(doc.created_at) > new Date(docByActivity[doc.activity_id].created_at)) {
-        docByActivity[doc.activity_id] = doc
-      }
-    }
-  }
-
   if (loading) return <LoadingSkeleton lines={5} />
 
   const visible = eventActivities.filter(a => a.stato !== 'disattivata')
-  const now = new Date()
+  const today = todayISO()
   const total = visible.length
   const completed = visible.filter(a => a.stato === 'completata').length
   const overdue = visible.filter(
-    a => ['da_fare', 'in_corso'].includes(a.stato) && a.deadline && new Date(a.deadline) < now
+    a => ['da_fare', 'in_corso'].includes(a.stato) && a.deadline && a.deadline < today
   ).length
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0
+  // pct moved to ActivityProgressSection
 
   async function handleStart(activityId) {
     const { error } = await startActivity(activityId)
@@ -156,6 +142,19 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     }
   }
 
+  async function handleEditActivity(activityId, updates) {
+    setSavingEdit(true)
+    const { error } = await updateActivity(activityId, updates)
+    setSavingEdit(false)
+    if (error) {
+      addToast('Impossibile salvare le modifiche. Riprova.', 'error')
+    } else {
+      addToast('Attività aggiornata.', 'success')
+      setEditingActivity(null)
+      fetchEventActivities(event.id)
+    }
+  }
+
   async function handleAddCustomActivity(e) {
     e.preventDefault()
     if (!newActivity.descrizione.trim()) return
@@ -179,7 +178,50 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     }
   }
 
-  async function handleInstantiateTemplate() {
+  // B. Load template preview data
+  async function handlePreviewTemplate() {
+    setLoadingPreview(true)
+    // Fetch template items to show preview before applying
+    const { data: templates } = await supabase
+      .from('event_templates')
+      .select('id')
+      .eq('tipo_evento', event.tipo_evento)
+      .eq('modalita', event.modalita)
+      .limit(1)
+    if (!templates?.length) {
+      addToast(`Nessun template per ${event.tipo_evento} ${event.modalita}. Crealo in Amministrazione → Template.`, 'warning')
+      setLoadingPreview(false)
+      return
+    }
+    const { data: items } = await supabase
+      .from('template_items')
+      .select('*')
+      .eq('template_id', templates[0].id)
+      .eq('tipo', 'checklist')
+      .order('ordine')
+    if (!items?.length) {
+      addToast('Template vuoto.', 'warning')
+      setLoadingPreview(false)
+      return
+    }
+    // Compute deadlines for preview
+    const eventDate = new Date(event.data_inizio)
+    const previewItems = items.map(item => ({
+      descrizione: item.descrizione,
+      categoria: item.categoria,
+      permesso_responsabile: item.permesso_responsabile,
+      obbligatorio: item.obbligatorio,
+      giorni_prima_evento: item.giorni_prima_evento,
+      tipo_verifica: item.tipo_verifica || 'manuale',
+      deadline: calculateDeadline(eventDate, item.giorni_prima_evento),
+    }))
+    setTemplatePreviewItems(previewItems)
+    setShowTemplatePreview(true)
+    setLoadingPreview(false)
+  }
+
+  async function handleConfirmTemplate() {
+    setShowTemplatePreview(false)
     const { error } = await instantiateTemplate(
       event.id,
       event.tipo_evento,
@@ -204,85 +246,6 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     }
   }
 
-  async function handlePreviewDoc(doc) {
-    const { data, error } = await getSignedUrl(doc.file_path)
-    if (error || !data?.signedUrl) {
-      addToast('Impossibile generare il link di anteprima', 'error')
-      return
-    }
-    if (doc.mime_type === 'image/jpeg' || doc.mime_type === 'image/png') {
-      setPreviewImage({ url: data.signedUrl, name: doc.nome })
-    } else {
-      window.open(data.signedUrl, '_blank')
-    }
-  }
-
-  async function handleDocApprovalAction() {
-    if (!docActionDialog) return
-    const { type, doc, nota } = docActionDialog
-    let error
-
-    if (type === 'approve') {
-      const result = await approveDocument(doc.id, user.id)
-      error = result.error
-      if (!error && doc.activity_id) {
-        await completeActivity(doc.activity_id, user.id)
-        await fetchEventActivities(event.id)
-      }
-    } else if (type === 'reject') {
-      if (!nota?.trim()) {
-        addToast('Inserisci una nota per il rifiuto', 'warning')
-        return
-      }
-      const result = await rejectDocument(doc.id, user.id, nota)
-      error = result.error
-    } else if (type === 'revision') {
-      if (!nota?.trim()) {
-        addToast('Inserisci una nota per la revisione', 'warning')
-        return
-      }
-      const result = await requestRevisionDoc(doc.id, nota)
-      error = result.error
-    }
-
-    if (error) {
-      addToast(error, 'error')
-    } else {
-      const messages = { approve: 'Documento approvato', reject: 'Documento rifiutato', revision: 'Revisione richiesta' }
-      addToast(messages[type], 'success')
-      fetchEventDocuments(event.id)
-      fetchEventActivities(event.id)
-    }
-    setDocActionDialog(null)
-  }
-
-  function handleUploadForActivity(activity) {
-    setUploadForActivity(activity)
-    // Trigger file picker
-    setTimeout(() => activityFileInputRef.current?.click(), 100)
-  }
-
-  function handleActivityFilePicked(e) {
-    const files = Array.from(e.target.files || [])
-    e.target.value = ''
-    if (files.length === 0 || !uploadForActivity) {
-      setUploadForActivity(null)
-      return
-    }
-    setPendingActivityFiles({ files, activity: uploadForActivity })
-    setUploadForActivity(null)
-  }
-
-  async function handleActivityDocUpload(file, tipo, note, activityId) {
-    const { error } = await uploadDocument(event.id, file, tipo, note, user.id, activityId)
-    if (error) {
-      addToast(error, 'error')
-      return { error }
-    }
-    addToast('Documento caricato — in attesa di approvazione', 'success')
-    return { error: null }
-  }
-
   if (total === 0) {
     const canEdit = ['confermato', 'in_preparazione'].includes(event.stato)
     return (
@@ -293,7 +256,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
           action={
             canEdit ? (
               <div className="flex flex-col items-center gap-3">
-                <Button variant="primary" onClick={handleInstantiateTemplate}>
+                <Button variant="primary" onClick={handlePreviewTemplate} loading={loadingPreview}>
                   Crea attività dal template
                 </Button>
                 <Button variant="secondary" onClick={() => setShowAddForm(true)}>
@@ -305,74 +268,21 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
           }
         />
         {canEdit && showAddForm && (
-          <form onSubmit={handleAddCustomActivity} className={FORM_CONTAINER_STYLE + ' space-y-4'}>
-            <h3 className="font-semibold text-lg">Nuova attività</h3>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descrizione <span className="text-red-500">*</span>
-              </label>
-              <input
-                className={INPUT_STYLE}
-                value={newActivity.descrizione}
-                onChange={e => setNewActivity(prev => ({ ...prev, descrizione: e.target.value }))}
-                placeholder="Es. Prenotare sala conferenze"
-                required
-                autoFocus
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                <select
-                  className={SELECT_STYLE}
-                  value={newActivity.categoria}
-                  onChange={e => setNewActivity(prev => ({ ...prev, categoria: e.target.value }))}
-                >
-                  {Object.entries(CATEGORIA_ATTIVITA).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Scadenza</label>
-                <input
-                  type="date"
-                  className={INPUT_STYLE}
-                  value={newActivity.deadline}
-                  onChange={e => setNewActivity(prev => ({ ...prev, deadline: e.target.value }))}
-                />
-              </div>
-              <div className="flex items-end gap-4">
-                <label className="flex items-center gap-2 min-h-[48px] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
-                    checked={newActivity.obbligatoria}
-                    onChange={e => setNewActivity(prev => ({ ...prev, obbligatoria: e.target.checked }))}
-                  />
-                  <span className="text-sm font-medium text-gray-700">Obbligatoria</span>
-                </label>
-                <label className="flex items-center gap-2 min-h-[48px] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-400"
-                    checked={newActivity.tipo_verifica === 'documento'}
-                    onChange={e => setNewActivity(prev => ({ ...prev, tipo_verifica: e.target.checked ? 'documento' : 'manuale' }))}
-                  />
-                  <span className="text-sm font-medium text-gray-700">Richiede documento</span>
-                </label>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="primary" size="sm" loading={adding} type="submit">
-                Aggiungi
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowAddForm(false)} type="button">
-                Annulla
-              </Button>
-            </div>
-          </form>
+          <PreparazioneAddActivityForm
+            newActivity={newActivity}
+            setNewActivity={setNewActivity}
+            adding={adding}
+            onSubmit={handleAddCustomActivity}
+            onCancel={() => setShowAddForm(false)}
+            showDocumentoToggle
+          />
         )}
+        <TemplatePreviewModal
+          open={showTemplatePreview}
+          items={templatePreviewItems}
+          onClose={() => setShowTemplatePreview(false)}
+          onConfirm={handleConfirmTemplate}
+        />
       </div>
     )
   }
@@ -387,40 +297,15 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     grouped[cat].push(act)
   }
 
-  // Group by stato (for kanban view)
-  const KANBAN_COLUMNS = [
-    { id: 'da_fare', label: 'Da fare', color: 'border-gray-300', headerBg: 'bg-gray-50', headerText: 'text-gray-700' },
-    { id: 'in_corso', label: 'In corso', color: 'border-mikai-300', headerBg: 'bg-mikai-50', headerText: 'text-mikai-700' },
-    { id: 'completata', label: 'Completate', color: 'border-green-300', headerBg: 'bg-green-50', headerText: 'text-green-700' },
-  ]
-  const byStato = { da_fare: [], in_corso: [], completata: [] }
-  for (const act of visible) {
-    if (byStato[act.stato]) byStato[act.stato].push(act)
-    else byStato.da_fare.push(act)
-  }
-
-  function renderActivityItem(activity) {
-    return (
-      <ActivityCard
-        key={activity.id}
-        activity={activity}
-        onStart={handleStart}
-        onComplete={handleComplete}
-        onRevert={handleRevert}
-        onAssign={handleAssign}
-        onDisable={handleDisable}
-        onUploadDocument={handleUploadForActivity}
-        onToggleDocumento={canEdit ? handleToggleDocumento : null}
-        onPreviewDoc={handlePreviewDoc}
-        onApproveDoc={(doc) => setDocActionDialog({ type: 'approve', doc, nota: '' })}
-        onRejectDoc={(doc) => setDocActionDialog({ type: 'reject', doc, nota: '' })}
-        onRequestRevisionDoc={(doc) => setDocActionDialog({ type: 'revision', doc, nota: '' })}
-        canApproveDoc={canApproveDoc}
-        linkedDoc={docByActivity[activity.id] || null}
-        currentUserId={user?.id}
-        eventStaff={eventStaff}
-      />
-    )
+  const cardPropsContext = {
+    canEdit, onEditActivity: setEditingActivity,
+    onStart: handleStart, onComplete: handleComplete, onRevert: handleRevert,
+    onAssign: handleAssign, onDisable: handleDisable,
+    onUploadDocument: handleUploadForActivity,
+    onToggleDocumento: handleToggleDocumento,
+    onPreviewDoc: handlePreviewDoc,
+    onDocAction: (type, doc) => setDocActionDialog({ type, doc, nota: '' }),
+    canApproveDoc, docByActivity, currentUserId: user?.id, eventStaff,
   }
 
   return (
@@ -447,23 +332,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
         </div>
       </div>
 
-      {/* Progress section */}
-      <div className={CARD_STYLE + ' space-y-3'}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">Avanzamento</p>
-            <p className="text-lg font-bold text-gray-900">{completed} di {total} completate</p>
-          </div>
-          <TrafficLight total={total} completed={completed} overdue={overdue} />
-        </div>
-        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-          <div
-            className={`h-3 rounded-full transition-all ${overdue > 0 ? 'bg-red-500' : completed === total ? 'bg-green-500' : 'bg-mikai-400'}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="text-xs text-gray-400 text-right">{pct}%</p>
-      </div>
+      <ActivityProgressSection total={total} completed={completed} overdue={overdue} />
 
       {/* Add custom activity */}
       {['confermato', 'in_preparazione'].includes(event.stato) && (
@@ -474,64 +343,13 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
               Aggiungi attività
             </Button>
           ) : (
-            <form onSubmit={handleAddCustomActivity} className={FORM_CONTAINER_STYLE + ' space-y-4'}>
-              <h3 className="font-semibold text-lg">Nuova attività</h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descrizione <span className="text-red-500">*</span>
-                </label>
-                <input
-                  className={INPUT_STYLE}
-                  value={newActivity.descrizione}
-                  onChange={e => setNewActivity(prev => ({ ...prev, descrizione: e.target.value }))}
-                  placeholder="Es. Prenotare sala conferenze"
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                  <select
-                    className={SELECT_STYLE}
-                    value={newActivity.categoria}
-                    onChange={e => setNewActivity(prev => ({ ...prev, categoria: e.target.value }))}
-                  >
-                    {Object.entries(CATEGORIA_ATTIVITA).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Scadenza</label>
-                  <input
-                    type="date"
-                    className={INPUT_STYLE}
-                    value={newActivity.deadline}
-                    onChange={e => setNewActivity(prev => ({ ...prev, deadline: e.target.value }))}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <label className="flex items-center gap-2 min-h-[48px] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
-                      checked={newActivity.obbligatoria}
-                      onChange={e => setNewActivity(prev => ({ ...prev, obbligatoria: e.target.checked }))}
-                    />
-                    <span className="text-sm font-medium text-gray-700">Obbligatoria</span>
-                  </label>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="primary" size="sm" loading={adding} type="submit">
-                  Aggiungi
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowAddForm(false)} type="button">
-                  Annulla
-                </Button>
-              </div>
-            </form>
+            <PreparazioneAddActivityForm
+              newActivity={newActivity}
+              setNewActivity={setNewActivity}
+              adding={adding}
+              onSubmit={handleAddCustomActivity}
+              onCancel={() => setShowAddForm(false)}
+            />
           )}
         </div>
       )}
@@ -539,74 +357,12 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
       {/* Gate bar */}
       <ActivityGateBar event={event} activities={visible} onUpdate={onUpdate} />
 
-      {/* Select-all toggle (list view only) */}
-      {/* ── KANBAN VIEW ── */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {KANBAN_COLUMNS.map(col => {
-            const acts = byStato[col.id] || []
-            return (
-              <div key={col.id} className={`rounded-xl border-2 ${col.color} overflow-hidden`}>
-                <div className={`${col.headerBg} px-4 py-3 flex items-center justify-between`}>
-                  <h3 className={`text-sm font-semibold ${col.headerText}`}>{col.label}</h3>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.headerBg} ${col.headerText}`}>
-                    {acts.length}
-                  </span>
-                </div>
-                <div className="p-2 space-y-2 min-h-[100px]">
-                  {acts.length === 0 ? (
-                    <p className="text-center text-sm text-gray-400 py-6">Nessuna</p>
-                  ) : (
-                    acts.map(activity => (
-                      <ActivityCard
-                        key={activity.id}
-                        activity={activity}
-                        compact
-                        onStart={handleStart}
-                        onComplete={handleComplete}
-                        onAssign={handleAssign}
-                        onRevert={handleRevert}
-                        onDisable={handleDisable}
-                        onUploadDocument={handleUploadForActivity}
-                        onToggleDocumento={canEdit ? handleToggleDocumento : null}
-                        onPreviewDoc={handlePreviewDoc}
-                        onApproveDoc={(doc) => setDocActionDialog({ type: 'approve', doc, nota: '' })}
-                        onRejectDoc={(doc) => setDocActionDialog({ type: 'reject', doc, nota: '' })}
-                        onRequestRevisionDoc={(doc) => setDocActionDialog({ type: 'revision', doc, nota: '' })}
-                        canApproveDoc={canApproveDoc}
-                        linkedDoc={docByActivity[activity.id] || null}
-                        currentUserId={user?.id}
-                        eventStaff={eventStaff}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <PreparazioneKanbanView visible={visible} cardPropsContext={cardPropsContext} />
       )}
 
-      {/* ── LIST VIEW (by category) ── */}
       {viewMode === 'lista' && (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([categoria, acts]) => (
-            <div key={categoria} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Icon icon={CATEGORIA_ICONS[categoria]} size={16} className="text-gray-500" />
-                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                  {CATEGORIA_ATTIVITA[categoria] || categoria}
-                </h3>
-                <span className="text-xs text-gray-400">
-                  ({acts.filter(a => a.stato === 'completata').length}/{acts.length})
-                </span>
-              </div>
-              <div className="space-y-2">
-                {acts.map(activity => renderActivityItem(activity))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <PreparazioneListView grouped={grouped} cardPropsContext={cardPropsContext} />
       )}
 
       {/* Image preview modal */}
@@ -623,54 +379,12 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
       )}
 
       {/* Document approval/reject/revision dialog */}
-      {docActionDialog && (
-        <Modal
-          open
-          onClose={() => setDocActionDialog(null)}
-          size="sm"
-          title={
-            docActionDialog.type === 'approve' ? 'Approva documento'
-              : docActionDialog.type === 'reject' ? 'Rifiuta documento'
-                : 'Richiedi revisione'
-          }
-          footer={
-            <div className="flex gap-3 justify-end">
-              <Button variant="secondary" onClick={() => setDocActionDialog(null)}>Annulla</Button>
-              <Button
-                variant={docActionDialog.type === 'reject' ? 'danger' : 'primary'}
-                onClick={handleDocApprovalAction}
-              >
-                {docActionDialog.type === 'approve' ? 'Approva'
-                  : docActionDialog.type === 'reject' ? 'Rifiuta'
-                    : 'Richiedi revisione'}
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            <p className="text-base text-gray-700">
-              {docActionDialog.type === 'approve'
-                ? `Confermi l'approvazione di "${docActionDialog.doc.nome}"?`
-                : `Documento: "${docActionDialog.doc.nome}"`}
-            </p>
-            {docActionDialog.type !== 'approve' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nota <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={docActionDialog.nota}
-                  onChange={e => setDocActionDialog(prev => ({ ...prev, nota: e.target.value }))}
-                  placeholder="Motivo del rifiuto o indicazioni per la revisione..."
-                  className={TEXTAREA_STYLE}
-                  rows={3}
-                  autoFocus
-                />
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
+      <DocApprovalDialog
+        dialog={docActionDialog}
+        onChange={setDocActionDialog}
+        onAction={handleDocApprovalAction}
+        onClose={() => setDocActionDialog(null)}
+      />
 
       {/* Hidden file input for activity document upload */}
       <input
@@ -692,6 +406,86 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
           activityLabel={pendingActivityFiles.activity.descrizione}
         />
       )}
+
+      <ActivityEditModal
+        open={!!editingActivity}
+        activity={editingActivity}
+        onSave={handleEditActivity}
+        onClose={() => setEditingActivity(null)}
+        saving={savingEdit}
+      />
+
+      <TemplatePreviewModal
+        open={showTemplatePreview}
+        items={templatePreviewItems}
+        onClose={() => setShowTemplatePreview(false)}
+        onConfirm={handleConfirmTemplate}
+      />
     </div>
+  )
+}
+
+// ── B. Template Preview Modal (local) ──
+function TemplatePreviewModal({ open, items, onClose, onConfirm }) {
+  if (!open) return null
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title="Anteprima template"
+      subtitle={`${items.length} attività verranno create`}
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" onClick={onClose}>
+            Annulla
+          </Button>
+          <Button variant="primary" onClick={onConfirm}>
+            Applica {items.length} attività
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900">{item.descrizione}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {item.categoria && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    <Icon icon={CATEGORIA_ICONS[item.categoria]} size={12} />
+                    {CATEGORIA_ATTIVITA[item.categoria] || item.categoria}
+                  </span>
+                )}
+                {item.permesso_responsabile && (
+                  <span className="text-xs text-gray-500">
+                    {PERMESSO_SHORT_LABELS[item.permesso_responsabile] || item.permesso_responsabile}
+                  </span>
+                )}
+                {item.obbligatorio && (
+                  <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Obbligatoria</span>
+                )}
+                {item.tipo_verifica === 'documento' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-blue-600 bg-blue-50">
+                    <Icon icon={DOCUMENTO_ICONS.attachment} size={12} />
+                    Documento
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              {item.giorni_prima_evento != null ? (
+                <span className="text-xs text-gray-500">
+                  {item.giorni_prima_evento === 0 ? 'Giorno evento' : `${Math.abs(item.giorni_prima_evento)}gg prima`}
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">Nessuna scadenza</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Modal>
   )
 }

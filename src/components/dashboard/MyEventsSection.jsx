@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { EmptyState } from '../ui/EmptyState'
 import { STATO_EVENTO, STATO_EVENTO_COLORE, CARD_STYLE } from '../../lib/constants'
-import { formatDateRange, todayISO } from '../../lib/date-utils'
+import { formatDateRange, todayISO, daysFromToday } from '../../lib/date-utils'
 
 // Color classes for stato mini-cards
 const STATO_BADGE_CLASSES = {
@@ -16,12 +16,6 @@ const STATO_BADGE_CLASSES = {
   rifiutato:      'bg-red-50 border-red-200 text-red-700',
 }
 
-function daysAgo(dateStr) {
-  if (!dateStr) return 0
-  const diff = Date.now() - new Date(dateStr).getTime()
-  return Math.floor(diff / (1000 * 60 * 60 * 24))
-}
-
 export function MyEventsSection({ events }) {
   const today = todayISO()
   const prossimi = events.filter(e => e.data_inizio >= today && e.stato !== 'proposto').slice(0, 5)
@@ -33,12 +27,24 @@ export function MyEventsSection({ events }) {
     .map(stato => ({ stato, count: events.filter(e => e.stato === stato).length }))
     .filter(({ count }) => count > 0)
 
+  const totalActive = events.filter(e => !['concluso', 'cancellato', 'rifiutato'].includes(e.stato)).length
+
   return (
     <div className={CARD_STYLE}>
-      <h3 className="font-semibold text-lg mb-3">I miei eventi</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-lg">I miei eventi</h3>
+        {totalActive > 0 && (
+          <Link
+            to="/eventi"
+            className="text-sm text-mikai-400 hover:underline min-h-[48px] flex items-center"
+          >
+            Vedi tutti ({totalActive})
+          </Link>
+        )}
+      </div>
 
       {statiCounts.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-3 mb-4">
           {statiCounts.map(({ stato, count }) => (
             <Link
               key={stato}
@@ -55,7 +61,7 @@ export function MyEventsSection({ events }) {
       {prossimi.length > 0 && (
         <div className="mb-4">
           <p className="text-sm font-medium text-gray-500 mb-2">Prossimi</p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {prossimi.map(e => (
               <Link
                 key={e.id}
@@ -78,9 +84,9 @@ export function MyEventsSection({ events }) {
       {inAttesa.length > 0 && (
         <div>
           <p className="text-sm font-medium text-yellow-600 mb-2">In attesa di approvazione</p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {inAttesa.map(e => {
-              const days = daysAgo(e.created_at)
+              const days = daysFromToday(e.created_at)
               return (
                 <Link
                   key={e.id}

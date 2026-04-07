@@ -12,7 +12,7 @@ function CustomTooltip({ active, payload }) {
   )
 }
 
-export function TopMaterialiChart({ data, productNames }) {
+export function TopMaterialiChart({ data, productNames, onBarClick }) {
   const chartData = (data || []).map(item => ({
     ...item,
     label: productNames?.[item.id] || `#${item.id?.slice(0, 8) || '?'}`,
@@ -41,7 +41,13 @@ export function TopMaterialiChart({ data, productNames }) {
               tick={{ fontSize: 12 }}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="count" fill={CHART_COLORS.mikai} radius={[0, 4, 4, 0]} />
+            <Bar
+              dataKey="count"
+              fill={CHART_COLORS.mikai}
+              radius={[0, 4, 4, 0]}
+              cursor={onBarClick ? 'pointer' : undefined}
+              onClick={onBarClick ? (entry) => onBarClick(entry.id) : undefined}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

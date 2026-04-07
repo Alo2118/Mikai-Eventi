@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment, useRef } from 'react'
+import { useEffect, useState, useMemo, Fragment, useRef } from 'react'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useStaffStore } from '../../hooks/useStaff'
 import { useParticipantsStore } from '../../hooks/useParticipants'
@@ -9,15 +9,16 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
-import { STATO_PRENOTAZIONE, STATO_PRENOTAZIONE_COLORE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE } from '../../lib/constants'
-import { TRASPORTO_ICONS, ACTION_ICONS, NAV_ICONS, LOGISTICA_PERSONE_ICONS, TAVOLI_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { STATO_PRENOTAZIONE, STATO_PRENOTAZIONE_COLORE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE } from '../../lib/constants'
+import { TRASPORTO_ICONS, ACTION_ICONS, NAV_ICONS, LOGISTICA_PERSONE_ICONS, TAVOLI_ICONS } from '../../lib/icons'
 import { ContactPicker } from '../contatti/ContactPicker'
 import { BulkImportModal } from '../contatti/BulkImportModal'
 import { TrasportoForm } from './TrasportoForm'
 import { TavoloModal, HotelModal, TrasportoModal } from './LogisticaBulkModals'
 import { EventChecklistView } from './EventChecklistView'
 import { EventLogisticaEventTimeline } from './EventLogisticaEventTimeline'
-import { ProgressIndicator } from '../ui/ProgressIndicator'
+import { LogisticaAlertsBar, computeAlerts } from './LogisticaAlertsBar'
+import { LogisticaProgressBar } from './LogisticaProgressBar'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { ExportButton } from '../ui/ExportButton'
@@ -25,12 +26,15 @@ import { formatTime, formatDateShort } from '../../lib/date-utils'
 import { exportToExcel } from '../../lib/export-utils'
 
 // ─── Constants ─────────────────────────────────────────────────
-const GROUP_OPTIONS = [
+const GROUP_MAIN = [
   { id: null, label: 'Tutti' },
-  { id: 'tavolo', label: 'Per tavolo' },
-  { id: 'tipo', label: 'Per tipo' },
-  { id: 'zona', label: 'Per zona' },
+  { id: 'tipo', label: 'Per ruolo' },
   { id: 'trasporto', label: 'Per trasporto' },
+]
+
+const GROUP_MORE = [
+  { id: 'tavolo', label: 'Per tavolo' },
+  { id: 'zona', label: 'Per zona' },
 ]
 
 const ISCRIZIONE_CYCLE = { invitato: 'confermato', confermato: 'presente', presente: 'invitato', assente: 'invitato' }
@@ -39,53 +43,6 @@ const ISCRIZIONE_CHIP_COLORS = {
   confermato: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
   presente: 'bg-green-100 text-green-700 hover:bg-green-200',
   assente: 'bg-red-100 text-red-700 hover:bg-red-200',
-}
-
-// ─── Alerts engine ─────────────────────────────────────────────
-function computeAlerts(event, people, hotels, trasporti, staff, getHotel, getAndata) {
-  const alerts = []
-  const eventStart = event.data_inizio
-  const eventEnd = event.data_fine || event.data_inizio
-
-  for (const h of hotels) {
-    if (h.check_in && eventStart && h.check_in > eventStart) {
-      const who = h.user_id ? `${h.user?.cognome || ''} ${h.user?.nome || ''}` : `${h.contact?.cognome || ''} ${h.contact?.nome || ''}`
-      alerts.push({ type: 'warning', text: `Hotel check-in di ${who.trim()} (${formatDateShort(h.check_in)}) è dopo l'inizio evento (${formatDateShort(eventStart)})` })
-    }
-    if (h.check_out && eventEnd && h.check_out < eventEnd) {
-      const who = h.user_id ? `${h.user?.cognome || ''} ${h.user?.nome || ''}` : `${h.contact?.cognome || ''} ${h.contact?.nome || ''}`
-      alerts.push({ type: 'warning', text: `Hotel check-out di ${who.trim()} (${formatDateShort(h.check_out)}) è prima della fine evento (${formatDateShort(eventEnd)})` })
-    }
-  }
-
-  for (const t of trasporti.filter(t => t.direzione === 'andata' && t.orario)) {
-    const arrivalDate = t.orario.slice(0, 10)
-    if (eventStart && arrivalDate > eventStart) {
-      alerts.push({ type: 'error', text: `Trasporto andata il ${formatDateShort(arrivalDate)} ma l'evento inizia il ${formatDateShort(eventStart)}` })
-    }
-  }
-
-  const confirmedNoHotel = people.filter(p => {
-    const isConfirmed = p.type === 'staff' ? p.confermato : ['confermato', 'presente'].includes(p.statoIscrizione)
-    return isConfirmed && !getHotel(p)
-  })
-  if (confirmedNoHotel.length > 0) {
-    alerts.push({ type: 'warning', text: `${confirmedNoHotel.length} confermati senza hotel` })
-  }
-
-  const confirmedNoAndata = people.filter(p => {
-    const isConfirmed = p.type === 'staff' ? p.confermato : ['confermato', 'presente'].includes(p.statoIscrizione)
-    return isConfirmed && !getAndata(p)
-  })
-  if (confirmedNoAndata.length > 0) {
-    alerts.push({ type: 'warning', text: `${confirmedNoAndata.length} confermati senza trasporto andata` })
-  }
-
-  if (staff.length > 0 && !staff.some(s => s.confermato)) {
-    alerts.push({ type: 'error', text: 'Nessuno staff confermato' })
-  }
-
-  return alerts
 }
 
 // ─── Transport cell display ────────────────────────────────────
@@ -115,7 +72,71 @@ function TrasportoCell({ record }) {
   )
 }
 
-// ─── Note popover ──────────────────────────────────────────────
+// ─── Inline note (expandable) ──────────────────────────────────
+function InlineNote({ note, onSave, canEdit }) {
+  const [expanded, setExpanded] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(note || '')
+
+  if (!note && !canEdit) return null
+
+  const handleSave = () => {
+    if (draft !== note) onSave(draft.trim() || null)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div className="space-y-2 w-full">
+        <textarea
+          className="w-full text-sm border border-gray-200 rounded-lg p-2 min-h-[60px] focus:ring-2 focus:ring-mikai-400 focus:outline-none"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          placeholder="Scrivi una nota..."
+          autoFocus
+        />
+        <div className="flex gap-2 justify-end">
+          <button onClick={() => { setEditing(false); setDraft(note || '') }} className="text-xs text-gray-500 hover:text-gray-700 min-h-[32px] px-2">Annulla</button>
+          <button onClick={handleSave} className="text-xs text-mikai-600 font-medium hover:text-mikai-800 min-h-[32px] px-2">Salva</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!note) {
+    return (
+      <button
+        onClick={() => { setDraft(''); setEditing(true) }}
+        className="p-1 rounded transition-colors text-gray-300 hover:text-gray-500"
+        aria-label="Aggiungi nota"
+      >
+        <Icon icon={LOGISTICA_PERSONE_ICONS.note} size={14} />
+      </button>
+    )
+  }
+
+  const truncated = note.length > 50 && !expanded
+  return (
+    <div className="flex items-start gap-1 min-w-0">
+      <Icon icon={LOGISTICA_PERSONE_ICONS.note} size={14} className="text-mikai-500 flex-shrink-0 mt-0.5" />
+      <span className="text-sm text-gray-600">
+        {truncated ? note.slice(0, 50) + '...' : note}
+        {note.length > 50 && (
+          <button onClick={() => setExpanded(!expanded)} className="text-mikai-500 hover:text-mikai-700 ml-1 text-xs font-medium">
+            {expanded ? 'meno' : 'tutto'}
+          </button>
+        )}
+      </span>
+      {canEdit && (
+        <button onClick={() => { setDraft(note); setEditing(true) }} className="text-gray-400 hover:text-mikai-500 p-0.5 flex-shrink-0" aria-label="Modifica nota">
+          <Icon icon={ACTION_ICONS.edit} size={12} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── Note icon button (compact, for desktop table) ─────────────
 function NotePopover({ note, onSave, canEdit }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -169,24 +190,46 @@ function NotePopover({ note, onSave, canEdit }) {
   )
 }
 
-// ─── Esigenze icons ────────────────────────────────────────────
-function EsigenzeIcons({ person }) {
+// ─── Esigenze badges (prominent) ──────────────────────────────
+function EsigenzeBadges({ person, compact = false }) {
   const alimentari = person.esigenze_alimentari
   const accessibilita = person.esigenze_accessibilita
   if (!alimentari && !accessibilita) return null
+
+  if (compact) {
+    // Compact mode for desktop table: small icon badges
+    return (
+      <span className="inline-flex gap-1">
+        {alimentari && (
+          <span title={`Alimentari: ${alimentari}`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs">
+            <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_alimentari} size={12} />
+          </span>
+        )}
+        {accessibilita && (
+          <span title={`Accessibilità: ${accessibilita}`} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs">
+            <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_accessibilita} size={12} />
+          </span>
+        )}
+      </span>
+    )
+  }
+
+  // Full mode for mobile cards: text badges
   return (
-    <span className="inline-flex gap-0.5">
+    <div className="flex flex-wrap gap-1">
       {alimentari && (
-        <span title={`Alimentari: ${alimentari}`} className="text-orange-400">
-          <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_alimentari} size={14} />
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">
+          <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_alimentari} size={12} />
+          {alimentari}
         </span>
       )}
       {accessibilita && (
-        <span title={`Accessibilità: ${accessibilita}`} className="text-blue-400">
-          <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_accessibilita} size={14} />
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+          <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_accessibilita} size={12} />
+          {accessibilita}
         </span>
       )}
-    </span>
+    </div>
   )
 }
 
@@ -246,8 +289,10 @@ export function EventLogisticaTab({ event, users = [] }) {
   const [showImport, setShowImport] = useState(false)
   const [checklistMode, setChecklistMode] = useState(false)
   const [viewMode, setViewMode] = useState('lista')
-  const [dismissedAlerts, setDismissedAlerts] = useState(false)
+  // dismissedAlerts state moved into LogisticaAlertsBar
   const [exporting, setExporting] = useState(false)
+  const [statoConfirm, setStatoConfirm] = useState(null) // { person, newStato, label }
+  const [moreGroupOpen, setMoreGroupOpen] = useState(false)
 
   const hasTavoli = TIPI_EVENTO_CON_TAVOLI.includes(event.tipo_evento)
 
@@ -324,10 +369,14 @@ export function EventLogisticaTab({ event, users = [] }) {
     })
   }
 
-  const filteredPeople = activeFilters.size === 0 ? people :
+  const filteredPeople = useMemo(() =>
+    activeFilters.size === 0 ? people :
     people.filter(p => [...activeFilters].every(fId => FILTER_OPTIONS.find(f => f.id === fId)?.filter(p)))
+  , [people, activeFilters])
 
-  const selectedPeople = filteredPeople.filter(p => selected.has(personKey(p)))
+  const selectedPeople = useMemo(() =>
+    filteredPeople.filter(p => selected.has(personKey(p)))
+  , [filteredPeople, selected])
 
   // ── Selection ──
   const toggleSelect = (person) => {
@@ -345,8 +394,8 @@ export function EventLogisticaTab({ event, users = [] }) {
     else setSelected(new Set(filteredPeople.map(p => personKey(p))))
   }
 
-  // ── Grouping ──
-  const groupedPeople = (() => {
+  // ── Grouping (memoized) ──
+  const groupedPeople = useMemo(() => {
     if (!groupBy) return [{ label: null, people: filteredPeople }]
     if (groupBy === 'tavolo') {
       const groups = []
@@ -401,7 +450,7 @@ export function EventLogisticaTab({ event, users = [] }) {
         .map(([label, ppl]) => ({ label, people: ppl }))
     }
     return [{ label: null, people: filteredPeople }]
-  })()
+  }, [filteredPeople, groupBy, tavoli])
 
   // ── Alerts ──
   const alerts = computeAlerts(event, people, hotels, trasporti, staff, getHotel, getAndata)
@@ -482,24 +531,7 @@ export function EventLogisticaTab({ event, users = [] }) {
 
   return (
     <div className="space-y-6">
-      {/* ── Alert bar ── */}
-      {alerts.length > 0 && !dismissedAlerts && (
-        <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="space-y-1">
-              {alerts.map((a, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <Icon icon={a.type === 'error' ? FEEDBACK_ICONS.error : FEEDBACK_ICONS.warning} size={16} className={a.type === 'error' ? 'text-red-500' : 'text-orange-500'} />
-                  <span className={a.type === 'error' ? 'text-red-700' : 'text-orange-700'}>{a.text}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setDismissedAlerts(true)} className="text-gray-400 hover:text-gray-600 p-1 flex-shrink-0" aria-label="Chiudi avvisi">
-              <Icon icon={ACTION_ICONS.close} size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+      <LogisticaAlertsBar alerts={alerts} />
 
       {/* ── Header: Persone + chip riepilogo + azioni ── */}
       <div className="space-y-3">
@@ -629,19 +661,50 @@ export function EventLogisticaTab({ event, users = [] }) {
             </div>
           </div>
 
-          {/* Grouping chips */}
+          {/* Grouping: main segmented control + overflow menu */}
           <div className="flex items-center gap-2 flex-wrap">
-            {GROUP_OPTIONS.filter(g => hasTavoli || g.id !== 'tavolo').map(g => (
-              <button
-                key={g.id || 'all'}
-                onClick={() => setGroupBy(g.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[48px] transition-colors ${
-                  groupBy === g.id ? 'bg-mikai-400 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {g.label}
-              </button>
-            ))}
+            <div className="flex rounded-lg bg-gray-100 p-0.5">
+              {GROUP_MAIN.map(g => (
+                <button
+                  key={g.id || 'all'}
+                  onClick={() => { setGroupBy(g.id); setMoreGroupOpen(false) }}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium min-h-[48px] transition-colors ${
+                    groupBy === g.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'
+                  }`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+            {/* "More" dropdown for tavolo/zona */}
+            {(hasTavoli || GROUP_MORE.some(g => g.id !== 'tavolo')) && (
+              <div className="relative">
+                <button
+                  onClick={() => setMoreGroupOpen(!moreGroupOpen)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[48px] transition-colors ${
+                    GROUP_MORE.some(g => g.id === groupBy) ? 'bg-mikai-400 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                  aria-label="Altre opzioni di raggruppamento"
+                >
+                  {GROUP_MORE.find(g => g.id === groupBy)?.label || <Icon icon={ACTION_ICONS.more} size={16} />}
+                </button>
+                {moreGroupOpen && (
+                  <div className="absolute z-20 left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[140px]">
+                    {GROUP_MORE.filter(g => hasTavoli || g.id !== 'tavolo').map(g => (
+                      <button
+                        key={g.id}
+                        onClick={() => { setGroupBy(g.id); setMoreGroupOpen(false) }}
+                        className={`w-full text-left px-3 py-2 text-sm min-h-[44px] transition-colors ${
+                          groupBy === g.id ? 'bg-mikai-50 text-mikai-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Filter chips */}
@@ -701,14 +764,14 @@ export function EventLogisticaTab({ event, users = [] }) {
 
       {/* ── Progress indicators ── */}
       {people.length > 0 && viewMode === 'lista' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-          {hasTavoli && (
-            <ProgressIndicator label="Tavoli" current={people.filter(p => getPersonTavolo(p, tavoli)).length} total={people.length} color="mikai" />
-          )}
-          <ProgressIndicator label="Hotel" current={hotels.length} total={people.length} color="blue" />
-          <ProgressIndicator label="Andata" current={trasporti.filter(t => t.direzione === 'andata').length} total={people.length} />
-          <ProgressIndicator label="Ritorno" current={trasporti.filter(t => t.direzione === 'ritorno').length} total={people.length} />
-        </div>
+        <LogisticaProgressBar
+          people={people}
+          hotels={hotels}
+          trasporti={trasporti}
+          tavoli={tavoli}
+          hasTavoli={hasTavoli}
+          getPersonTavolo={getPersonTavolo}
+        />
       )}
 
       {people.length === 0 && <EmptyState title="Nessuna persona" description="Aggiungi staff o partecipanti con i bottoni sopra" />}
@@ -777,15 +840,15 @@ export function EventLogisticaTab({ event, users = [] }) {
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-medium truncate">{person.cognome} {person.nome}</span>
-                                <EsigenzeIcons person={person} />
+                                <EsigenzeBadges person={person} compact />
                                 <NotePopover note={person.note} canEdit={canEdit || canEditStaff || canEditPart} onSave={(note) => handleNoteSave(person, note)} />
                               </div>
                               <span className="text-gray-400 text-sm">{person.type === 'staff' ? RUOLO_EVENTO[person.ruolo] || 'staff' : TIPO_PARTECIPANTE[person.ruolo] || 'partecipante'}</span>
                             </div>
-                            {/* Clickable status chip */}
+                            {/* Clickable status chip — opens ConfirmDialog */}
                             {person.type === 'staff' && canEditStaff && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); updateStaff(person.staffId, { confermato: !person.confermato }) }}
+                                onClick={(e) => { e.stopPropagation(); setStatoConfirm({ person, newStato: !person.confermato, label: person.confermato ? 'Da confermare' : 'Confermato', type: 'staff' }) }}
                                 className={`px-2.5 py-1 rounded-full text-xs font-medium min-h-[28px] transition-colors ${person.confermato ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
                               >
                                 {person.confermato ? 'Confermato' : 'Da confermare'}
@@ -793,7 +856,7 @@ export function EventLogisticaTab({ event, users = [] }) {
                             )}
                             {person.type === 'participant' && canEditPart && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); updateParticipant(person.participantId, { stato_iscrizione: ISCRIZIONE_CYCLE[person.statoIscrizione || 'invitato'] }) }}
+                                onClick={(e) => { e.stopPropagation(); const nextStato = ISCRIZIONE_CYCLE[person.statoIscrizione || 'invitato']; setStatoConfirm({ person, newStato: nextStato, label: STATO_ISCRIZIONE[nextStato], type: 'participant' }) }}
                                 className={`px-2.5 py-1 rounded-full text-xs font-medium min-h-[28px] transition-colors ${ISCRIZIONE_CHIP_COLORS[person.statoIscrizione || 'invitato']}`}
                               >
                                 {STATO_ISCRIZIONE[person.statoIscrizione || 'invitato']}
@@ -852,7 +915,7 @@ export function EventLogisticaTab({ event, users = [] }) {
           </div>
 
           {/* Mobile cards */}
-          <div className="md:hidden space-y-2">
+          <div className="md:hidden space-y-3">
             {canEdit && gi === 0 && (
               <label className="flex items-center gap-2 p-2 min-h-[48px]">
                 <input type="checkbox" checked={selected.size === filteredPeople.length && filteredPeople.length > 0} onChange={toggleSelectAll}
@@ -866,83 +929,114 @@ export function EventLogisticaTab({ event, users = [] }) {
               const andata = getAndata(person)
               const ritorno = getRitorno(person)
               const currentTavolo = hasTavoli ? getPersonTavolo(person, tavoli) : null
-              const hasAnyData = hotel || andata || ritorno
 
               return (
-                <div key={key} className={`bg-white rounded-xl border border-gray-200 p-3 space-y-2 ${selected.has(key) ? 'border-mikai-300 bg-mikai-50/30' : ''}`}>
-                  {/* Row 1: checkbox + name + icons + delete */}
+                <div key={key} className={CARD_STYLE + ` space-y-3 ${selected.has(key) ? 'border-mikai-300 bg-mikai-50/30' : ''}`}>
+                  {/* Row 1: checkbox + name + role badge + delete */}
                   <div className="flex items-start gap-2">
                     {canEdit && (
                       <input type="checkbox" checked={selected.has(key)} onChange={() => toggleSelect(person)}
-                        className="w-5 h-5 mt-0.5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 flex-shrink-0" />
+                        className="w-5 h-5 mt-1 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 flex-shrink-0" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-sm">{person.cognome} {person.nome}</span>
-                        <EsigenzeIcons person={person} />
-                        <NotePopover note={person.note} canEdit={canEdit || canEditStaff || canEditPart} onSave={(note) => handleNoteSave(person, note)} />
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-base">{person.cognome} {person.nome}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium flex-shrink-0">
+                          {person.type === 'staff' ? RUOLO_EVENTO[person.ruolo] || 'staff' : TIPO_PARTECIPANTE[person.ruolo] || 'partecipante'}
+                        </span>
                       </div>
-                      <span className="text-gray-400 text-xs">{person.type === 'staff' ? RUOLO_EVENTO[person.ruolo] || 'staff' : TIPO_PARTECIPANTE[person.ruolo] || 'partecipante'}</span>
+                      {hasTavoli && currentTavolo && (
+                        <span className="text-xs font-medium text-gray-500">Tavolo {currentTavolo.numero}{currentTavolo.nome ? ` — ${currentTavolo.nome}` : ''}</span>
+                      )}
                     </div>
                     {(canEditStaff || canEditPart) && (
                       <button onClick={() => setDeleting({ type: person.type, id: person.type === 'staff' ? person.staffId : person.participantId, personId: person.id, name: `${person.cognome} ${person.nome}` })}
-                        className="text-gray-400 hover:text-red-500 p-1 flex-shrink-0" aria-label={`Rimuovi ${person.cognome} ${person.nome}`}>
-                        <Icon icon={ACTION_ICONS.close} size={14} />
+                        className="text-gray-400 hover:text-red-500 p-2 flex-shrink-0 min-h-[48px] min-w-[48px] flex items-center justify-center" aria-label={`Rimuovi ${person.cognome} ${person.nome}`}>
+                        <Icon icon={ACTION_ICONS.close} size={16} />
                       </button>
                     )}
                   </div>
 
-                  {/* Row 2: tavolo + stato conferma chip */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {hasTavoli && currentTavolo && (
-                      <span className="text-xs font-medium bg-gray-100 px-2 py-0.5 rounded">T{currentTavolo.numero}</span>
-                    )}
+                  {/* Row 2: stato conferma chip — tappable with confirm */}
+                  <div className="flex items-center gap-2">
                     {person.type === 'staff' && canEditStaff && (
                       <button
-                        onClick={() => updateStaff(person.staffId, { confermato: !person.confermato })}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium min-h-[32px] transition-colors ${person.confermato ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
+                        onClick={() => setStatoConfirm({ person, newStato: !person.confermato, label: person.confermato ? 'Da confermare' : 'Confermato', type: 'staff' })}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium min-h-[40px] transition-colors ${person.confermato ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
                       >
                         {person.confermato ? 'Confermato' : 'Da confermare'}
                       </button>
                     )}
-                    {person.type === 'participant' && (
-                      canEditPart ? (
-                        <button
-                          onClick={() => updateParticipant(person.participantId, { stato_iscrizione: ISCRIZIONE_CYCLE[person.statoIscrizione || 'invitato'] })}
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium min-h-[32px] transition-colors ${ISCRIZIONE_CHIP_COLORS[person.statoIscrizione || 'invitato']}`}
-                        >
-                          {STATO_ISCRIZIONE[person.statoIscrizione || 'invitato']}
-                        </button>
-                      ) : (
-                        <StatusBadge stato={person.statoIscrizione} labels={STATO_ISCRIZIONE} colors={STATO_ISCRIZIONE_COLORE} />
-                      )
+                    {person.type === 'staff' && !canEditStaff && (
+                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${person.confermato ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {person.confermato ? 'Confermato' : 'Da confermare'}
+                      </span>
+                    )}
+                    {person.type === 'participant' && canEditPart && (
+                      <button
+                        onClick={() => { const nextStato = ISCRIZIONE_CYCLE[person.statoIscrizione || 'invitato']; setStatoConfirm({ person, newStato: nextStato, label: STATO_ISCRIZIONE[nextStato], type: 'participant' }) }}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium min-h-[40px] transition-colors ${ISCRIZIONE_CHIP_COLORS[person.statoIscrizione || 'invitato']}`}
+                      >
+                        {STATO_ISCRIZIONE[person.statoIscrizione || 'invitato']}
+                      </button>
+                    )}
+                    {person.type === 'participant' && !canEditPart && (
+                      <StatusBadge stato={person.statoIscrizione} labels={STATO_ISCRIZIONE} colors={STATO_ISCRIZIONE_COLORE} />
                     )}
                   </div>
 
-                  {/* Row 3: logistica */}
-                  {hasAnyData && (
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs border-t border-gray-100 pt-2">
-                      {hotel && (
-                        <div className="flex items-center gap-1">
-                          <Icon icon={LOGISTICA_PERSONE_ICONS.hotel} size={14} className="text-gray-400" />
-                          {hotel.nome_hotel && <span className="text-gray-600 truncate max-w-[120px]">{hotel.nome_hotel}</span>}
+                  {/* Row 3: hotel info */}
+                  {hotel && (
+                    <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-2.5">
+                      <Icon icon={LOGISTICA_PERSONE_ICONS.hotel} size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        {hotel.nome_hotel && <div className="text-sm font-medium">{hotel.nome_hotel}</div>}
+                        {hotel.indirizzo_hotel && <div className="text-xs text-gray-500">{hotel.indirizzo_hotel}</div>}
+                        {(hotel.check_in || hotel.check_out) && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {hotel.check_in && formatDateShort(hotel.check_in)}
+                            {hotel.check_in && hotel.check_out && ' → '}
+                            {hotel.check_out && formatDateShort(hotel.check_out)}
+                          </div>
+                        )}
+                        <div className="mt-1">
                           <StatusBadge stato={hotel.stato} labels={STATO_PRENOTAZIONE} colors={STATO_PRENOTAZIONE_COLORE} />
                         </div>
-                      )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Row 4: transport info */}
+                  {(andata || ritorno) && (
+                    <div className="space-y-1.5">
                       {andata && (
-                        <div className="flex items-center gap-1">
-                          <Icon icon={ACTION_ICONS.forward} size={14} className="text-gray-400" />
-                          <TrasportoCell record={andata} />
+                        <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-2.5">
+                          <Icon icon={ACTION_ICONS.forward} size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs text-gray-500 font-medium mb-0.5">Andata</div>
+                            <TrasportoCell record={andata} />
+                          </div>
                         </div>
                       )}
                       {ritorno && (
-                        <div className="flex items-center gap-1">
-                          <Icon icon={ACTION_ICONS.back} size={14} className="text-gray-400" />
-                          <TrasportoCell record={ritorno} />
+                        <div className="flex items-start gap-2 bg-gray-50 rounded-lg p-2.5">
+                          <Icon icon={ACTION_ICONS.back} size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs text-gray-500 font-medium mb-0.5">Ritorno</div>
+                            <TrasportoCell record={ritorno} />
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
+
+                  {/* Row 5: esigenze badges */}
+                  <EsigenzeBadges person={person} />
+
+                  {/* Row 6: notes inline expandable */}
+                  <InlineNote note={person.note} canEdit={canEdit || canEditStaff || canEditPart} onSave={(note) => handleNoteSave(person, note)} />
+
+                  {/* Transport editing form */}
                   {editingTransport?.personId === person.id && (
                     <TrasportoForm trasporto={editingTransport.record} eventId={event.id} personId={person.id} personType={person.type} direzione={editingTransport.direzione} onSave={() => setEditingTransport(null)} onCancel={() => setEditingTransport(null)} />
                   )}
@@ -982,6 +1076,23 @@ export function EventLogisticaTab({ event, users = [] }) {
           addToast('Rimosso', 'success')
         }}
         onCancel={() => setDeleting(null)}
+      />
+
+      <ConfirmDialog
+        open={!!statoConfirm}
+        title="Cambia stato conferma"
+        message={statoConfirm ? `Vuoi impostare ${statoConfirm.person.cognome} ${statoConfirm.person.nome} come "${statoConfirm.label}"?` : ''}
+        confirmLabel={statoConfirm?.label || 'Conferma'}
+        onConfirm={async () => {
+          if (!statoConfirm) return
+          if (statoConfirm.type === 'staff') {
+            await updateStaff(statoConfirm.person.staffId, { confermato: statoConfirm.newStato })
+          } else {
+            await updateParticipant(statoConfirm.person.participantId, { stato_iscrizione: statoConfirm.newStato })
+          }
+          setStatoConfirm(null)
+        }}
+        onCancel={() => setStatoConfirm(null)}
       />
     </div>
   )

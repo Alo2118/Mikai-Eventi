@@ -18,6 +18,8 @@ export const useActivitiesStore = create((set, get) => ({
   myError: null,
   dashboardError: null,
   unclaimedError: null,
+  completedTodayCount: 0,
+  completedTodayTeamCount: 0,
 
   fetchEventActivities: async (eventId) => {
     set({ eventLoading: true, eventError: null })
@@ -72,6 +74,25 @@ export const useActivitiesStore = create((set, get) => ({
     const { data, error } = await query
     set({ dashboardActivities: data || [], dashboardLoading: false, dashboardError: error?.message })
     return { data, error }
+  },
+
+  fetchCompletedToday: async (userId) => {
+    const dayStart = todayISO() + 'T00:00:00'
+    const dayEnd = todayISO() + 'T23:59:59'
+    const [mine, team] = await Promise.all([
+      userId
+        ? supabase.from('event_activities').select('id', { count: 'exact', head: true })
+            .eq('stato', 'completata').eq('completata_da', userId)
+            .gte('completata_il', dayStart).lte('completata_il', dayEnd)
+        : Promise.resolve({ count: 0 }),
+      supabase.from('event_activities').select('id', { count: 'exact', head: true })
+        .eq('stato', 'completata')
+        .gte('completata_il', dayStart).lte('completata_il', dayEnd),
+    ])
+    set({
+      completedTodayCount: userId ? (mine.count || 0) : (team.count || 0),
+      completedTodayTeamCount: team.count || 0,
+    })
   },
 
   fetchUnclaimedActivities: async (permissions) => {

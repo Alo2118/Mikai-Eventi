@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Icon } from '../../components/ui/Icon'
 import { MobileHeader } from '../../components/layout/MobileHeader'
+import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal'
 import { CARD_STYLE, CARD_HOVER_STYLE, GROUP_HEADING_STYLE } from '../../lib/constants'
-import { NAV_ICONS, ADMIN_ICONS, COMPLIANCE_ICONS } from '../../lib/icons'
+import { NAV_ICONS, ADMIN_ICONS, COMPLIANCE_ICONS, PASSWORD_ICONS } from '../../lib/icons'
 
 const sections = [
   { to: '/eventi/calendario', label: 'Calendario eventi', icon: NAV_ICONS.calendario },
@@ -32,6 +34,7 @@ export function AltroPage() {
   const hasPermission = useAuthStore(s => s.hasPermission)
   const signOut = useAuthStore(s => s.signOut)
   const showAdmin = hasPermission('gestione_catalogo')
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
 
   const canSee = (item) => {
     if (item.permissions && !item.permissions.some(p => hasPermission(p))) return false
@@ -87,6 +90,13 @@ export function AltroPage() {
       <div className="space-y-3">
         <p className={GROUP_HEADING_STYLE}>Account</p>
         <button
+          onClick={() => setShowPasswordModal(true)}
+          className={'flex items-center gap-3 w-full ' + CARD_HOVER_STYLE + ' min-h-[48px] text-gray-700'}
+        >
+          <Icon icon={PASSWORD_ICONS.key} size={20} className="text-mikai-400" />
+          <span className="font-medium text-base">Cambia password</span>
+        </button>
+        <button
           onClick={signOut}
           className={'flex items-center gap-3 w-full ' + CARD_HOVER_STYLE + ' min-h-[48px] text-red-600'}
         >
@@ -94,6 +104,7 @@ export function AltroPage() {
           <span className="font-medium text-base">Esci dall'app</span>
         </button>
       </div>
+      <ChangePasswordModal open={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
     </div>
   )
 }

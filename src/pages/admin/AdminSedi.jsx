@@ -8,26 +8,32 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Tabs } from '../../components/ui/Tabs'
-import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 
 const TABS = [
   { id: 'sedi', label: 'Sedi' },
   { id: 'corrieri', label: 'Corrieri' },
+  { id: 'magazzini', label: 'Magazzini' },
 ]
 
 export function AdminSedi() {
   const venues = useAdminStore(s => s.venues)
   const couriers = useAdminStore(s => s.couriers)
   const zones = useAdminStore(s => s.zones)
+  const magazzini = useAdminStore(s => s.magazzini)
   const fetchVenues = useAdminStore(s => s.fetchVenues)
   const fetchCouriers = useAdminStore(s => s.fetchCouriers)
   const fetchZones = useAdminStore(s => s.fetchZones)
+  const fetchMagazzini = useAdminStore(s => s.fetchMagazzini)
   const createVenue = useAdminStore(s => s.createVenue)
   const updateVenue = useAdminStore(s => s.updateVenue)
   const deleteVenue = useAdminStore(s => s.deleteVenue)
   const createCourier = useAdminStore(s => s.createCourier)
   const updateCourier = useAdminStore(s => s.updateCourier)
   const deleteCourier = useAdminStore(s => s.deleteCourier)
+  const createMagazzino = useAdminStore(s => s.createMagazzino)
+  const updateMagazzino = useAdminStore(s => s.updateMagazzino)
+  const deleteMagazzino = useAdminStore(s => s.deleteMagazzino)
   const addToast = useToastStore(s => s.add)
 
   const [tab, setTab] = useState('sedi')
@@ -39,7 +45,8 @@ export function AdminSedi() {
     fetchVenues()
     fetchCouriers()
     fetchZones()
-  }, [fetchVenues, fetchCouriers, fetchZones])
+    fetchMagazzini()
+  }, [fetchVenues, fetchCouriers, fetchZones, fetchMagazzini])
 
   // Reset form on tab change
   const handleTabChange = (newTab) => { setTab(newTab); setEditing(null) }
@@ -92,12 +99,39 @@ export function AdminSedi() {
     setEditing(null)
   }
 
+  // ═══ Magazzini ═══
+  const magazziniColumns = [
+    { key: 'nome', label: 'Nome' },
+    { key: 'indirizzo', label: 'Indirizzo', render: (r) => r.indirizzo || '-' },
+    { key: 'attivo', label: 'Stato', render: (r) => r.attivo ? 'Attivo' : 'Disattivato' },
+  ]
+
+  const handleSaveMagazzino = async () => {
+    setSaving(true)
+    const payload = {
+      nome: editing.nome || '',
+      indirizzo: editing.indirizzo || null,
+      attivo: editing.attivo ?? true,
+    }
+    const isNew = !editing.id
+    const { error } = isNew ? await createMagazzino(payload) : await updateMagazzino(editing.id, payload)
+    setSaving(false)
+    if (error) { addToast(error, 'error'); return }
+    addToast(isNew ? 'Magazzino creato' : 'Magazzino aggiornato', 'success')
+    setEditing(null)
+  }
+
   const handleDelete = async () => {
-    const isSede = tab === 'sedi'
-    const { error } = isSede
-      ? await deleteVenue(deleting.id)
-      : await deleteCourier(deleting.id)
-    if (error) { addToast(error, 'error') } else { addToast(isSede ? 'Sede eliminata' : 'Corriere eliminato', 'success') }
+    let error
+    if (tab === 'sedi') {
+      ({ error } = await deleteVenue(deleting.id))
+    } else if (tab === 'corrieri') {
+      ({ error } = await deleteCourier(deleting.id))
+    } else {
+      ({ error } = await deleteMagazzino(deleting.id))
+    }
+    const labels = { sedi: 'Sede eliminata', corrieri: 'Corriere eliminato', magazzini: 'Magazzino eliminato' }
+    if (error) { addToast(error, 'error') } else { addToast(labels[tab], 'success') }
     setDeleting(null)
   }
 
@@ -107,11 +141,11 @@ export function AdminSedi() {
 
   return (
     <div>
-      <MobileHeader title="Sedi & Corrieri" subtitle="Gestisci la rubrica sedi e corrieri" />
+      <MobileHeader title="Sedi, Corrieri & Magazzini" subtitle="Gestisci sedi, corrieri e magazzini" />
       <div className="px-4 md:px-8 pt-4">
-        <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Sedi & Corrieri' }]} />
+        <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Sedi, Corrieri & Magazzini' }]} />
       </div>
-      <PageHeader title="Sedi & Corrieri" subtitle="Gestisci la rubrica sedi e corrieri" />
+      <PageHeader title="Sedi, Corrieri & Magazzini" subtitle="Gestisci sedi, corrieri e magazzini" />
 
       <div className="px-4 md:px-8 pb-8 space-y-4">
         <Tabs tabs={TABS} activeTab={tab} onChange={handleTabChange} />
@@ -207,11 +241,50 @@ export function AdminSedi() {
             />
           )
         )}
+
+        {tab === 'magazzini' && (
+          editing ? (
+            <div className={CARD_STYLE + ' md:p-6 max-w-lg space-y-4'}>
+              <h2 className="text-lg font-semibold text-gray-900">{editing.id ? 'Modifica magazzino' : 'Nuovo magazzino'}</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
+                <input className={INPUT_STYLE} value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Indirizzo</label>
+                <input className={INPUT_STYLE} value={editing.indirizzo || ''} onChange={e => setEditing({ ...editing, indirizzo: e.target.value })} />
+              </div>
+              {editing.id && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stato</label>
+                  <select className={SELECT_STYLE} value={editing.attivo ? 'true' : 'false'} onChange={e => setEditing({ ...editing, attivo: e.target.value === 'true' })}>
+                    <option value="true">Attivo</option>
+                    <option value="false">Disattivato</option>
+                  </select>
+                </div>
+              )}
+              <div className="flex gap-3 pt-2">
+                <Button onClick={handleSaveMagazzino} loading={saving} disabled={!editing.nome?.trim()}>Salva</Button>
+                <Button variant="secondary" onClick={() => setEditing(null)}>Annulla</Button>
+              </div>
+            </div>
+          ) : (
+            <AdminTable
+              columns={magazziniColumns}
+              rows={magazzini}
+              searchField="nome"
+              onAdd={() => setEditing({ nome: '', indirizzo: '', attivo: true })}
+              onEdit={(row) => setEditing({ ...row })}
+              onDelete={(row) => setDeleting(row)}
+              addLabel="Nuovo magazzino"
+            />
+          )
+        )}
       </div>
 
       <ConfirmDialog
         open={!!deleting}
-        title={tab === 'sedi' ? 'Elimina sede' : 'Elimina corriere'}
+        title={{ sedi: 'Elimina sede', corrieri: 'Elimina corriere', magazzini: 'Elimina magazzino' }[tab]}
         message={`Sei sicuro di voler eliminare "${deleting?.nome}"?`}
         confirmLabel="Elimina"
         onConfirm={handleDelete}

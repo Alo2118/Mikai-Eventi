@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getMonthRange, getQuarterRange, getYearRange } from '../../lib/date-utils'
+import { INPUT_STYLE } from '../../lib/constants'
 
 const PRESETS = [
   { id: 'mese', label: 'Mese', range: getMonthRange },
@@ -34,7 +35,7 @@ export function TimeRangeFilter({ value, onChange }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-3 overflow-x-auto pb-1">
         {PRESETS.map(preset => (
           <button
             key={preset.id}
@@ -57,7 +58,7 @@ export function TimeRangeFilter({ value, onChange }) {
               type="date"
               value={customStart}
               onChange={e => handleCustomChange('start', e.target.value)}
-              className="ml-2 px-3 py-2 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 outline-none"
+              className={'ml-2 ' + INPUT_STYLE}
             />
           </label>
           <label className="text-sm text-gray-600">
@@ -66,7 +67,7 @@ export function TimeRangeFilter({ value, onChange }) {
               type="date"
               value={customEnd}
               onChange={e => handleCustomChange('end', e.target.value)}
-              className="ml-2 px-3 py-2 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 outline-none"
+              className={'ml-2 ' + INPUT_STYLE}
             />
           </label>
         </div>

@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS } from '../../lib/icons'
 import { formatDateTime } from '../../lib/date-utils'
-import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, CARD_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 
@@ -105,7 +105,7 @@ export function EventProgrammaTab({ event }) {
       </div>
 
       {showForm && (
-        <div className={CARD_STYLE + ' space-y-3'}>
+        <div className={FORM_CONTAINER_STYLE + ' space-y-3'}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo <span className="text-red-500">*</span></label>

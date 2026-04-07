@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { FormField } from '../ui/FormField'
 import { DatePicker } from '../ui/DatePicker'
 import { useToastStore } from '../ui/Toast'
-import { MODALITA_MOVIMENTO, POSIZIONE_MATERIALE, SELECT_STYLE } from '../../lib/constants'
+import { MODALITA_MOVIMENTO, POSIZIONE_MATERIALE, SELECT_STYLE, INPUT_STYLE, FORM_CONTAINER_STYLE, TEXTAREA_STYLE, STATO_RIENTRO_COLORS } from '../../lib/constants'
 import { nowISO } from '../../lib/date-utils'
 
 export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', allMaterialIds, onDone, material }) {
@@ -73,7 +73,7 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
   }
 
   return (
-    <form onSubmit={handleSubmit} className={`space-y-4 ${allMaterialIds ? '' : 'bg-gray-50 rounded-xl p-5'}`}>
+    <form onSubmit={handleSubmit} className={`space-y-4 ${allMaterialIds ? '' : FORM_CONTAINER_STYLE}`}>
       {!allMaterialIds && (
         <h3 className="text-lg font-semibold text-gray-900">
           {tipo === 'uscita' ? 'Registra uscita' : tipo === 'rientro' ? 'Registra rientro' : 'Registra trasferimento'}
@@ -83,7 +83,7 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
       <div>
         <label className="block text-base font-medium text-gray-700 mb-1">Modalit&agrave; <span className="text-red-500">*</span></label>
         <select value={modalita} onChange={(e) => setModalita(e.target.value)} required
-          className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400">
+          className={SELECT_STYLE}>
           <option value="">Seleziona...</option>
           {Object.entries(MODALITA_MOVIMENTO).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
@@ -128,7 +128,7 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
         <div>
           <label className="block text-base font-medium text-gray-700 mb-1">Tracking spedizione</label>
           <input type="text" value={tracking} onChange={(e) => setTracking(e.target.value)}
-            className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400"
+            className={INPUT_STYLE}
             placeholder="Numero tracking..." />
         </div>
       )}
@@ -138,10 +138,10 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
           <div>
             <label className="block text-base font-medium text-gray-700 mb-1">Stato rientro <span className="text-red-500">*</span></label>
             <div className="flex flex-wrap gap-3">
-              {[['integro', 'Integro', 'green'], ['parziale', 'Parziale', 'yellow'], ['danneggiato', 'Danneggiato', 'red']].map(([val, label, color]) => (
+              {[['integro', 'Integro'], ['parziale', 'Parziale'], ['danneggiato', 'Danneggiato']].map(([val, label]) => (
                 <button key={val} type="button" onClick={() => setStatoRientro(val)}
                   className={`px-5 py-3 rounded-xl border-2 text-base font-medium min-h-[48px] transition-all ${
-                    statoRientro === val ? `border-${color}-400 bg-${color}-50 text-${color}-800` : 'border-gray-200 text-gray-600'
+                    statoRientro === val ? STATO_RIENTRO_COLORS[val] : 'border-gray-200 text-gray-600'
                   }`}>
                   {label}
                 </button>
@@ -152,7 +152,7 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
             <div>
               <label className="block text-base font-medium text-gray-700 mb-1">Descrizione danni <span className="text-red-500">*</span></label>
               <textarea value={noteDanni} onChange={(e) => setNoteDanni(e.target.value)} required
-                className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[80px] focus:ring-2 focus:ring-mikai-400"
+                className={TEXTAREA_STYLE}
                 placeholder="Descrivi i danni..." />
             </div>
           )}

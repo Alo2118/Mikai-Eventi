@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { SearchInput } from '../ui/SearchInput'
 import { TIPO_MATERIALE, POSIZIONE_MATERIALE, SELECT_STYLE } from '../../lib/constants'
 import { useMaterialsStore } from '../../hooks/useMaterials'
+import { useCatalogStore } from '../../hooks/useCatalog'
 
 export function MaterialFilters() {
   const filters = useMaterialsStore(s => s.filters)
   const setFilter = useMaterialsStore(s => s.setFilter)
   const resetFilters = useMaterialsStore(s => s.resetFilters)
-  const fetchBrands = useMaterialsStore(s => s.fetchBrands)
+  const fetchBrands = useCatalogStore(s => s.fetchBrands)
   const [brands, setBrands] = useState([])
 
   useEffect(() => {

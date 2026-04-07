@@ -1,25 +1,57 @@
 import { useEffect, useState } from 'react'
-import { useMaterialsStore } from '../../hooks/useMaterials'
+import { useNavigate } from 'react-router-dom'
+import { useMaterialAnalyticsStore } from '../../hooks/useMaterialAnalytics'
+import { useCatalogStore } from '../../hooks/useCatalog'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ExportButton } from '../../components/ui/ExportButton'
+import { Icon } from '../../components/ui/Icon'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { CARD_STYLE } from '../../lib/constants'
+import { CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
+import { ACTION_ICONS } from '../../lib/icons'
 import { TopMaterialiChart } from '../../components/report/TopMaterialiChart'
 import { MaterialeFuoriList } from '../../components/report/MaterialeFuoriList'
 import { MetricheMaterialeTable } from '../../components/report/MetricheMaterialeTable'
 import { ProssimePrenotazioni } from '../../components/report/ProssimePrenotazioni'
 import { useExportHandler } from '../../hooks/useExportHandler'
 
+function KpiCard({ label, value, colorClass, to, children }) {
+  const navigate = useNavigate()
+  if (to) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate(to)}
+        className={CARD_HOVER_STYLE + ' cursor-pointer text-left w-full'}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-gray-500">{label}</p>
+          <Icon icon={ACTION_ICONS.forward} size={16} className="text-gray-400 shrink-0" />
+        </div>
+        <p className={`text-3xl font-bold ${colorClass || 'text-gray-900'}`}>{value}</p>
+        {children}
+      </button>
+    )
+  }
+  return (
+    <div className={CARD_STYLE}>
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className={`text-3xl font-bold ${colorClass || 'text-gray-900'}`}>{value}</p>
+      {children}
+    </div>
+  )
+}
+
 export function ReportMaterialePage() {
-  const materialAnalytics = useMaterialsStore(s => s.materialAnalytics)
-  const upcomingBookings = useMaterialsStore(s => s.upcomingBookings)
-  const loading = useMaterialsStore(s => s.analyticsLoading)
-  const fetchMaterialAnalytics = useMaterialsStore(s => s.fetchMaterialAnalytics)
-  const fetchUpcomingBookings = useMaterialsStore(s => s.fetchUpcomingBookings)
-  const fetchProductNames = useMaterialsStore(s => s.fetchProductNames)
+  const navigate = useNavigate()
+  const materialAnalytics = useMaterialAnalyticsStore(s => s.materialAnalytics)
+  const upcomingBookings = useMaterialAnalyticsStore(s => s.upcomingBookings)
+  const loading = useMaterialAnalyticsStore(s => s.analyticsLoading)
+  const fetchMaterialAnalytics = useMaterialAnalyticsStore(s => s.fetchMaterialAnalytics)
+  const fetchUpcomingBookings = useMaterialAnalyticsStore(s => s.fetchUpcomingBookings)
+  const fetchProductNames = useCatalogStore(s => s.fetchProductNames)
   const [productNames, setProductNames] = useState({})
 
   useEffect(() => {
@@ -92,45 +124,39 @@ export function ReportMaterialePage() {
           <>
             {/* Summary KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className={CARD_STYLE}>
-                <p className="text-sm text-gray-500">Utilizzi (anno)</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {materialAnalytics?.totalUsages || 0}
-                </p>
-              </div>
-              <div className={CARD_STYLE}>
-                <p className="text-sm text-gray-500">Movimenti</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {materialAnalytics?.totalMovements || 0}
-                </p>
-              </div>
-              <div className={CARD_STYLE}>
-                <p className="text-sm text-gray-500">Fuori magazzino</p>
-                <p className={`text-3xl font-bold ${
-                  (materialAnalytics?.fuori?.length || 0) > 0 ? 'text-yellow-600' : 'text-green-600'
-                }`}>
-                  {materialAnalytics?.fuori?.length || 0}
-                </p>
-              </div>
-              <div className={CARD_STYLE}>
-                <p className="text-sm text-gray-500">Rientro puntuale</p>
-                <p className={`text-3xl font-bold ${
-                  materialAnalytics?.onTimeRate != null
-                    ? materialAnalytics.onTimeRate >= 90 ? 'text-green-600'
-                      : materialAnalytics.onTimeRate >= 70 ? 'text-yellow-600'
-                        : 'text-red-600'
-                    : 'text-gray-400'
-                }`}>
-                  {materialAnalytics?.onTimeRate != null
-                    ? `${materialAnalytics.onTimeRate}%`
-                    : '\u2014'}
-                </p>
-              </div>
+              <KpiCard
+                label="Utilizzi (anno)"
+                value={materialAnalytics?.totalUsages || 0}
+                to="/materiale"
+              />
+              <KpiCard
+                label="Movimenti"
+                value={materialAnalytics?.totalMovements || 0}
+                to="/materiale"
+              />
+              <KpiCard
+                label="Fuori magazzino"
+                value={materialAnalytics?.fuori?.length || 0}
+                colorClass={(materialAnalytics?.fuori?.length || 0) > 0 ? 'text-yellow-600' : 'text-green-600'}
+                to="/materiale"
+              />
+              <KpiCard
+                label="Rientro puntuale"
+                value={materialAnalytics?.onTimeRate != null
+                  ? `${materialAnalytics.onTimeRate}%`
+                  : '\u2014'}
+                colorClass={materialAnalytics?.onTimeRate != null
+                  ? materialAnalytics.onTimeRate >= 90 ? 'text-green-600'
+                    : materialAnalytics.onTimeRate >= 70 ? 'text-yellow-600'
+                      : 'text-red-600'
+                  : 'text-gray-400'}
+              />
             </div>
 
             <TopMaterialiChart
               data={materialAnalytics?.topUsed}
               productNames={productNames}
+              onBarClick={(id) => navigate(`/materiale/${id}`)}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

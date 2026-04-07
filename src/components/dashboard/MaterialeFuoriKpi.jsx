@@ -1,5 +1,4 @@
 import { KpiCard } from './KpiCard'
-import { POSIZIONE_MATERIALE } from '../../lib/constants'
 
 export function MaterialeFuoriKpi({ count, items }) {
   return (
@@ -10,7 +9,7 @@ export function MaterialeFuoriKpi({ count, items }) {
       subtitle={count === 0 ? 'Tutto in magazzino' : 'Top 5 per giorni fuori'}
     >
       {items?.length > 0 && (
-        <ul className="space-y-2 mt-1">
+        <ul className="space-y-3 mt-1">
           {items.map(item => (
             <li
               key={item.id}

@@ -98,7 +98,7 @@ export function PromoterePicker({ value, onChange, currentUserId, error, onBlur 
           )
         })}
         {activeAgents.length > 0 && (
-          <optgroup label="Agenti">
+          <optgroup label="Agenti esterni">
             {activeAgents.map(agent => (
               <option key={agent.id} value={`contact:${agent.id}`}>
                 {agent.cognome} {agent.nome}{agent.azienda ? ` (${agent.azienda})` : ''}

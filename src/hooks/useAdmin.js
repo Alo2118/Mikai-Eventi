@@ -194,6 +194,167 @@ export const useAdminStore = create((set, get) => ({
     return { data, error: error?.message || null }
   },
 
+  // Fetch stock breakdown by location for a product
+  fetchStockLocations: async (productId) => {
+    const { data, error } = await supabase
+      .from('product_stock_locations')
+      .select('*, magazzino:magazzini(id, nome), agent:users(id, nome, cognome)')
+      .eq('product_id', productId)
+      .order('quantita', { ascending: false })
+    return { data: data || [], error: error?.message || null }
+  },
+
+  // Adjust stock by delta at a specific location, with audit log
+  adjustStock: async (productId, delta, motivo, userId, magazzinoId = null, agentUserId = null) => {
+    // Get current stock first
+    const { data: product, error: fetchErr } = await supabase
+      .from('products')
+      .select('quantita_disponibile')
+      .eq('id', productId)
+      .single()
+    if (fetchErr) return { error: fetchErr.message }
+
+    const quantitaPrima = product.quantita_disponibile ?? 0
+
+    // Use location-aware RPC if location provided, otherwise legacy
+    let quantitaDopo
+    if (magazzinoId || agentUserId) {
+      const { data: newTotal, error: rpcErr } = await supabase.rpc('adjust_product_stock_location', {
+        p_product_id: productId,
+        p_magazzino_id: magazzinoId || null,
+        p_user_id: agentUserId || null,
+        p_delta: delta,
+      })
+      if (rpcErr) return { error: rpcErr.message }
+      quantitaDopo = newTotal
+    } else {
+      quantitaDopo = quantitaPrima + delta
+      if (quantitaDopo < 0) return { error: 'La quantità risultante non può essere negativa' }
+      const { error: updateErr } = await supabase.rpc('adjust_product_stock', {
+        p_product_id: productId,
+        p_delta: delta,
+      })
+      if (updateErr) return { error: updateErr.message }
+    }
+
+    // Log the adjustment
+    const { error: logErr } = await supabase.from('stock_adjustments').insert({
+      product_id: productId,
+      user_id: userId,
+      delta,
+      quantita_prima: quantitaPrima,
+      quantita_dopo: quantitaDopo,
+      motivo: motivo || null,
+      magazzino_id: magazzinoId || null,
+      agent_user_id: agentUserId || null,
+    })
+    if (logErr) return { error: logErr.message }
+
+    get().fetchProducts()
+    return { error: null, quantitaDopo }
+  },
+
+  updateStockAdjustment: async (adjustmentId, productId, newDelta, newMotivo) => {
+    const { data: adj, error: fetchErr } = await supabase
+      .from('stock_adjustments')
+      .select('delta, magazzino_id, agent_user_id')
+      .eq('id', adjustmentId)
+      .single()
+    if (fetchErr) return { error: fetchErr.message }
+
+    const diff = newDelta - adj.delta
+    if (diff !== 0) {
+      const hasLocation = adj.magazzino_id || adj.agent_user_id
+      if (hasLocation) {
+        const { error: stockErr } = await supabase.rpc('adjust_product_stock_location', {
+          p_product_id: productId,
+          p_magazzino_id: adj.magazzino_id || null,
+          p_user_id: adj.agent_user_id || null,
+          p_delta: diff,
+        })
+        if (stockErr) return { error: stockErr.message }
+      } else {
+        const { error: stockErr } = await supabase.rpc('adjust_product_stock', {
+          p_product_id: productId,
+          p_delta: diff,
+        })
+        if (stockErr) return { error: stockErr.message }
+      }
+    }
+
+    const { data: product } = await supabase
+      .from('products')
+      .select('quantita_disponibile')
+      .eq('id', productId)
+      .single()
+
+    const newQty = product?.quantita_disponibile ?? 0
+    const { error: updateErr } = await supabase
+      .from('stock_adjustments')
+      .update({
+        delta: newDelta,
+        quantita_dopo: newQty,
+        motivo: newMotivo || null,
+      })
+      .eq('id', adjustmentId)
+    if (updateErr) return { error: updateErr.message }
+
+    get().fetchProducts()
+    return { error: null, quantitaDopo: newQty }
+  },
+
+  deleteStockAdjustment: async (adjustmentId, productId) => {
+    const { data: adj, error: fetchErr } = await supabase
+      .from('stock_adjustments')
+      .select('delta, magazzino_id, agent_user_id')
+      .eq('id', adjustmentId)
+      .single()
+    if (fetchErr) return { error: fetchErr.message }
+
+    const reverseDelta = -adj.delta
+    const hasLocation = adj.magazzino_id || adj.agent_user_id
+    if (hasLocation) {
+      const { error: stockErr } = await supabase.rpc('adjust_product_stock_location', {
+        p_product_id: productId,
+        p_magazzino_id: adj.magazzino_id || null,
+        p_user_id: adj.agent_user_id || null,
+        p_delta: reverseDelta,
+      })
+      if (stockErr) return { error: stockErr.message }
+    } else {
+      const { error: stockErr } = await supabase.rpc('adjust_product_stock', {
+        p_product_id: productId,
+        p_delta: reverseDelta,
+      })
+      if (stockErr) return { error: stockErr.message }
+    }
+
+    const { error: delErr } = await supabase
+      .from('stock_adjustments')
+      .delete()
+      .eq('id', adjustmentId)
+    if (delErr) return { error: delErr.message }
+
+    const { data: product } = await supabase
+      .from('products')
+      .select('quantita_disponibile')
+      .eq('id', productId)
+      .single()
+
+    get().fetchProducts()
+    return { error: null, quantitaDopo: product?.quantita_disponibile ?? 0 }
+  },
+
+  fetchStockHistory: async (productId) => {
+    const { data, error } = await supabase
+      .from('stock_adjustments')
+      .select('*, user:users(id, nome, cognome)')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    return { data: data || [], error: error?.message || null }
+  },
+
   // === Venues ===
   venues: [],
   venuesLoading: false,
@@ -376,6 +537,14 @@ export const useAdminStore = create((set, get) => ({
     return { error: error?.message || null }
   },
 
+  resetUserPassword: async (userId, newPassword) => {
+    const { error } = await supabase.rpc('reset_user_password', {
+      target_user_id: userId,
+      new_password: newPassword,
+    })
+    return { error: error?.message || null }
+  },
+
   createUser: async ({ email, password, nome, cognome, ruolo }) => {
     // Use separate client to avoid logging out current admin
     const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
@@ -398,5 +567,34 @@ export const useAdminStore = create((set, get) => ({
 
     get().fetchUsers()
     return { data: { id: userId }, error: null }
+  },
+
+  // === Magazzini ===
+  magazzini: [],
+  magazziniLoading: false,
+
+  fetchMagazzini: async () => {
+    set({ magazziniLoading: true })
+    const { data, error } = await supabase.from('magazzini').select('*').order('nome')
+    set({ magazzini: data || [], magazziniLoading: false })
+    return { data: data || [], error: error?.message || null }
+  },
+
+  createMagazzino: async (magazzino) => {
+    const { data, error } = await supabase.from('magazzini').insert(magazzino).select().single()
+    if (!error) get().fetchMagazzini()
+    return { data, error: error?.message || null }
+  },
+
+  updateMagazzino: async (id, updates) => {
+    const { data, error } = await supabase.from('magazzini').update(updates).eq('id', id).select().single()
+    if (!error) get().fetchMagazzini()
+    return { data, error: error?.message || null }
+  },
+
+  deleteMagazzino: async (id) => {
+    const { error } = await supabase.from('magazzini').delete().eq('id', id)
+    if (!error) get().fetchMagazzini()
+    return { error: error?.message || null }
   },
 }))

@@ -75,34 +75,29 @@ export function EventApprovalBar({ event, onUpdate }) {
         </div>
       )}
       {(canApprove || canCancel) && (
-        <div className="flex flex-col gap-3 p-5 bg-yellow-50 border-2 border-yellow-300 rounded-xl" role="alert">
-          {/* Messaggio esplicito */}
-          <div className="flex items-center gap-3">
-            <Icon icon={FEEDBACK_ICONS.warning} size={24} className="text-yellow-600 flex-shrink-0" />
-            <p className="text-base font-semibold text-yellow-800">
-              {canApprove
-                ? 'Questo evento richiede la tua approvazione'
-                : 'Puoi annullare questo evento se necessario'}
+        <div className="flex items-center justify-between gap-3 px-4 py-3 bg-yellow-50 border border-yellow-300 rounded-xl" role="alert">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon icon={FEEDBACK_ICONS.warning} size={18} className="text-yellow-600 flex-shrink-0" />
+            <p className="text-sm font-medium text-yellow-800 truncate">
+              {canApprove ? 'Richiede approvazione' : 'Evento annullabile'}
             </p>
           </div>
-
-          {/* Bottoni azione */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             {canApprove && (
               <>
-                <Button onClick={handleApprove} loading={loading} size="lg">
-                  <Icon icon={ACTION_ICONS.approve} size={18} className="mr-2" />
-                  Approva evento
+                <Button onClick={handleApprove} loading={loading}>
+                  <Icon icon={ACTION_ICONS.approve} size={16} className="mr-1.5" />
+                  Approva
                 </Button>
-                <Button variant="danger" onClick={() => setShowReject(true)} size="lg">
-                  <Icon icon={ACTION_ICONS.reject} size={18} className="mr-2" />
+                <Button variant="danger" onClick={() => setShowReject(true)}>
+                  <Icon icon={ACTION_ICONS.reject} size={16} className="mr-1.5" />
                   Rifiuta
                 </Button>
               </>
             )}
             {canCancel && event.stato !== 'proposto' && (
-              <Button variant="danger" onClick={() => setShowReject(true)} size="lg">
-                Annulla evento
+              <Button variant="danger" onClick={() => setShowReject(true)}>
+                Annulla
               </Button>
             )}
           </div>

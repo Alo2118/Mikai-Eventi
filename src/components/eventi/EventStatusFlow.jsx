@@ -1,24 +1,31 @@
-import { STATO_EVENTO } from '../../lib/constants'
 import { STATO_EVENTO_ICONS } from '../../lib/icons'
 import { Icon } from '../ui/Icon'
 
 const steps = ['proposto', 'confermato', 'in_preparazione', 'pronto', 'in_corso', 'concluso']
+const SHORT_LABELS = {
+  proposto: 'Proposto',
+  confermato: 'Approvato',
+  in_preparazione: 'Preparazione',
+  pronto: 'Pronto',
+  in_corso: 'In corso',
+  concluso: 'Concluso',
+}
 
 export function EventStatusFlow({ stato }) {
   if (stato === 'cancellato') {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-red-50 rounded-lg">
-        <Icon icon={STATO_EVENTO_ICONS.cancellato} size={24} className="text-red-600" />
-        <span className="text-base font-medium text-red-800">Evento annullato</span>
+      <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
+        <Icon icon={STATO_EVENTO_ICONS.cancellato} size={16} className="text-red-600" />
+        <span className="text-sm font-medium text-red-800">Evento annullato</span>
       </div>
     )
   }
 
   if (stato === 'rifiutato') {
     return (
-      <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg p-3">
-        <Icon icon={STATO_EVENTO_ICONS.rifiutato} size={20} />
-        <span className="font-medium">Evento rifiutato</span>
+      <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
+        <Icon icon={STATO_EVENTO_ICONS.rifiutato} size={16} className="text-red-600" />
+        <span className="text-sm font-medium text-red-800">Evento rifiutato</span>
       </div>
     )
   }
@@ -26,80 +33,49 @@ export function EventStatusFlow({ stato }) {
   const currentIndex = steps.indexOf(stato)
 
   return (
-    <div className="space-y-3 py-2">
-      {/* Mobile: layout verticale */}
-      <div className="flex md:hidden flex-col gap-1">
-        {steps.map((step, i) => {
-          const isDone = i < currentIndex
-          const isCurrent = i === currentIndex
-          const StepIcon = STATO_EVENTO_ICONS[step]
+    <div className="flex items-center gap-0.5 py-1 overflow-x-auto">
+      {steps.map((step, i) => {
+        const isDone = i < currentIndex
+        const isCurrent = i === currentIndex
+        const StepIcon = STATO_EVENTO_ICONS[step]
 
-          return (
-            <div key={step} className="flex items-center gap-3">
-              {/* Icona step */}
+        return (
+          <div key={step} className="flex items-center">
+            {i > 0 && (
+              <div className={`w-4 md:w-6 h-0.5 shrink-0 ${isDone ? 'bg-mikai-400' : 'bg-gray-200'}`} />
+            )}
+            <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full shrink-0 ${
+              isCurrent
+                ? 'bg-mikai-100 ring-1 ring-mikai-400'
+                : isDone
+                  ? 'bg-mikai-50'
+                  : ''
+            }`}>
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
                   isDone
                     ? 'bg-mikai-400 text-white'
                     : isCurrent
-                      ? 'bg-mikai-100 text-mikai-700 ring-2 ring-mikai-400'
+                      ? 'bg-mikai-500 text-white'
                       : 'bg-gray-100 text-gray-400'
                 }`}
               >
                 {isDone ? (
-                  <Icon name="check" size={18} />
+                  <Icon name="check" size={13} />
                 ) : (
-                  <Icon icon={StepIcon} size={18} />
+                  <Icon icon={StepIcon} size={13} />
                 )}
               </div>
-              {/* Label */}
-              <span className={`text-sm ${
+              <span className={`text-xs whitespace-nowrap ${
                 isCurrent ? 'font-semibold text-mikai-700' :
-                isDone ? 'text-gray-600' : 'text-gray-400'
+                isDone ? 'text-gray-600 hidden md:inline' : 'text-gray-400 hidden md:inline'
               }`}>
-                {STATO_EVENTO[step]}
+                {SHORT_LABELS[step]}
               </span>
             </div>
-          )
-        })}
-      </div>
-
-      {/* Desktop: layout orizzontale */}
-      <div className="hidden md:flex items-center gap-1">
-        {steps.map((step, i) => {
-          const isDone = i < currentIndex
-          const isCurrent = i === currentIndex
-          const StepIcon = STATO_EVENTO_ICONS[step]
-
-          return (
-            <div key={step} className="flex items-center gap-1">
-              {i > 0 && (
-                <div className={`w-8 h-0.5 ${isDone ? 'bg-mikai-400' : 'bg-gray-200'}`} />
-              )}
-              <div className="flex flex-col items-center min-w-[72px]">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    isDone
-                      ? 'bg-mikai-400 text-white'
-                      : isCurrent
-                        ? 'bg-mikai-100 text-mikai-700 ring-2 ring-mikai-400'
-                        : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  {isDone ? (
-                    <Icon name="check" size={18} />
-                  ) : (
-                    <Icon icon={StepIcon} size={18} />
-                  )}
-                </div>
-                <span className={`text-sm mt-1 text-center ${isCurrent ? 'font-semibold text-mikai-700' : 'text-gray-400'}`}>
-                  {STATO_EVENTO[step]}
-                </span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

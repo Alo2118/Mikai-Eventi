@@ -4,6 +4,7 @@ import { useActivitiesStore } from '../../hooks/useActivities'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Icon } from '../ui/Icon'
 import { FEEDBACK_ICONS } from '../../lib/icons'
+import { todayISO, subtractDays } from '../../lib/date-utils'
 
 export function AlertBanner() {
   const myActivities = useActivitiesStore(s => s.myActivities)
@@ -15,18 +16,17 @@ export function AlertBanner() {
     if (user?.id) fetchMyActivities(user.id)
   }, [user?.id])
 
-  const today = new Date()
-  const todayStr = today.toDateString()
-  const in3 = new Date(today); in3.setDate(today.getDate() + 3)
+  const today = todayISO()
+  const in3 = subtractDays(today, -3)
 
   let overdue = 0, todayCount = 0, soon = 0
 
   for (const act of myActivities) {
     if (!act.deadline) continue
-    const d = new Date(act.deadline)
-    if (d < today && d.toDateString() !== todayStr) overdue++
-    else if (d.toDateString() === todayStr) todayCount++
-    else if (d <= in3) soon++
+    const dl = act.deadline.slice(0, 10)
+    if (dl < today) overdue++
+    else if (dl === today) todayCount++
+    else if (dl <= in3) soon++
   }
 
   if (overdue === 0 && todayCount === 0 && soon === 0) return null

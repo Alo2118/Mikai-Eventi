@@ -5,6 +5,7 @@ import { useActivitiesStore } from '../../hooks/useActivities'
 import { useAnalyticsStore } from '../../hooks/useAnalytics'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
+import { EmptyState } from '../../components/ui/EmptyState'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { SearchInput } from '../../components/ui/SearchInput'
 import { Icon } from '../../components/ui/Icon'
@@ -22,16 +23,15 @@ import { MaterialeFuoriKpi } from '../../components/dashboard/MaterialeFuoriKpi'
 import { STATO_EVENTO, STATO_EVENTO_COLORE, TEXTAREA_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
 import { ACTION_ICONS } from '../../lib/icons'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { QuickActions, QUICK_ACTIONS_STRATEGICA } from '../../components/dashboard/QuickActions'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
-import { formatDate, formatDateRange, todayISO, formatDayISO } from '../../lib/date-utils'
+import { formatDate, formatDateRange, todayISO, getQuarterRange } from '../../lib/date-utils'
 import { formatCurrency, formatPercentage, getPromotoreName } from '../../lib/format-utils'
 
 function defaultTimeRange() {
-  const now = new Date()
-  const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
-  const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
-  return { type: 'trimestre', start: formatDayISO(qStart), end: formatDayISO(qEnd) }
+  const range = getQuarterRange()
+  return { type: 'trimestre', start: range.start, end: range.end }
 }
 
 function SemaphoreIcon({ status }) {
@@ -58,6 +58,7 @@ function KpiCharts({ timeRange }) {
   const attivitaInRitardo = useAnalyticsStore(s => s.attivitaInRitardo)
   const materialeFuori = useAnalyticsStore(s => s.materialeFuori)
   const analyticsLoading = useAnalyticsStore(s => s.loading)
+  const analyticsError = useAnalyticsStore(s => s.error)
   const fetchKpiData = useAnalyticsStore(s => s.fetchKpiData)
 
   useEffect(() => {
@@ -67,6 +68,7 @@ function KpiCharts({ timeRange }) {
   }, [timeRange?.start, timeRange?.end])
 
   if (analyticsLoading) return <LoadingSkeleton lines={4} />
+  if (analyticsError) return <EmptyState title="Errore nel caricamento" description={analyticsError} />
 
   return (
     <>
@@ -93,6 +95,7 @@ export function DashboardStrategica() {
   const approveEvent = useEventsStore(s => s.approveEvent)
   const rejectEvent = useEventsStore(s => s.rejectEvent)
   const permissions = useAuthStore(s => s.permissions)
+  const profile = useAuthStore(s => s.profile)
   const addToast = useToastStore(s => s.add)
 
   const navigate = useNavigate()
@@ -122,12 +125,10 @@ export function DashboardStrategica() {
     const attiviCount = events.filter(e => activeStates.includes(e.stato)).length
     const propostiList = events.filter(e => e.stato === 'proposto')
 
-    const now = new Date()
-    const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
-    const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0)
+    const qRange = getQuarterRange()
     const qBudget = events
       .filter(e => activeStates.includes(e.stato) && e.data_inizio)
-      .filter(e => { const d = new Date(e.data_inizio); return d >= qStart && d <= qEnd })
+      .filter(e => e.data_inizio >= qRange.start && e.data_inizio <= qRange.end)
       .reduce((sum, e) => sum + (e.budget_previsto || 0), 0)
 
     const total = events.length
@@ -185,14 +186,14 @@ export function DashboardStrategica() {
 
   return (
     <div>
-      <div className="px-4 md:px-6 pt-4">
+      <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Dashboard Direzione' }]} />
       </div>
       <div className="md:hidden">
         <MobileHeader title="Dashboard Direzione" />
       </div>
       <PageHeader
-        title="Dashboard Direzione"
+        title={`Ciao, ${profile?.nome || ''}`}
         subtitle="Panoramica strategica degli eventi"
         actions={
           <Button variant="secondary" onClick={loadData} disabled={loading} size="sm">
@@ -202,11 +203,13 @@ export function DashboardStrategica() {
         }
       />
 
-      <div className="px-4 md:px-6 space-y-8 pb-8">
+      <div className="px-4 md:px-8 space-y-6 pb-8">
         {loading && !events.length ? (
           <LoadingSkeleton lines={6} />
         ) : (
           <>
+            <QuickActions items={QUICK_ACTIONS_STRATEGICA} />
+
             {/* KPI Summary */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div className={CARD_STYLE}>
@@ -256,23 +259,24 @@ export function DashboardStrategica() {
 
             {/* Coda approvazioni */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              <h3 className="font-semibold text-lg mb-3">
                 Coda approvazioni
                 {proposti.length > 0 && (
                   <span className="ml-2 inline-flex items-center justify-center bg-yellow-100 text-yellow-700 text-sm font-bold rounded-full w-6 h-6">
                     {proposti.length}
                   </span>
                 )}
-              </h2>
+              </h3>
               {proposti.length > 3 && (
                 <div className="mb-3">
                   <SearchInput value={searchApproval} onChange={setSearchApproval} placeholder="Cerca per titolo o promotore..." />
                 </div>
               )}
               {filteredProposti.length === 0 ? (
-                <p className="text-gray-500 text-base">
-                  {searchApproval ? 'Nessun risultato.' : 'Nessun evento in attesa di approvazione.'}
-                </p>
+                <EmptyState
+                  title={searchApproval ? 'Nessun risultato' : 'Nessun evento in attesa'}
+                  description={searchApproval ? 'Prova a modificare la ricerca.' : 'Non ci sono eventi da approvare.'}
+                />
               ) : (
                 <div className="space-y-3">
                   {filteredProposti.map(event => (
@@ -309,9 +313,9 @@ export function DashboardStrategica() {
 
             {/* Prossimi eventi con semafori */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Prossimi eventi</h2>
+              <h3 className="font-semibold text-lg mb-3">Prossimi eventi</h3>
               {upcomingEvents.length === 0 ? (
-                <p className="text-gray-500 text-base">Nessun evento in programma.</p>
+                <EmptyState title="Nessun evento in programma" description="Non ci sono eventi futuri." />
               ) : (
                 <div className="space-y-3">
                   {upcomingEvents.map(event => (

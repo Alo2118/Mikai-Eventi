@@ -32,11 +32,16 @@ function deadlineLabel(days) {
 function ActivityRow({ act }) {
   const days = daysUntil(act.deadline)
   const cls = urgencyClasses(days)
+  const overdue = days !== null && days < 0
 
   return (
     <Link
       to={`/eventi/${act.evento?.id}`}
-      className="block p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+      className={`block p-3 rounded-lg border transition-colors ${
+        overdue
+          ? 'bg-red-50 border-l-4 border-l-red-400 border-red-200 hover:bg-red-100'
+          : 'border-gray-100 hover:bg-gray-50'
+      }`}
     >
       <div className="flex items-start gap-3">
         <Icon
@@ -45,7 +50,12 @@ function ActivityRow({ act }) {
           className={`mt-0.5 shrink-0 ${cls.icon}`}
         />
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-base truncate">{act.descrizione}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-base truncate">{act.descrizione}</p>
+            {overdue && (
+              <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 shrink-0">Scaduta</span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 truncate">{act.evento?.titolo}</p>
         </div>
         {act.deadline && (
@@ -59,12 +69,17 @@ function ActivityRow({ act }) {
 }
 
 export function MyActivitiesSection({ activities }) {
-  // Sort: overdue first, then by deadline ascending, then those without deadline
+  const total = activities.length
+  // Sort: overdue first (most overdue at top), then by deadline ascending, then those without deadline
   const sorted = [...activities].sort((a, b) => {
-    if (!a.deadline && !b.deadline) return 0
-    if (!a.deadline) return 1
-    if (!b.deadline) return -1
-    return a.deadline.localeCompare(b.deadline)
+    const daysA = daysUntil(a.deadline)
+    const daysB = daysUntil(b.deadline)
+    // Activities without deadline go last
+    if (daysA === null && daysB === null) return 0
+    if (daysA === null) return 1
+    if (daysB === null) return -1
+    // Overdue (negative days) first, then ascending
+    return daysA - daysB
   }).slice(0, 5)
 
   return (
@@ -75,14 +90,14 @@ export function MyActivitiesSection({ activities }) {
           to="/mie-attivita"
           className="text-sm text-mikai-400 hover:underline min-h-[48px] flex items-center"
         >
-          Vedi tutte
+          {total > 5 ? `Vedi tutte (${total})` : 'Vedi tutte'}
         </Link>
       </div>
 
       {sorted.length === 0 ? (
         <EmptyState title="Nessuna attività assegnata" description="Non hai attività in scadenza" />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {sorted.map(act => (
             <ActivityRow key={act.id} act={act} />
           ))}

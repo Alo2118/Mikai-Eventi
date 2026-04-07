@@ -161,7 +161,7 @@ export function CalendarGrid({ date, events, viewMode = 'month', semaphores = {}
                   {hasOverflow && (
                     <button
                       onClick={(ev) => { ev.stopPropagation(); handleDayClick(day) }}
-                      className="text-xs font-medium text-mikai-600 hover:text-mikai-800 hover:underline px-1 py-0.5 min-h-[28px] flex items-center"
+                      className="text-xs font-medium text-mikai-600 hover:text-mikai-800 hover:underline px-2 py-1 min-h-[48px] flex items-center"
                       aria-label={`Vedi ${dayEvents.length - MAX_VISIBLE_EVENTS} altri eventi del ${formatDate(dayStr)}`}
                     >
                       +{dayEvents.length - MAX_VISIBLE_EVENTS} altri

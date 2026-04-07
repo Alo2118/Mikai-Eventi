@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Icon } from '../ui/Icon'
 import { NotificationBell } from '../ui/NotificationBell'
-import { NAV_ICONS, ADMIN_ICONS, ACTION_ICONS, COMPLIANCE_ICONS } from '../../lib/icons'
+import { ChangePasswordModal } from '../ui/ChangePasswordModal'
+import { NAV_ICONS, ADMIN_ICONS, ACTION_ICONS, COMPLIANCE_ICONS, PASSWORD_ICONS } from '../../lib/icons'
 
 const navItems = [
   { to: '/', label: 'Riepilogo', icon: NAV_ICONS.riepilogo, roles: ['admin', 'direzione', 'ufficio', 'commerciale', 'area_manager'] },
@@ -34,6 +36,7 @@ export function Sidebar() {
   const profile = useAuthStore(s => s.profile)
   const signOut = useAuthStore(s => s.signOut)
   const hasPermission = useAuthStore(s => s.hasPermission)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
 
   const canSee = (item) => {
     if (item.roles && !item.roles.includes(profile?.ruolo)) return false
@@ -102,18 +105,26 @@ export function Sidebar() {
           </>
         )}
       </nav>
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 space-y-1">
         <p className="text-sm text-gray-500 mb-2">
           {profile?.nome} {profile?.cognome}
         </p>
         <button
+          onClick={() => setShowPasswordModal(true)}
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 min-h-[48px] px-2 w-full"
+        >
+          <Icon icon={PASSWORD_ICONS.key} size={18} />
+          Cambia password
+        </button>
+        <button
           onClick={signOut}
-          className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 min-h-[48px] px-2"
+          className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 min-h-[48px] px-2 w-full"
         >
           <Icon icon={NAV_ICONS.logout} size={18} />
           Esci
         </button>
       </div>
+      <ChangePasswordModal open={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
     </aside>
   )
 }

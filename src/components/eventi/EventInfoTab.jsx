@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, CARD_STYLE } from '../../lib/constants'
 import { formatDateRange, formatDate } from '../../lib/date-utils'
 import { EventStatusFlow } from './EventStatusFlow'
 import { EventApprovalBar } from './EventApprovalBar'
@@ -13,15 +13,27 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { formatCurrency, getPromotoreName } from '../../lib/format-utils'
 
-function InfoRow({ label, icon, value }) {
-  if (!value) return null
+function InfoField({ label, value, placeholder }) {
   return (
-    <div className="py-3 border-b border-gray-100">
-      <dt className="text-sm text-gray-500 flex items-center gap-1.5">
-        {icon && <Icon icon={icon} size={14} className="text-gray-400" />}
-        {label}
-      </dt>
-      <dd className="mt-0.5 text-base text-gray-900">{value}</dd>
+    <div>
+      <dt className="text-xs font-medium text-gray-400 mb-0.5">{label}</dt>
+      <dd className="text-sm text-gray-900">
+        {value || <span className="text-gray-300">{placeholder || '—'}</span>}
+      </dd>
+    </div>
+  )
+}
+
+function InfoSection({ title, icon, children, cols3 }) {
+  return (
+    <div className={CARD_STYLE + ' space-y-3'}>
+      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+        <Icon icon={icon} size={14} className="text-gray-400" />
+        {title}
+      </h3>
+      <dl className={`grid grid-cols-2 ${cols3 ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-x-4 gap-y-3`}>
+        {children}
+      </dl>
     </div>
   )
 }
@@ -32,6 +44,10 @@ export function EventInfoTab({ event, onUpdate }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [fields, setFields] = useState({})
+  const [touched, setTouched] = useState({})
+
+  const handleBlur = (field) => setTouched(prev => ({ ...prev, [field]: true }))
+  const fieldError = (field, value) => touched[field] && !value?.toString().trim() ? true : false
 
   const updateEvent = useEventsStore(s => s.updateEvent)
   const users = useAdminStore(s => s.users)
@@ -75,10 +91,19 @@ export function EventInfoTab({ event, onUpdate }) {
       data_consegna_prevista: event.data_consegna_prevista || '',
       data_spedizione_prevista: event.data_spedizione_prevista || '',
     })
+    setTouched({})
     setEditing(true)
   }
 
   const handleSave = async () => {
+    // Mark all required fields as touched
+    const requiredTouched = { titolo: true, tipo_evento: true, data_inizio: true }
+    setTouched(prev => ({ ...prev, ...requiredTouched }))
+    // Validate required fields
+    if (!fields.titolo?.trim() || !fields.tipo_evento?.trim() || !fields.data_inizio?.trim()) {
+      addToast('Compila tutti i campi obbligatori', 'warning')
+      return
+    }
     setSaving(true)
     // Decode combined promotore field
     const [pType, pId] = (fields.promotore_combined || '').split(':')
@@ -111,33 +136,48 @@ export function EventInfoTab({ event, onUpdate }) {
   const set = (key) => (e) => setFields(f => ({ ...f, [key]: e.target.value }))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <EventApprovalBar event={event} onUpdate={onUpdate} />
-      <EventStatusFlow stato={event.stato} />
-
-      {canEdit && !editing && (
-        <div className="flex justify-end">
-          <Button variant="secondary" onClick={handleStartEdit}>
-            <Icon icon={ACTION_ICONS.edit} size={16} className="mr-2" />
+      <div className="flex items-center justify-between gap-3">
+        <EventStatusFlow stato={event.stato} />
+        {canEdit && !editing && (
+          <Button variant="secondary" onClick={handleStartEdit} className="shrink-0">
+            <Icon icon={ACTION_ICONS.edit} size={16} className="mr-1.5" />
             Modifica
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {editing ? (
         <div className={FORM_CONTAINER_STYLE + ' border border-gray-200 space-y-4'}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Titolo <span className="text-red-500">*</span></label>
-            <input className={INPUT_STYLE} value={fields.titolo} onChange={set('titolo')} />
+            <input
+              className={INPUT_STYLE + (fieldError('titolo', fields.titolo) ? ' border-red-400 ring-1 ring-red-400' : '')}
+              value={fields.titolo}
+              onChange={set('titolo')}
+              onBlur={() => handleBlur('titolo')}
+            />
+            {fieldError('titolo', fields.titolo) && (
+              <p className="text-xs text-red-500 mt-1" role="alert">Il titolo è obbligatorio</p>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo evento <span className="text-red-500">*</span></label>
-              <select className={SELECT_STYLE} value={fields.tipo_evento} onChange={set('tipo_evento')}>
+              <select
+                className={SELECT_STYLE + (fieldError('tipo_evento', fields.tipo_evento) ? ' border-red-400 ring-1 ring-red-400' : '')}
+                value={fields.tipo_evento}
+                onChange={set('tipo_evento')}
+                onBlur={() => handleBlur('tipo_evento')}
+              >
                 {Object.entries(TIPO_EVENTO).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
               </select>
+              {fieldError('tipo_evento', fields.tipo_evento) && (
+                <p className="text-xs text-red-500 mt-1" role="alert">Seleziona un tipo evento</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Modalità <span className="text-red-500">*</span></label>
@@ -168,7 +208,12 @@ export function EventInfoTab({ event, onUpdate }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Area Manager</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                Area Manager
+                <span title="Assegnato automaticamente in base alla zona dell'evento">
+                  <Icon icon={FEEDBACK_ICONS.info} size={14} className="text-gray-400" />
+                </span>
+              </label>
               <select className={SELECT_STYLE} value={fields.manager_user_id} onChange={set('manager_user_id')}>
                 <option value="">Nessuno</option>
                 {(users || []).filter(u => u.attivo !== false && ['area_manager', 'direzione', 'admin'].includes(u.ruolo)).map(u => (
@@ -188,7 +233,16 @@ export function EventInfoTab({ event, onUpdate }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio <span className="text-red-500">*</span></label>
-              <input type="date" className={INPUT_STYLE} value={fields.data_inizio} onChange={set('data_inizio')} />
+              <input
+                type="date"
+                className={INPUT_STYLE + (fieldError('data_inizio', fields.data_inizio) ? ' border-red-400 ring-1 ring-red-400' : '')}
+                value={fields.data_inizio}
+                onChange={set('data_inizio')}
+                onBlur={() => handleBlur('data_inizio')}
+              />
+              {fieldError('data_inizio', fields.data_inizio) && (
+                <p className="text-xs text-red-500 mt-1" role="alert">La data di inizio è obbligatoria</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio</label>
@@ -258,7 +312,7 @@ export function EventInfoTab({ event, onUpdate }) {
             <textarea className={`${INPUT_STYLE} min-h-[80px]`} value={fields.note} onChange={set('note')} />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button onClick={handleSave} loading={saving} disabled={!fields.titolo?.trim()}>
+            <Button onClick={handleSave} loading={saving} disabled={!fields.titolo?.trim() || !fields.tipo_evento?.trim() || !fields.data_inizio?.trim()}>
               <Icon icon={ACTION_ICONS.check} size={16} className="mr-2" />
               Salva
             </Button>
@@ -266,50 +320,60 @@ export function EventInfoTab({ event, onUpdate }) {
           </div>
         </div>
       ) : (
-        <dl className="divide-y divide-gray-100">
-          <InfoRow label="Tipo evento" icon={TIPO_EVENTO_ICONS[event.tipo_evento]} value={TIPO_EVENTO[event.tipo_evento]} />
-          <InfoRow label="Modalità" icon={MODALITA_ICONS[event.modalita]} value={MODALITA_EVENTO[event.modalita]} />
-          <InfoRow label="Date" icon={NAV_ICONS.eventi} value={formatDateRange(event.data_inizio, event.data_fine)} />
-          <InfoRow label="Ora inizio" icon={NAV_ICONS.eventi} value={event.ora_inizio ? event.ora_inizio.substring(0, 5) : null} />
-          <InfoRow label="Luogo" icon={INFO_EVENTO_ICONS.luogo} value={event.luogo} />
-          <InfoRow label="Dettaglio sede" icon={INFO_EVENTO_ICONS.sede} value={event.sede_dettaglio} />
-          <InfoRow
-            label="Promotore"
-            icon={NAV_ICONS.profilo}
-            value={getPromotoreName(event)}
-          />
-          <InfoRow
-            label="Area Manager"
-            icon={NAV_ICONS.profilo}
-            value={event.manager ? `${event.manager.nome} ${event.manager.cognome}` : null}
-          />
-          <InfoRow label="Desk richiesto" icon={INFO_EVENTO_ICONS.desk} value={event.desk_richiesto ? 'Sì' : 'No'} />
-          {event.desk_richiesto && (
-            <InfoRow label="N. postazioni" icon={INFO_EVENTO_ICONS.postazioni} value={event.n_postazioni} />
-          )}
-          <InfoRow
-            label="Budget previsto"
-            icon={COSTI_ICONS.costo}
-            value={event.budget_previsto ? formatCurrency(event.budget_previsto) : null}
-          />
-          <InfoRow label="Indirizzo spedizione" icon={NAV_ICONS.logistica} value={event.indirizzo_spedizione} />
-          <InfoRow label="Ricorrenza" icon={INFO_EVENTO_ICONS.ricorrenza} value={event.ricorrenza} />
-          <InfoRow label="Note" icon={INFO_EVENTO_ICONS.note} value={event.note} />
-          {(event.deadline_preparazione || event.data_spedizione_prevista || event.data_consegna_prevista || event.deadline_partecipanti) && (
-            <div className="pt-4">
-              <h3 className="font-semibold text-lg mb-2">Scadenze</h3>
-              <dl className="divide-y divide-gray-100">
-                <InfoRow label="Scadenza preparazione" icon={FEEDBACK_ICONS.warning} value={event.deadline_preparazione ? formatDate(event.deadline_preparazione) : null} />
-                <InfoRow label="Scadenza spedizione" icon={MATERIALE_ICONS.uscita} value={event.data_spedizione_prevista ? formatDate(event.data_spedizione_prevista) : null} />
-                <InfoRow label="Consegna prevista" icon={ACTION_ICONS.check} value={event.data_consegna_prevista ? formatDate(event.data_consegna_prevista) : null} />
-                <InfoRow label="Scadenza iscrizioni" icon={NAV_ICONS.contatti} value={event.deadline_partecipanti ? formatDate(event.deadline_partecipanti) : null} />
-              </dl>
-            </div>
-          )}
-          {event.motivo_cancellazione && (
-            <InfoRow label="Motivo annullamento" icon={INFO_EVENTO_ICONS.cancellazione} value={event.motivo_cancellazione} />
-          )}
-        </dl>
+        <>
+        {/* Dettagli + Date + Luogo — una card sola */}
+        <InfoSection title="Dettagli" icon={TIPO_EVENTO_ICONS[event.tipo_evento] || NAV_ICONS.eventi}>
+          <InfoField label="Tipo" value={TIPO_EVENTO[event.tipo_evento]} />
+          <InfoField label="Modalità" value={MODALITA_EVENTO[event.modalita]} />
+          <InfoField label="Date" value={formatDateRange(event.data_inizio, event.data_fine)} />
+          <InfoField label="Ora inizio" value={event.ora_inizio ? event.ora_inizio.substring(0, 5) : null} placeholder="—" />
+          <InfoField label="Luogo" value={event.luogo} placeholder="—" />
+          <InfoField label="Sede" value={event.sede_dettaglio} placeholder="—" />
+          <InfoField label="Certificato" value={
+            event.certificato_previsto
+              ? <span className="inline-flex items-center gap-1 text-green-600 text-sm font-medium"><Icon icon={ACTION_ICONS.check} size={13} /> Sì</span>
+              : 'No'
+          } />
+          <InfoField label="Desk" value={
+            event.desk_richiesto
+              ? <span className="text-sm font-medium">{event.n_postazioni ? `Sì · ${event.n_postazioni} postaz.` : 'Sì'}</span>
+              : 'No'
+          } />
+          {event.ricorrenza && <InfoField label="Ricorrenza" value={event.ricorrenza} />}
+        </InfoSection>
+
+        {/* Organizzazione: persone + budget + spedizione */}
+        <InfoSection title="Organizzazione" icon={NAV_ICONS.profilo}>
+          <InfoField label="Promotore" value={getPromotoreName(event)} placeholder="Non assegnato" />
+          <InfoField label="Area Manager" value={event.manager ? `${event.manager.nome} ${event.manager.cognome}` : null} placeholder="Non assegnato" />
+          <InfoField label="Budget" value={event.budget_previsto ? formatCurrency(event.budget_previsto) : null} placeholder="—" />
+          <InfoField label="Ind. spedizione" value={event.indirizzo_spedizione} placeholder="—" />
+        </InfoSection>
+
+        {/* Scadenze — 4 colonne su desktop */}
+        <InfoSection title="Scadenze" icon={FEEDBACK_ICONS.warning} cols3>
+          <InfoField label="Preparazione" value={event.deadline_preparazione ? formatDate(event.deadline_preparazione) : null} placeholder="—" />
+          <InfoField label="Spedizione" value={event.data_spedizione_prevista ? formatDate(event.data_spedizione_prevista) : null} placeholder="—" />
+          <InfoField label="Consegna" value={event.data_consegna_prevista ? formatDate(event.data_consegna_prevista) : null} placeholder="—" />
+          <InfoField label="Iscrizioni" value={event.deadline_partecipanti ? formatDate(event.deadline_partecipanti) : null} placeholder="—" />
+        </InfoSection>
+
+        {/* Note — compatto */}
+        {event.note && (
+          <div className={CARD_STYLE}>
+            <p className="text-xs font-medium text-gray-400 mb-1">NOTE</p>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{event.note}</p>
+          </div>
+        )}
+
+        {/* Motivo cancellazione */}
+        {event.motivo_cancellazione && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-red-600 mb-1">MOTIVO ANNULLAMENTO</p>
+            <p className="text-sm text-red-700">{event.motivo_cancellazione}</p>
+          </div>
+        )}
+        </>
       )}
     </div>
   )

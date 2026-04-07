@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMaterialsStore } from '../../hooks/useMaterials'
+import { useMaterialAnalyticsStore } from '../../hooks/useMaterialAnalytics'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { CARD_HOVER_STYLE } from '../../lib/constants'
@@ -38,9 +38,9 @@ function groupByEvent(timeline) {
 }
 
 export function LogisticaMatrice() {
-  const timeline = useMaterialsStore(s => s.logisticsTimeline)
-  const loading = useMaterialsStore(s => s.timelineLoading)
-  const fetchLogisticsTimeline = useMaterialsStore(s => s.fetchLogisticsTimeline)
+  const timeline = useMaterialAnalyticsStore(s => s.logisticsTimeline)
+  const loading = useMaterialAnalyticsStore(s => s.timelineLoading)
+  const fetchLogisticsTimeline = useMaterialAnalyticsStore(s => s.fetchLogisticsTimeline)
   const navigate = useNavigate()
 
   useEffect(() => { fetchLogisticsTimeline() }, [])

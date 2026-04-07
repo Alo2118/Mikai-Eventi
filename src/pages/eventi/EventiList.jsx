@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -9,15 +9,13 @@ import { useCostsStore } from '../../hooks/useCosts'
 import { useExportHandler } from '../../hooks/useExportHandler'
 import { EventCard } from '../../components/eventi/EventCard'
 import { EventFilters } from '../../components/eventi/EventFilters'
-import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
-import { ExportButton } from '../../components/ui/ExportButton'
 import { NAV_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
-import { TIPO_EVENTO, STATO_EVENTO, SUMMARY_BAR_STYLE, SELECT_STYLE } from '../../lib/constants'
+import { TIPO_EVENTO, STATO_EVENTO } from '../../lib/constants'
 import { formatDate, todayISO } from '../../lib/date-utils'
 import { getPromotoreName } from '../../lib/format-utils'
 
@@ -75,9 +73,13 @@ export function EventiList() {
   const { exporting, handleExport } = useExportHandler()
   const [searchParams] = useSearchParams()
 
+  const fetchMyInvolvement = useEventsStore(s => s.fetchMyInvolvement)
+
   // Semaphore + readiness state for "richiede attenzione" section
   const [semaphores, setSemaphores] = useState({})
   const [readinessMap, setReadinessMap] = useState({})
+  const [involvementMap, setInvolvementMap] = useState({})
+  const [onlyMine, setOnlyMine] = useState(false)
   const [attentionExpanded, setAttentionExpanded] = useState(false)
   const [filterPromotore, setFilterPromotore] = useState('')
 
@@ -103,7 +105,7 @@ export function EventiList() {
     // Semaphores (for attention section)
     fetchEventSemaphores(prepEvents).then(result => {
       if (result && typeof result === 'object') setSemaphores(result)
-    })
+    }).catch(() => null)
     // Readiness data (for readiness strip on cards)
     Promise.all([
       fetchBatchActivityStatus(prepEvents),
@@ -123,6 +125,36 @@ export function EventiList() {
       setReadinessMap(map)
     })
   }, [events])
+
+  useEffect(() => {
+    if (!user?.id || !events.length) {
+      setInvolvementMap({})
+      return
+    }
+    // Set sync data immediately (promotore/manager)
+    const syncMap = {}
+    for (const e of events) {
+      const roles = {
+        promotore: e.promotore_id === user.id || e.promotore?.id === user.id,
+        manager: e.manager_user_id === user.id || e.manager?.id === user.id,
+        staff: false,
+        attivita: false,
+      }
+      if (roles.promotore || roles.manager) syncMap[e.id] = roles
+    }
+    setInvolvementMap(syncMap)
+    // Then fetch async data (staff/attività) and merge
+    const eids = events.map(e => e.id)
+    fetchMyInvolvement(user.id, eids).then(asyncMap => {
+      setInvolvementMap(prev => {
+        const merged = { ...prev }
+        for (const [eid, roles] of Object.entries(asyncMap)) {
+          merged[eid] = { ...(merged[eid] || {}), ...roles }
+        }
+        return merged
+      })
+    }).catch(() => null)
+  }, [events, user?.id])
 
   // Stats
   const today = todayISO()
@@ -156,11 +188,18 @@ export function EventiList() {
   }, [events])
 
   const filteredEvents = useMemo(() => {
-    if (!filterPromotore) return searchFiltered
-    const [type, id] = filterPromotore.split(':')
-    if (type === 'contact') return searchFiltered.filter(e => e.promotore_agente?.id === id)
-    return searchFiltered.filter(e => e.promotore?.id === id)
-  }, [searchFiltered, filterPromotore])
+    let result = searchFiltered
+    if (filterPromotore) {
+      const [type, id] = filterPromotore.split(':')
+      result = type === 'contact'
+        ? result.filter(e => e.promotore_agente?.id === id)
+        : result.filter(e => e.promotore?.id === id)
+    }
+    if (onlyMine) {
+      result = result.filter(e => involvementMap[e.id])
+    }
+    return result
+  }, [searchFiltered, filterPromotore, onlyMine, involvementMap])
 
   // View mode: '3months' (default), 'all', 'past'
   const [viewMode, setViewMode] = useState('3months')
@@ -218,133 +257,71 @@ export function EventiList() {
     return attentionEvents.slice(0, MAX_ATTENTION_VISIBLE)
   }, [attentionEvents, attentionExpanded])
 
-  // Clickable stat handler
-  const handleStatClick = useCallback((stato) => {
-    if (filters.stato === stato) {
-      setFilter('stato', '')
-    } else {
-      setFilter('stato', stato)
-    }
-  }, [filters.stato, setFilter])
+
+  // Overflow menu
+  const [showOverflow, setShowOverflow] = useState(false)
 
   return (
     <div>
+      {/* Row 1: Title + primary actions */}
       <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[{ label: 'Eventi' }]} />
       </div>
-      <PageHeader
-        title="Eventi"
-        subtitle={`${stats.total} eventi · ${stats.upcoming} in programma`}
-        actions={
-          <div className="flex gap-3 flex-wrap">
-            {hasPermission('approva_eventi') && (ruolo === 'commerciale' || ruolo === 'area_manager') && (
-              <Button variant="secondary" onClick={() => setShowAll(!showAll)}>
-                {showAll ? 'I miei eventi' : 'Tutti gli eventi'}
-              </Button>
+      <div className="px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900">Eventi</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{stats.total} eventi · {stats.upcoming} in programma</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link to="/eventi/nuovo">
+            <Button>
+              <Icon icon={ACTION_ICONS.add} size={18} className="mr-1" />
+              <span className="hidden sm:inline">Nuovo</span>
+            </Button>
+          </Link>
+          {/* Overflow menu: Export + Calendar */}
+          <div className="relative">
+            <Button variant="secondary" onClick={() => setShowOverflow(!showOverflow)} aria-label="Altre azioni">
+              <Icon icon={ACTION_ICONS.more} size={18} />
+            </Button>
+            {showOverflow && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowOverflow(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-[200px]">
+                  <button
+                    onClick={() => { handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: filteredEvents, filename: 'eventi', sheetName: 'Eventi' }); setShowOverflow(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
+                  >
+                    <Icon icon={NAV_ICONS.materiale} size={16} />
+                    Esporta Excel
+                  </button>
+                  <Link
+                    to="/eventi/calendario"
+                    onClick={() => setShowOverflow(false)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
+                  >
+                    <Icon icon={NAV_ICONS.calendario} size={16} />
+                    Calendario
+                  </Link>
+                </div>
+              </>
             )}
-            <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: filteredEvents, filename: 'eventi', sheetName: 'Eventi' })} loading={exporting} />
-            <Link to="/eventi/calendario">
-              <Button variant="secondary">
-                <Icon icon={NAV_ICONS.calendario} size={18} className="mr-1" />
-                <span className="hidden sm:inline">Calendario</span>
-              </Button>
-            </Link>
-            <Link to="/eventi/nuovo">
-              <Button>
-                <Icon icon={ACTION_ICONS.add} size={18} className="mr-1" />
-                Nuovo
-              </Button>
-            </Link>
           </div>
-        }
+        </div>
+      </div>
+
+      {/* Row 2: All filters in one row */}
+      <EventFilters
+        promotori={promotori}
+        filterPromotore={filterPromotore}
+        onFilterPromotore={setFilterPromotore}
+        viewMode={!loading && events.length > 0 ? viewMode : undefined}
+        onViewMode={!loading && events.length > 0 ? setViewMode : undefined}
+        onlyMine={onlyMine}
+        onToggleMine={() => setOnlyMine(!onlyMine)}
       />
 
-      {/* Period selector — compact on mobile */}
-      {!loading && events.length > 0 && (
-        <div className="px-4 md:px-6 flex flex-wrap gap-2">
-          {[
-            { id: '3months', mobileLabel: '3 mesi', fullLabel: `Prossimi 3 mesi (${threeMonthCount})` },
-            { id: 'all', mobileLabel: 'Futuri', fullLabel: `Tutti i futuri (${futureEvents.length})` },
-            { id: 'past', mobileLabel: 'Tutti', fullLabel: `Tutto (${filteredEvents.length})` },
-          ].map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setViewMode(opt.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[48px] transition-colors ${
-                viewMode === opt.id
-                  ? 'bg-mikai-400 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span className="md:hidden">{opt.mobileLabel}</span>
-              <span className="hidden md:inline">{opt.fullLabel}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Stats bar — clickable filters */}
-      {!loading && events.length > 0 && (
-        <div className="px-4 md:px-6">
-          <div className={SUMMARY_BAR_STYLE + ' flex flex-wrap gap-x-2 gap-y-1 text-sm'}>
-            {stats.proposti > 0 && (
-              <button
-                onClick={() => handleStatClick('proposto')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg min-h-[48px] transition-colors ${
-                  filters.stato === 'proposto'
-                    ? 'bg-yellow-200 ring-2 ring-yellow-400 text-yellow-800'
-                    : 'text-yellow-700 hover:bg-yellow-50'
-                }`}
-                aria-label="Filtra eventi da approvare"
-              >
-                <Icon icon={FEEDBACK_ICONS.warning} size={14} />
-                <strong>{stats.proposti}</strong> da approvare
-              </button>
-            )}
-            {stats.inPrep > 0 && (
-              <button
-                onClick={() => handleStatClick('in_preparazione')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg min-h-[48px] transition-colors ${
-                  filters.stato === 'in_preparazione'
-                    ? 'bg-mikai-100 ring-2 ring-mikai-400 text-mikai-800'
-                    : 'text-mikai-700 hover:bg-mikai-50'
-                }`}
-                aria-label="Filtra eventi in preparazione"
-              >
-                <Icon icon={ACTION_ICONS.forward} size={14} />
-                <strong>{stats.inPrep}</strong> in preparazione
-              </button>
-            )}
-            <span className="flex items-center px-3 py-1.5 text-mikai-600">
-              <strong>{stats.upcoming}</strong>&nbsp;in programma
-            </span>
-            <span className="flex items-center px-3 py-1.5 text-mikai-500">
-              <strong>{stats.past}</strong>&nbsp;passati
-            </span>
-          </div>
-        </div>
-      )}
-
-      <EventFilters />
-
-      {/* Promotore filter */}
-      {!loading && promotori.length > 1 && (
-        <div className="px-4 md:px-6 pb-2">
-          <select
-            value={filterPromotore}
-            onChange={e => setFilterPromotore(e.target.value)}
-            className={SELECT_STYLE + ' sm:max-w-[240px]'}
-            aria-label="Filtra per promotore"
-          >
-            <option value="">Tutti i promotori</option>
-            {promotori.map(p => (
-              <option key={p._key} value={p._key}>{p.cognome} {p.nome}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Risultati + chip filtri attivi */}
+      {/* Row 3: Active filter chips + count + alert summary */}
       {!loading && (
         <div className="px-4 md:px-6 pb-2 flex flex-wrap items-center gap-2">
           <span className="text-sm text-gray-500">
@@ -352,39 +329,46 @@ export function EventiList() {
               ? 'Nessun evento trovato'
               : totalCount > events.length
                 ? `Mostrati ${filteredEvents.length} di ${totalCount} eventi`
-                : `${filteredEvents.length} ${filteredEvents.length === 1 ? 'evento trovato' : 'eventi trovati'}`
+                : `${filteredEvents.length} ${filteredEvents.length === 1 ? 'evento' : 'eventi'}`
             }
           </span>
+          {/* Attention summary inline */}
+          {attentionEvents.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+              <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+              {stats.proposti > 0 && `${stats.proposti} da approvare`}
+              {stats.proposti > 0 && attentionEvents.length > stats.proposti && ' · '}
+              {attentionEvents.length > stats.proposti && `${attentionEvents.length - stats.proposti} con problemi`}
+            </span>
+          )}
+          {/* Active filter chips */}
           {filters.stato && (
             <button
               onClick={() => setFilter('stato', '')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label={`Rimuovi filtro stato: ${STATO_EVENTO[filters.stato]}`}
             >
-              Stato: {STATO_EVENTO[filters.stato]}
+              {STATO_EVENTO[filters.stato]}
               <Icon name="close" size={14} />
             </button>
           )}
           {filters.tipo && (
             <button
               onClick={() => setFilter('tipo', '')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label={`Rimuovi filtro tipo: ${TIPO_EVENTO[filters.tipo]}`}
             >
-              Tipo: {TIPO_EVENTO[filters.tipo]}
+              {TIPO_EVENTO[filters.tipo]}
               <Icon name="close" size={14} />
             </button>
           )}
           {filterPromotore && (
             <button
               onClick={() => setFilterPromotore('')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium min-h-[48px] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label="Rimuovi filtro promotore"
             >
-              {promotori.find(p => p.id === filterPromotore)
-                ? `${promotori.find(p => p.id === filterPromotore).cognome} ${promotori.find(p => p.id === filterPromotore).nome}`
-                : 'Promotore'
-              }
+              {(() => { const p = promotori.find(p => p._key === filterPromotore); return p ? `${p.cognome} ${p.nome}` : 'Promotore' })()}
               <Icon name="close" size={14} />
             </button>
           )}
@@ -431,7 +415,7 @@ export function EventiList() {
                         event._attentionReason === 'overdue' ? 'ring-red-300' : 'ring-yellow-300'
                       }`}
                     >
-                      <EventCard event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} />
+                      <EventCard event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} involvement={involvementMap[event.id] || null} currentUserId={user?.id} />
                     </div>
                   ))}
                 </div>

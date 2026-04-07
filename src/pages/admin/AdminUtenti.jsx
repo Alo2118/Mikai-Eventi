@@ -4,11 +4,12 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
 import { Button } from '../../components/ui/Button'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Icon } from '../../components/ui/Icon'
-import { ACTION_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, ADMIN_ICONS } from '../../lib/icons'
 import { RUOLI, PERMESSI, RUOLI_OPERATIVI, ROLE_PERMISSION_PRESETS, INPUT_STYLE, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
@@ -26,6 +27,7 @@ export function AdminUtenti() {
   const fetchUserPermissions = useAdminStore(s => s.fetchUserPermissions)
   const setUserPermissions = useAdminStore(s => s.setUserPermissions)
   const createUser = useAdminStore(s => s.createUser)
+  const resetUserPassword = useAdminStore(s => s.resetUserPassword)
   const addToast = useToastStore(s => s.add)
 
   const [editing, setEditing] = useState(null)
@@ -33,6 +35,8 @@ export function AdminUtenti() {
   const [saving, setSaving] = useState(false)
   const [selectedPermissions, setSelectedPermissions] = useState([])
   const [createdPassword, setCreatedPassword] = useState(null)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetPassword, setResetPassword] = useState(null)
   const [newUser, setNewUser] = useState({ email: '', password: '', nome: '', cognome: '', ruolo: 'commerciale', zone_id: '' })
 
   useEffect(() => { fetchUsers(); fetchZones() }, [])
@@ -143,6 +147,18 @@ export function AdminUtenti() {
     const current = editing.ruoli_operativi || []
     const updated = current.includes(ruolo) ? current.filter(r => r !== ruolo) : [...current, ruolo]
     setEditing({ ...editing, ruoli_operativi: updated })
+  }
+
+  const handleResetPassword = async () => {
+    if (!editing) return
+    const tempPw = generatePassword(editing.nome)
+    setSaving(true)
+    const { error } = await resetUserPassword(editing.id, tempPw)
+    setSaving(false)
+    setShowResetConfirm(false)
+    if (error) { addToast(error, 'error'); return }
+    setResetPassword(tempPw)
+    addToast('Password reimpostata', 'success')
   }
 
   const needsZone = (ruolo) => ['commerciale', 'area_manager'].includes(ruolo)
@@ -272,6 +288,31 @@ export function AdminUtenti() {
                 <input type="checkbox" className={CHECK} checked={editing.attivo !== false} onChange={e => setEditing({ ...editing, attivo: e.target.checked })} id="attivo" />
                 <label htmlFor="attivo" className="text-base text-gray-700">Attivo</label>
               </div>
+
+              <div className="border-t border-gray-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirm(true)}
+                  className="flex items-center gap-2 text-sm font-medium text-amber-700 hover:text-amber-900 min-h-[48px] px-3 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 transition-colors"
+                >
+                  <Icon icon={ADMIN_ICONS.resetPassword} size={18} />
+                  Reimposta password
+                </button>
+              </div>
+
+              {resetPassword && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
+                  <p className="text-sm font-medium text-green-800">Password reimpostata:</p>
+                  <div className="flex items-center gap-3">
+                    <code className="text-base font-mono bg-white px-3 py-2 rounded border border-green-200 flex-1">{resetPassword}</code>
+                    <button onClick={() => { navigator.clipboard.writeText(resetPassword); addToast('Password copiata!', 'success') }}
+                      className="px-4 py-2 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-lg min-h-[48px]">
+                      Copia
+                    </button>
+                  </div>
+                  <p className="text-xs text-green-600">Comunicala all'utente.</p>
+                </div>
+              )}
             </div>
 
             <div className={CARD_STYLE + ' md:p-6'}>
@@ -290,8 +331,16 @@ export function AdminUtenti() {
 
             <div className="flex gap-3">
               <Button onClick={handleSave} loading={saving}>Salva</Button>
-              <Button variant="secondary" onClick={() => setEditing(null)}>Annulla</Button>
+              <Button variant="secondary" onClick={() => { setEditing(null); setResetPassword(null) }}>Annulla</Button>
             </div>
+            <ConfirmDialog
+              open={showResetConfirm}
+              title="Reimposta password"
+              message={`Reimpostare la password di ${editing?.nome} ${editing?.cognome} a "${generatePassword(editing?.nome)}"?`}
+              confirmLabel="Reimposta"
+              onConfirm={handleResetPassword}
+              onCancel={() => setShowResetConfirm(false)}
+            />
           </div>
         ) : (
           <AdminTable

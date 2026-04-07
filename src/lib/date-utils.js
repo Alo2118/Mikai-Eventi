@@ -166,6 +166,25 @@ export function subtractDays(isoDateString, days) {
   }
 }
 
+/** Returns number of days between two ISO date strings (a - b). Negative if b is after a. */
+export function daysBetween(isoA, isoB) {
+  if (!isoA || !isoB) return 0
+  try {
+    const a = parseISO(isoA)
+    const b = parseISO(isoB)
+    if (!isValid(a) || !isValid(b)) return 0
+    return differenceInDays(a, b)
+  } catch {
+    return 0
+  }
+}
+
+/** Returns true if isoA is on or before isoB (string or Date comparison). */
+export function isOnOrBefore(isoA, isoB) {
+  if (!isoA || !isoB) return false
+  return isoA <= isoB
+}
+
 // --- Date range presets (TimeRangeFilter) ---
 
 export function getMonthRange() {

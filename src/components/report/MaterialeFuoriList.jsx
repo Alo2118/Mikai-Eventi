@@ -1,4 +1,7 @@
-import { POSIZIONE_MATERIALE, CARD_STYLE } from '../../lib/constants'
+import { Link } from 'react-router-dom'
+import { POSIZIONE_MATERIALE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
+import { Icon } from '../ui/Icon'
+import { ACTION_ICONS } from '../../lib/icons'
 
 export function MaterialeFuoriList({ data }) {
   if (!data?.length) {
@@ -11,7 +14,7 @@ export function MaterialeFuoriList({ data }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className={CARD_STYLE}>
       <div className="flex items-center gap-2 mb-4">
         <p className="text-sm font-medium text-gray-500">Materiale fuori magazzino</p>
         <span className="inline-flex items-center justify-center bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full w-6 h-6">
@@ -22,12 +25,13 @@ export function MaterialeFuoriList({ data }) {
         {data.map(item => {
           const isOverdue = item.giorniFuori != null && item.giorniFuori > 14
           return (
-            <div
+            <Link
               key={item.id}
-              className={`rounded-lg border p-3 ${
+              to={`/materiale/${item.id}`}
+              className={`block rounded-lg border p-3 hover:shadow-md transition-all ${
                 isOverdue
                   ? 'border-l-4 border-l-red-400 border-gray-200'
-                  : 'border-gray-200'
+                  : 'border-gray-200 hover:border-gray-300'
               }`}
             >
               <div className="flex justify-between items-start gap-2">
@@ -37,10 +41,11 @@ export function MaterialeFuoriList({ data }) {
                     <p className="text-xs text-gray-400">{item.codice_inventario}</p>
                   )}
                 </div>
-                <div className="shrink-0 text-right">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
                     {POSIZIONE_MATERIALE[item.posizione_attuale] || item.posizione_attuale}
                   </span>
+                  <Icon icon={ACTION_ICONS.forward} size={14} className="text-gray-400" />
                 </div>
               </div>
               {item.giorniFuori != null && (
@@ -50,7 +55,7 @@ export function MaterialeFuoriList({ data }) {
                     : `Fuori da ${item.giorniFuori} giorni`}
                 </p>
               )}
-            </div>
+            </Link>
           )
         })}
       </div>

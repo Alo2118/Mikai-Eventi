@@ -355,6 +355,16 @@ export const POSIZIONE_MATERIALE_COLORE = {
   manutenzione: 'red',
 }
 
+export const POSIZIONE_ORDER = ['in_magazzino', 'presso_evento', 'magazzino_agente', 'in_transito', 'manutenzione']
+
+export const POSIZIONE_BG = {
+  in_magazzino: 'bg-green-50 text-green-700',
+  presso_evento: 'bg-blue-50 text-blue-700',
+  magazzino_agente: 'bg-yellow-50 text-yellow-700',
+  in_transito: 'bg-sky-50 text-sky-700',
+  manutenzione: 'bg-red-50 text-red-700',
+}
+
 export const STATO_MOVIMENTO = {
   uscita: 'Uscita',
   rientro: 'Rientro',
@@ -378,6 +388,12 @@ export const STATO_RIENTRO_COLORE = {
   integro: 'green',
   parziale: 'yellow',
   danneggiato: 'red',
+}
+
+export const STATO_RIENTRO_COLORS = {
+  integro: 'border-green-400 bg-green-50 text-green-800',
+  parziale: 'border-yellow-400 bg-yellow-50 text-yellow-800',
+  danneggiato: 'border-red-400 bg-red-50 text-red-800',
 }
 
 export const TIPO_BRAND = {

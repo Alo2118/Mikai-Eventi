@@ -4,8 +4,8 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { AssigneePickerModal } from './AssigneePickerModal'
 import { STATO_ATTIVITA, CATEGORIA_ATTIVITA, STATO_ATTIVITA_COLORE, CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
-import { ATTIVITA_STATO_ICONS, CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, STATO_DOCUMENTO_ICONS } from '../../lib/icons'
-import { formatDate } from '../../lib/date-utils'
+import { ATTIVITA_STATO_ICONS, CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, STATO_DOCUMENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { formatDate, daysFromToday, todayISO, daysBetween } from '../../lib/date-utils'
 import { StatusBadge } from '../ui/StatusBadge'
 
 const COLOR_CLASSES = {
@@ -62,6 +62,90 @@ function DocumentStatusInfo({ linkedDoc, onPreview }) {
   )
 }
 
+// C. Deadline badge — prominent overdue/warning indicators
+function DeadlineBadge({ deadline, stato }) {
+  if (!deadline) return null
+  // Only show urgency badges for active activities
+  if (!['da_fare', 'in_corso'].includes(stato)) {
+    return <span className="text-xs text-gray-500">Scadenza: {formatDate(deadline)}</span>
+  }
+  const today = todayISO()
+  const overdueDays = daysFromToday(deadline)
+  // daysFromToday returns 0 for today or future, positive for overdue
+  // We need to also detect "within 3 days" using daysBetween
+  const daysRemaining = daysBetween(deadline, today) // positive = deadline in future
+
+  if (overdueDays > 0) {
+    // Overdue
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-red-700 bg-red-100 animate-pulse">
+        <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+        Scaduta da {overdueDays} {overdueDays === 1 ? 'giorno' : 'giorni'}
+      </span>
+    )
+  }
+  if (daysRemaining >= 0 && daysRemaining <= 3) {
+    // Within 3 days (including today)
+    const label = daysRemaining === 0
+      ? 'Scade oggi'
+      : `Scade tra ${daysRemaining} ${daysRemaining === 1 ? 'giorno' : 'giorni'}`
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-yellow-700 bg-yellow-100">
+        <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+        {label}
+      </span>
+    )
+  }
+  // Normal future deadline
+  return <span className="text-xs text-gray-500">Scadenza: {formatDate(deadline)}</span>
+}
+
+// D. Document required indication badge
+function DocRequiredBadge({ linkedDoc }) {
+  if (!linkedDoc) {
+    // No document uploaded yet
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-gray-600 bg-gray-100">
+        <Icon icon={DOCUMENTO_ICONS.attachment} size={12} />
+        Documento richiesto
+      </span>
+    )
+  }
+  if (linkedDoc.stato === 'approvato') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-green-700 bg-green-100">
+        <Icon icon={STATO_DOCUMENTO_ICONS.approvato} size={12} />
+        Documento approvato
+      </span>
+    )
+  }
+  if (linkedDoc.stato === 'da_approvare') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-yellow-700 bg-yellow-100">
+        <Icon icon={STATO_DOCUMENTO_ICONS.da_approvare} size={12} />
+        In attesa approvazione
+      </span>
+    )
+  }
+  if (linkedDoc.stato === 'rifiutato') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-red-700 bg-red-100">
+        <Icon icon={STATO_DOCUMENTO_ICONS.rifiutato} size={12} />
+        Documento rifiutato
+      </span>
+    )
+  }
+  if (linkedDoc.stato === 'in_revisione') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-yellow-700 bg-yellow-100">
+        <Icon icon={STATO_DOCUMENTO_ICONS.in_revisione || DOCUMENTO_ICONS.altro} size={12} />
+        In revisione
+      </span>
+    )
+  }
+  return null
+}
+
 function ResponsabileBadge({ permesso }) {
   if (!permesso) return null
   const label = PERMESSO_SHORT_LABELS[permesso] || permesso
@@ -81,6 +165,7 @@ export function ActivityCard({
   onRevert,
   onAssign,
   onDisable,
+  onEdit,
   onUploadDocument,
   onToggleDocumento,
   onPreviewDoc,
@@ -120,6 +205,7 @@ export function ActivityCard({
   const canComplete = activity.stato === 'in_corso' && !isDocumentType
   const canRevertToInCorso = activity.stato === 'completata'
   const canRevertToDaFare = activity.stato === 'in_corso'
+  const canEditActivity = onEdit && activity.stato !== 'completata' && activity.stato !== 'disattivata'
   const canAssign = !activity.assegnato_a
   const canReassign = !!activity.assegnato_a && activity.stato !== 'completata'
   // Can upload document when activity is in_corso and no approved doc yet
@@ -146,12 +232,10 @@ export function ActivityCard({
                 <span className="text-[10px] font-bold text-mikai-600 bg-mikai-50 px-1.5 py-0.5 rounded">AUTO</span>
               )}
               {isDocumentType && (
-                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">DOC</span>
+                <DocRequiredBadge linkedDoc={linkedDoc} />
               )}
               {deadline && (
-                <span className={`text-xs ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>
-                  {formatDate(activity.deadline)}
-                </span>
+                <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />
               )}
             </div>
             {linkedDoc && (
@@ -277,10 +361,19 @@ export function ActivityCard({
                   ← In corso
                 </button>
               )}
+              {canEditActivity && (
+                <button
+                  onClick={() => onEdit(activity)}
+                  className="text-gray-400 hover:text-mikai-500 min-h-[32px] min-w-[32px] flex items-center justify-center ml-auto transition-colors"
+                  aria-label="Modifica attività"
+                >
+                  <Icon icon={ACTION_ICONS.edit} size={14} />
+                </button>
+              )}
               {onDisable && activity.stato !== 'completata' && (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="text-gray-300 hover:text-red-500 min-h-[32px] min-w-[32px] flex items-center justify-center ml-auto transition-colors"
+                  className={`text-gray-300 hover:text-red-500 min-h-[32px] min-w-[32px] flex items-center justify-center ${!canEditActivity ? 'ml-auto' : ''} transition-colors`}
                   aria-label="Rimuovi"
                 >
                   <Icon icon={ACTION_ICONS.close} size={14} />
@@ -334,19 +427,25 @@ export function ActivityCard({
               </span>
             )}
             {isDocumentType && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-blue-600 bg-blue-50">
-                <Icon icon={DOCUMENTO_ICONS.attachment} size={12} />
-                Richiede documento
-              </span>
+              <DocRequiredBadge linkedDoc={linkedDoc} />
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {activity.tipo_verifica === 'automatica' && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-mikai-600 bg-mikai-50">
               <Icon icon={ATTIVITA_STATO_ICONS.auto_verificata} size={12} />
               Auto
             </span>
+          )}
+          {canEditActivity && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
+              className="text-gray-400 hover:text-mikai-500 p-1.5 min-h-[48px] min-w-[48px] flex items-center justify-center transition-colors"
+              aria-label="Modifica attività"
+            >
+              <Icon icon={ACTION_ICONS.edit} size={16} />
+            </button>
           )}
           {onDisable && activity.stato !== 'completata' && (
             <button
@@ -365,9 +464,7 @@ export function ActivityCard({
         {activity.categoria && <CategoryBadge categoria={activity.categoria} />}
         <ResponsabileBadge permesso={activity.permesso_responsabile} />
         {deadline && (
-          <span className={`text-xs ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
-            Scadenza: {formatDate(activity.deadline)}
-          </span>
+          <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />
         )}
         {assigneeName ? (
           <span className="text-xs text-gray-500">

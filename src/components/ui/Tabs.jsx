@@ -6,10 +6,10 @@ const DOT_COLORS = {
   incomplete: 'bg-red-500',
 }
 
-const STATUS_LABELS = {
+const STATUS_TOOLTIPS = {
   complete: 'Completato',
-  warning: 'Attenzione',
-  incomplete: 'Incompleto',
+  warning: 'In corso',
+  incomplete: 'Attenzione richiesta',
 }
 
 const DETAIL_COLORS = {
@@ -78,7 +78,7 @@ export function Tabs({ tabs, activeTab, onChange }) {
             tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onChange(tab.id)}
             onKeyDown={(e) => handleKeyDown(e, index)}
-            className={`whitespace-nowrap px-3 md:px-4 py-3 min-h-[48px] text-sm md:text-base font-medium border-b-2 transition-colors flex-shrink-0 ${
+            className={`whitespace-nowrap px-2.5 md:px-3 py-2.5 min-h-[44px] text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${
               activeTab === tab.id
                 ? 'border-mikai-400 text-mikai-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -87,10 +87,17 @@ export function Tabs({ tabs, activeTab, onChange }) {
             <span className="flex items-center gap-1.5">
               {tab.label}
               {tab.status && !tab.detail && (
-                <span className={`w-2 h-2 rounded-full ${DOT_COLORS[tab.status] || ''}`} aria-label={STATUS_LABELS[tab.status] || tab.status} />
+                <span title={STATUS_TOOLTIPS[tab.status] || tab.status} className="inline-flex">
+                  <span className={`w-2.5 h-2.5 rounded-full ${DOT_COLORS[tab.status] || ''}`} aria-label={STATUS_TOOLTIPS[tab.status] || tab.status} />
+                </span>
               )}
               {tab.detail && (
-                <span className={`text-xs font-normal ${DETAIL_COLORS[tab.detail.color] || 'text-gray-400'}`}>{tab.detail.text}</span>
+                <span className={`text-xs font-normal ${DETAIL_COLORS[tab.detail.color] || 'text-gray-400'}`} title={tab.detail.text}>
+                  <span className={`inline-block w-2.5 h-2.5 rounded-full mr-1 align-middle ${
+                    tab.detail.color === 'green' ? 'bg-green-500' : tab.detail.color === 'yellow' ? 'bg-yellow-500' : tab.detail.color === 'red' ? 'bg-red-500' : 'bg-gray-400'
+                  }`} />
+                  <span className="hidden md:inline">{tab.detail.text}</span>
+                </span>
               )}
             </span>
           </button>

@@ -21,7 +21,7 @@ export function RecentContacts({ contacts }) {
           Vedi tutti
         </Link>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {contacts.map(c => (
           <Link
             key={c.id}

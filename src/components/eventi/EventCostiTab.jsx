@@ -7,11 +7,12 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
-import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE, CARD_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE, CARD_STYLE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
 import { formatCurrency } from '../../lib/format-utils'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
+import { EmptyState } from '../ui/EmptyState'
 import { ConsuntivoSection } from './ConsuntivoSection'
 
 export function EventCostiTab({ event }) {
@@ -153,7 +154,7 @@ export function EventCostiTab({ event }) {
 
         <div className="space-y-3">
           {preventivi.map(p => (
-            <div key={p.id} className="p-4 rounded-xl border border-gray-200 hover:bg-gray-50">
+            <div key={p.id} className={CARD_HOVER_STYLE}>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <span className="font-medium truncate block">{p.descrizione}</span>
@@ -179,15 +180,16 @@ export function EventCostiTab({ event }) {
           {loading && <LoadingSkeleton lines={3} />}
           {costsError && !loading && <p className="text-sm text-red-500 py-2" role="alert">Errore nel caricamento dei costi.</p>}
           {preventivi.length === 0 && !loading && !costsError && (
-            <div className="text-center py-6">
-              <p className="text-gray-400 mb-3">Nessun preventivo</p>
-              {canManage && !showForm && (
+            <EmptyState
+              title="Nessun preventivo"
+              description="Aggiungi il primo preventivo per questo evento."
+              action={canManage && !showForm ? (
                 <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
                   <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
-                  Aggiungi il primo preventivo
+                  Aggiungi preventivo
                 </Button>
-              )}
-            </div>
+              ) : null}
+            />
           )}
         </div>
       </div>

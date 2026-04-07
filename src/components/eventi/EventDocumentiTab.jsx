@@ -242,6 +242,9 @@ export function EventDocumentiTab({ event, onShowPackingList }) {
           </Button>
         </div>
       )}
+      {/* Section heading */}
+      <h3 className="font-semibold text-lg">Documenti</h3>
+
       {/* Drop Zone */}
       <div
         role="button"
@@ -253,7 +256,7 @@ export function EventDocumentiTab({ event, onShowPackingList }) {
         onClick={handleDropZoneClick}
         onKeyDown={handleDropZoneKeyDown}
         className={`
-          border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
+          border-2 border-dashed rounded-xl p-4 md:p-8 text-center cursor-pointer transition-colors
           focus:outline-none focus:ring-2 focus:ring-mikai-400 focus:ring-offset-2
           ${dragOver
             ? 'border-mikai-400 bg-mikai-50'
