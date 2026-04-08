@@ -22,6 +22,8 @@ export const useLogisticsStore = create((set, get) => ({
       .from('event_trasporti')
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
       .eq('event_id', eventId)
+      .order('ordine')
+      .order('orario', { ascending: true, nullsFirst: false })
       .order('created_at')
     set({ trasporti: data || [], error: error?.message || null })
     return { data, error }
@@ -92,32 +94,48 @@ export const useLogisticsStore = create((set, get) => ({
   },
 
   copyTrasportoToMany: async (sourceId, targetPersons, eventId) => {
-    // 1. Fetch source record from local state
     const source = get().trasporti.find(t => t.id === sourceId)
     if (!source) return { data: null, error: 'Record sorgente non trovato' }
 
-    // 2. Build fresh payloads — respects XOR constraint (num_nonnulls(user_id, contact_id) = 1)
-    const payloads = targetPersons.map(target => ({
-      event_id: eventId,
-      user_id: target.userId || null,
-      contact_id: target.contactId || null,
-      direzione: source.direzione,
-      stato: source.stato,
-      mezzo: source.mezzo,
-      codice: source.codice,
-      orario: source.orario,
-      autista: source.autista,
-      orario_pickup: source.orario_pickup,
-      note: source.note,
-    }))
+    // Find ALL legs for this person+direction (multi-leg support)
+    const sourceKey = source.user_id || source.contact_id
+    const allLegs = get().trasporti.filter(t =>
+      t.direzione === source.direzione && (t.user_id === sourceKey || t.contact_id === sourceKey)
+    )
 
-    // 3. Batch insert
+    // For each target, skip legs they already have (by ordine) to avoid duplicates
+    const allTrasporti = get().trasporti
+    const payloads = targetPersons.flatMap(target => {
+      const targetKey = target.userId || target.contactId
+      const existingOrdini = new Set(
+        allTrasporti.filter(t =>
+          t.direzione === source.direzione && (t.user_id === targetKey || t.contact_id === targetKey)
+        ).map(t => t.ordine || 1)
+      )
+      return allLegs
+        .filter(leg => !existingOrdini.has(leg.ordine || 1))
+        .map(leg => ({
+          event_id: eventId,
+          user_id: target.userId || null,
+          contact_id: target.contactId || null,
+          direzione: leg.direzione,
+          ordine: leg.ordine,
+          stato: leg.stato,
+          mezzo: leg.mezzo,
+          codice: leg.codice,
+          luogo_partenza: leg.luogo_partenza,
+          luogo_arrivo: leg.luogo_arrivo,
+          orario: leg.orario,
+          orario_arrivo: leg.orario_arrivo,
+          note: leg.note,
+        }))
+    })
+
     const { data, error } = await supabase
       .from('event_trasporti')
       .insert(payloads)
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome)')
     if (!error && data) {
-      // Append to local state — no refetch to avoid loading flash
       set(s => ({ trasporti: [...s.trasporti, ...data] }))
     }
     return { data, error: error?.message || null }
@@ -128,18 +146,28 @@ export const useLogisticsStore = create((set, get) => ({
     if (!eventIds?.length) return {}
     const [hotelRes, transportRes] = await Promise.all([
       supabase.from('event_hotel').select('event_id, stato').in('event_id', eventIds),
-      supabase.from('event_trasporti').select('event_id, stato, direzione').in('event_id', eventIds),
+      supabase.from('event_trasporti').select('event_id, stato, direzione, user_id, contact_id').in('event_id', eventIds),
     ])
     const map = {}
     for (const h of (hotelRes.data || [])) {
       if (!map[h.event_id]) map[h.event_id] = { hotelTotal: 0, hotelConfermato: 0, trasportoTotal: 0, trasportoConfermato: 0 }
       map[h.event_id].hotelTotal++
-      if (h.stato === 'confermato') map[h.event_id].hotelConfermato++
+      if (h.stato === 'confermato' || h.stato === 'non_necessario') map[h.event_id].hotelConfermato++
     }
+    // Count unique person+direction combos (not raw records, to handle multi-leg)
+    const seenTransport = new Set()
+    const seenTransportOk = new Set()
     for (const t of (transportRes.data || [])) {
       if (!map[t.event_id]) map[t.event_id] = { hotelTotal: 0, hotelConfermato: 0, trasportoTotal: 0, trasportoConfermato: 0 }
-      map[t.event_id].trasportoTotal++
-      if (t.stato === 'confermato') map[t.event_id].trasportoConfermato++
+      const personKey = `${t.event_id}-${t.user_id || t.contact_id}-${t.direzione}`
+      if (!seenTransport.has(personKey)) {
+        seenTransport.add(personKey)
+        map[t.event_id].trasportoTotal++
+      }
+      if ((t.stato === 'confermato' || t.stato === 'non_necessario') && !seenTransportOk.has(personKey)) {
+        seenTransportOk.add(personKey)
+        map[t.event_id].trasportoConfermato++
+      }
     }
     return map
   },
@@ -159,6 +187,7 @@ export const useLogisticsStore = create((set, get) => ({
       .from('event_trasporti')
       .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome), evento:events(id, titolo, data_inizio)')
       .in('stato', ['da_prenotare', 'prenotato'])
+      .order('ordine')
       .order('created_at')
     return { data: data || [], error }
   },

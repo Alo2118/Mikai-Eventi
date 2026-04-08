@@ -7,7 +7,7 @@ import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
-import { FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { FORM_CONTAINER_STYLE, INPUT_STYLE } from '../../lib/constants'
 import { TavoloCard } from './TavoloCard'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 
@@ -181,7 +181,7 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
             max="10"
             defaultValue="4"
             ref={countRef}
-            className="w-20 px-3 py-2 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none"
+            className={INPUT_STYLE + ' !w-20'}
           />
           <Button size="sm" onClick={handleCrea}>Crea</Button>
           <Button variant="ghost" size="sm" onClick={() => setShowCreaForm(false)}>Annulla</Button>

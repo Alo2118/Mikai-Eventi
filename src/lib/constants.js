@@ -202,12 +202,14 @@ export const STATO_PRENOTAZIONE = {
   da_prenotare: 'Da prenotare',
   prenotato: 'Prenotato',
   confermato: 'Confermato',
+  non_necessario: 'Non necessario',
 }
 
 export const STATO_PRENOTAZIONE_COLORE = {
   da_prenotare: 'yellow',
   prenotato: 'blue',
   confermato: 'green',
+  non_necessario: 'gray',
 }
 
 // Direzione trasporto
@@ -222,6 +224,7 @@ export const MEZZO_TRASPORTO = {
   volo: 'Volo',
   auto: 'Auto',
   navetta: 'Navetta',
+  transfer: 'Transfer',
   indipendente: 'Indipendente',
 }
 

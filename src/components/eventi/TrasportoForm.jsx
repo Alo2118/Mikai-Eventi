@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
-import { MEZZO_TRASPORTO, STATO_PRENOTAZIONE, INPUT_STYLE, SELECT_STYLE } from '../../lib/constants'
+import { MEZZO_TRASPORTO, STATO_PRENOTAZIONE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { toLocalDateTime, toISO } from '../../lib/date-utils'
 
 
@@ -31,9 +31,9 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
 
     const payload = {
       mezzo: mezzo || null,
-      codice: codice || null,
+      codice: codice.trim() || null,
       orario: toISO(orario),
-      autista: autista || null,
+      autista: autista.trim() || null,
       orario_pickup: toISO(orarioPickup),
       stato: stato || null,
       note: note || null,
@@ -58,7 +58,7 @@ export function TrasportoForm({ trasporto, eventId, personId, personType, direzi
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-50 rounded-lg p-4">
+    <form onSubmit={handleSubmit} className={FORM_CONTAINER_STYLE}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
         <div>

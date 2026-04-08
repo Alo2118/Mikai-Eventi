@@ -244,13 +244,31 @@ function addLogisticsSection(doc, hotels, trasporti, event, y) {
 
   if (hasTrasporti) {
     y = addSubtableHeader(doc, 'Trasporti', y)
-    const head = ['Persona', 'Direzione', 'Mezzo', 'Codice', 'Orario']
-    const body = trasporti.map(t => [
-      personName(t),
-      DIREZIONE_TRASPORTO[t.direzione] || t.direzione || '—',
-      MEZZO_TRASPORTO[t.mezzo] || t.mezzo || '—',
-      t.codice || '—',
-      t.orario || '—',
+    const head = ['Persona', 'Andata', 'Ritorno']
+    // Group by person, format legs per direction as multi-line text
+    const byPerson = {}
+    for (const t of trasporti) {
+      const name = personName(t)
+      if (!byPerson[name]) byPerson[name] = { andata: [], ritorno: [] }
+      byPerson[name][t.direzione === 'andata' ? 'andata' : 'ritorno'].push(t)
+    }
+    const formatLeg = (t) => {
+      const parts = [MEZZO_TRASPORTO[t.mezzo] || '']
+      if (t.codice) parts.push(t.codice)
+      const route = [t.luogo_partenza, t.luogo_arrivo].filter(Boolean)
+      if (route.length > 0) parts.push(route.join(' → '))
+      if (t.orario) parts.push(formatTime(t.orario))
+      if (t.orario_arrivo) parts.push('→ ' + formatTime(t.orario_arrivo))
+      return parts.filter(Boolean).join(' ')
+    }
+    const formatLegs = (legs) => {
+      legs.sort((a, b) => (a.ordine || 1) - (b.ordine || 1))
+      return legs.map(formatLeg).join('\n') || '—'
+    }
+    const body = Object.entries(byPerson).map(([name, dirs]) => [
+      name,
+      formatLegs(dirs.andata),
+      formatLegs(dirs.ritorno),
     ])
     y = addAutoTable(doc, head, body, y)
   }

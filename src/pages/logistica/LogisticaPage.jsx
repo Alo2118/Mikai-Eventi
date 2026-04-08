@@ -32,14 +32,10 @@ const EXPORT_COLUMNS_HOTEL = [
 ]
 
 const EXPORT_COLUMNS_TRASPORTI = [
-  { key: 'evento', label: 'Evento', format: v => v?.titolo || '' },
+  { key: 'evento', label: 'Evento' },
   { key: '_persona', label: 'Persona' },
-  { key: 'direzione', label: 'Direzione', format: v => DIREZIONE_TRASPORTO[v] || v },
-  { key: 'mezzo', label: 'Mezzo', format: v => MEZZO_TRASPORTO[v] || v },
-  { key: 'codice_prenotazione', label: 'Codice' },
-  { key: 'orario', label: 'Orario' },
-  { key: 'stato', label: 'Stato', format: v => STATO_PRENOTAZIONE[v] || v },
-  { key: 'note', label: 'Note', width: 30 },
+  { key: '_andata', label: 'Andata', width: 40 },
+  { key: '_ritorno', label: 'Ritorno', width: 40 },
 ]
 
 function personName(r) {
@@ -63,7 +59,22 @@ export function LogisticaPage() {
         fetchAllPendingTrasporti(),
       ])
       const hotels = (hotelRes.data || []).map(r => ({ ...r, _persona: personName(r) }))
-      const trasporti = (trasportiRes.data || []).map(r => ({ ...r, _persona: personName(r) }))
+      // Group trasporti by person+event, with andata/ritorno as columns
+      const trasportiRaw = trasportiRes.data || []
+      const trasportiMap = {}
+      for (const t of trasportiRaw) {
+        const key = `${t.event_id}-${t.user_id || t.contact_id}`
+        if (!trasportiMap[key]) trasportiMap[key] = { evento: t.evento, _persona: personName(t), _andata: [], _ritorno: [] }
+        const leg = [MEZZO_TRASPORTO[t.mezzo], t.codice, t.luogo_partenza, t.luogo_arrivo ? `→ ${t.luogo_arrivo}` : '', t.orario ? formatDate(t.orario) : ''].filter(Boolean).join(' ')
+        if (t.direzione === 'andata') trasportiMap[key]._andata.push(leg)
+        else trasportiMap[key]._ritorno.push(leg)
+      }
+      const trasporti = Object.values(trasportiMap).map(r => ({
+        ...r,
+        evento: r.evento?.titolo || '',
+        _andata: r._andata.join(' + '),
+        _ritorno: r._ritorno.join(' + '),
+      }))
       if (hotels.length === 0 && trasporti.length === 0) {
         addToast('Nessun dato da esportare', 'warning')
         setExporting(false)

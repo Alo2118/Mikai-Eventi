@@ -93,12 +93,13 @@ function computeDetailReadiness({ eventActivities, eventMaterials, preventivi, h
   else if (matReq > 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'yellow', text: `${matReq} da confermare`, tab: 'materiale' })
   else areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'green', text: 'Confermato', tab: 'materiale' })
 
-  // Persone & Logistica
+  // Persone & Logistica (count unique person+direction, not raw records)
   const totalPeople = (staff?.length || 0) + (participants?.length || 0)
-  const hConf = hotels.filter(h => h.stato === 'confermato').length
-  const tConf = trasporti.filter(t => t.stato === 'confermato').length
-  const logTotal = hotels.length + trasporti.length
-  const logPending = logTotal - hConf - tConf
+  const hConf = hotels.filter(h => h.stato === 'confermato' || h.stato === 'non_necessario').length
+  const tPersonDir = new Set(trasporti.map(t => `${t.user_id || t.contact_id}-${t.direzione}`))
+  const tConfPersonDir = new Set(trasporti.filter(t => t.stato === 'confermato' || t.stato === 'non_necessario').map(t => `${t.user_id || t.contact_id}-${t.direzione}`))
+  const logTotal = hotels.length + tPersonDir.size
+  const logPending = logTotal - hConf - tConfPersonDir.size
   if (totalPeople === 0) {
     areas.push({ icon: DETAIL_NAV_ICONS.logistica, label: 'Persone', color: 'gray', text: 'Nessuna', tab: 'logistica' })
   } else if (logTotal === 0) {
@@ -227,11 +228,20 @@ export function EventiDetail() {
     if (totalPeople > 0) {
       const staffConfirmed = staff.every(s => s.confermato)
       const partConfirmed = participants.every(p => p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente')
-      const hotelConfirmed = hotels.filter(h => h.stato === 'confermato').length
-      const andataConfirmed = trasporti.filter(t => t.direzione === 'andata' && t.stato === 'confermato').length
-      const ritornoConfirmed = trasporti.filter(t => t.direzione === 'ritorno' && t.stato === 'confermato').length
+      const hotelConfirmed = hotels.filter(h => h.stato === 'confermato' || h.stato === 'non_necessario').length
+      // Count unique persons with all legs confirmed per direction
+      const andataPersons = new Set(trasporti.filter(t => t.direzione === 'andata').map(t => t.user_id || t.contact_id))
+      const andataAllOk = [...andataPersons].filter(pid =>
+        trasporti.filter(t => t.direzione === 'andata' && (t.user_id === pid || t.contact_id === pid))
+          .every(t => t.stato === 'confermato' || t.stato === 'non_necessario')
+      ).length
+      const ritornoPersons = new Set(trasporti.filter(t => t.direzione === 'ritorno').map(t => t.user_id || t.contact_id))
+      const ritornoAllOk = [...ritornoPersons].filter(pid =>
+        trasporti.filter(t => t.direzione === 'ritorno' && (t.user_id === pid || t.contact_id === pid))
+          .every(t => t.stato === 'confermato' || t.stato === 'non_necessario')
+      ).length
       const peopleOk = staffConfirmed && partConfirmed
-      const logisticsOk = hotelConfirmed >= totalPeople && andataConfirmed >= totalPeople && ritornoConfirmed >= totalPeople
+      const logisticsOk = hotelConfirmed >= totalPeople && andataAllOk >= totalPeople && ritornoAllOk >= totalPeople
       statuses.logistica = (peopleOk && logisticsOk) ? 'complete' : 'warning'
     }
 

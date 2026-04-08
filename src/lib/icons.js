@@ -505,6 +505,7 @@ export const TRASPORTO_ICONS = {
   volo: Plane,
   auto: Car,
   navetta: Bus,
+  transfer: ArrowRightLeft,
   indipendente: UserX,
 }
 

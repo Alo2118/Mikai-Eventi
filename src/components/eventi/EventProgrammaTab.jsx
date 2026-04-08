@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS } from '../../lib/icons'
 import { formatDateTime } from '../../lib/date-utils'
-import { INPUT_STYLE, CARD_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, SELECT_STYLE, CARD_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 
@@ -109,7 +109,7 @@ export function EventProgrammaTab({ event }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo <span className="text-red-500">*</span></label>
-              <select className={INPUT_STYLE} value={form.tipo_id} onChange={e => setField('tipo_id', e.target.value)}>
+              <select className={SELECT_STYLE} value={form.tipo_id} onChange={e => setField('tipo_id', e.target.value)}>
                 <option value="">Seleziona...</option>
                 {types.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
