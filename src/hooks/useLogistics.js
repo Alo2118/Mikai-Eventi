@@ -30,13 +30,14 @@ export const useLogisticsStore = create((set, get) => ({
   },
 
   fetchEventLogistics: async (eventId) => {
-    set({ hotels: [], trasporti: [], loading: true, error: null })
+    set({ loading: true, error: null })
     try {
       await Promise.all([get().fetchEventHotels(eventId), get().fetchEventTrasporti(eventId)])
     } catch (err) {
       set({ error: err?.message || 'Errore caricamento logistica' })
+    } finally {
+      set({ loading: false })
     }
-    set({ loading: false })
   },
 
   createHotel: async (payload) => {

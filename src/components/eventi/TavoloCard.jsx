@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -62,7 +62,7 @@ function AssignmentSection({ title, items, renderItem, options, optionLabel, opt
   )
 }
 
-export function TavoloCard({ tavolo, eventId, availableProducts, canEdit }) {
+export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableProducts, canEdit }) {
   const addProduct = useTavoliStore(s => s.addProduct)
   const removeProduct = useTavoliStore(s => s.removeProduct)
   const updateTavolo = useTavoliStore(s => s.updateTavolo)
@@ -164,4 +164,4 @@ export function TavoloCard({ tavolo, eventId, availableProducts, canEdit }) {
       />
     </div>
   )
-}
+})

@@ -194,13 +194,15 @@ export function EventiDetail() {
 
   useEffect(() => {
     if (event?.id) {
-      fetchEventStaff(event.id)
-      fetchEventParticipants(event.id)
-      fetchEventLogistics(event.id)
-      fetchEventActivities(event.id)
-      fetchEventTavoli(event.id)
-      fetchEventMaterialList(event.id)
-      fetchEventPreventivi(event.id)
+      Promise.all([
+        fetchEventStaff(event.id),
+        fetchEventParticipants(event.id),
+        fetchEventLogistics(event.id),
+        fetchEventActivities(event.id),
+        fetchEventTavoli(event.id),
+        fetchEventMaterialList(event.id),
+        fetchEventPreventivi(event.id),
+      ])
     }
   }, [event?.id])
 

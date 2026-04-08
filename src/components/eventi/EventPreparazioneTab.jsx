@@ -12,7 +12,6 @@ import { ActivityGateBar } from './ActivityGateBar'
 import { Modal } from '../ui/Modal'
 import { DocumentUploadModal } from './DocumentUploadModal'
 import { ActivityEditModal } from './ActivityEditModal'
-// ActivityProgressSection removed — progress inline in header
 import { DocApprovalDialog } from './DocApprovalDialog'
 import { CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
 import { PreparazioneAddActivityForm } from './PreparazioneAddActivityForm'

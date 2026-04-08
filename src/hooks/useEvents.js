@@ -161,7 +161,7 @@ export const useEventsStore = create((set, get) => {
   },
 
   rejectEvent: async (id, motivo) => {
-    return get().updateEvent(id, { stato: 'rifiutato', motivo_cancellazione: motivo })
+    return get().updateEvent(id, { stato: 'cancellato', motivo_cancellazione: motivo })
   },
 
   cancelEvent: async (id, motivo) => {

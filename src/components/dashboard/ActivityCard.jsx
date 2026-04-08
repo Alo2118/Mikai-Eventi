@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 import { CATEGORIA_ICONS, FEEDBACK_ICONS, ACTION_ICONS, NAV_ICONS } from '../../lib/icons'
@@ -38,7 +39,7 @@ function deadlineInfo(deadline) {
   return { label: formatDate(deadline), urgency: 'normal' }
 }
 
-export function ActivityCard({ act, onComplete, onAssign, completing }) {
+export const ActivityCard = memo(function ActivityCard({ act, onComplete, onAssign, completing }) {
   const dl = deadlineInfo(act.deadline)
   const u = URGENCY[dl.urgency]
   const permColor = PERM_COLORS[PERMESSO_BADGE_COLORE[act.permesso_responsabile] || 'gray'] || PERM_COLORS.gray
@@ -111,4 +112,4 @@ export function ActivityCard({ act, onComplete, onAssign, completing }) {
       </div>
     </div>
   )
-}
+})

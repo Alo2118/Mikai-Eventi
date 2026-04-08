@@ -111,7 +111,7 @@ export const useMaterialsStore = create((set, get) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const conflictEvents = data.map(c => c.event?.titolo).filter(Boolean).join(', ')
-        await supabase.from('notifications').insert({
+        const { error: notifError } = await supabase.from('notifications').insert({
           user_id: user.id,
           tipo: 'conflitto_materiale',
           titolo: 'Conflitto materiale rilevato',
@@ -122,6 +122,7 @@ export const useMaterialsStore = create((set, get) => {
           entity_id: materialId,
           gruppo: `conflict_${materialId}_${todayISO()}`,
         })
+        if (notifError) console.error('Notification insert failed:', notifError)
       }
     }
 

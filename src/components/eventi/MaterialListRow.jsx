@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, FEEDBACK_ICONS, POSIZIONE_ICONS } from '../../lib/icons'
 import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, CARD_ITEM_STYLE, CARD_STYLE } from '../../lib/constants'
@@ -31,7 +31,7 @@ function ActionButton({ onClick, className, ariaLabel, icon, iconClass, label })
   )
 }
 
-export function MaterialListRow({ row, availability, stockLocations = [], eventZoneId, canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation }) {
+export const MaterialListRow = memo(function MaterialListRow({ row, availability, stockLocations = [], eventZoneId, canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation }) {
   const [expanded, setExpanded] = useState(false)
   const isPending = row.stato === 'richiesto'
   const isConfirmed = row.stato === 'approvato'
@@ -358,4 +358,4 @@ export function MaterialListRow({ row, availability, stockLocations = [], eventZ
       )}
     </div>
   )
-}
+})

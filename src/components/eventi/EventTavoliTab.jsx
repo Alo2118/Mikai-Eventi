@@ -25,7 +25,7 @@ function ProductPicker({ products, onConfirm, onCancel }) {
   }
 
   return (
-    <div className={FORM_CONTAINER_STYLE + ' border border-gray-200 mt-3 space-y-3'}>
+    <div className={FORM_CONTAINER_STYLE + ' mt-3 space-y-3'}>
       <div className="flex items-center justify-between">
         <span className="font-medium text-sm">Seleziona prodotti da assegnare a tutti i tavoli</span>
         <button onClick={toggleAll} className="text-sm text-mikai-400 hover:underline min-h-[48px] px-2">

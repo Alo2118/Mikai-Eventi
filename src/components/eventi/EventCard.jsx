@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
@@ -47,7 +47,7 @@ const INVOLVEMENT_CFG = [
   { key: 'attivita', icon: DASHBOARD_ICONS.coinvolto_attivita, label: 'Attività', color: 'text-emerald-600 bg-emerald-50' },
 ]
 
-export function EventCard({ event, semaphore, readiness, involvement, currentUserId }) {
+export const EventCard = memo(function EventCard({ event, semaphore, readiness, involvement, currentUserId }) {
   const [expanded, setExpanded] = useState(false)
   const navigate = useNavigate()
   const TipoIcon = TIPO_EVENTO_ICONS[event.tipo_evento]
@@ -187,4 +187,4 @@ export function EventCard({ event, semaphore, readiness, involvement, currentUse
       </div>
     </Link>
   )
-}
+})

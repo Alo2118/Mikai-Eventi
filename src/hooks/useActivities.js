@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { nowISO, todayISO } from '../lib/date-utils'
+import { nowISO, todayISO, toISO } from '../lib/date-utils'
 import { calculateDeadline } from '../lib/date-utils'
 
 export const useActivitiesStore = create((set, get) => ({
@@ -525,7 +525,7 @@ export const useActivitiesStore = create((set, get) => ({
         const timeStr = item.orario.length <= 5 ? item.orario + ':00' : item.orario
         const baseDate = new Date(dataInizio + 'T' + timeStr)
         baseDate.setDate(baseDate.getDate() + dayOffset)
-        data_ora = baseDate.toISOString()
+        data_ora = toISO(baseDate)
       }
       return {
         event_id: eventId,

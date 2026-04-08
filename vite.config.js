@@ -10,10 +10,18 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{css,html,svg,png,woff2}'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api/],
-        runtimeCaching: [],
+        // Precache only critical JS chunks, lazy-load the rest at runtime
+        globIgnores: ['**/exceljs*', '**/jspdf*', '**/html2canvas*'],
+        runtimeCaching: [
+          {
+            urlPattern: /\.js$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'js-chunks', expiration: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 } },
+          },
+        ],
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,

@@ -16,11 +16,12 @@ async function syncTavoliToMaterialList(eventId, tavoli) {
   }
 
   // Fetch existing event_materials for this event
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from('event_materials')
     .select('id, product_id, quantita, stato')
     .eq('event_id', eventId)
 
+  if (fetchError) { console.error('syncTavoli fetch failed:', fetchError); return { added: 0, updated: 0 } }
   const existingByProduct = new Map((existing || []).map(e => [e.product_id, e]))
 
   const toInsert = []
@@ -44,15 +45,19 @@ async function syncTavoliToMaterialList(eventId, tavoli) {
 
   // Batch insert new materials
   if (toInsert.length > 0) {
-    await supabase.from('event_materials').insert(toInsert)
+    const { error: insertError } = await supabase.from('event_materials').insert(toInsert)
+    if (insertError) console.error('syncTavoli insert failed:', insertError)
   }
 
   // Updates must stay individual (different values per row) — parallelize
-  await Promise.all(toUpdate.map(upd =>
+  const updateResults = await Promise.all(toUpdate.map(upd =>
     supabase.from('event_materials')
       .update({ quantita: upd.quantita, note_commerciale: upd.note_commerciale })
       .eq('id', upd.id)
   ))
+  for (const r of updateResults) {
+    if (r.error) console.error('syncTavoli update failed:', r.error)
+  }
 
   return { added: toInsert.length, updated: toUpdate.length }
 }
@@ -89,7 +94,8 @@ async function notifyTavoliMaterialChange(eventId, changeType, count) {
     }))
 
   if (notifRows.length > 0) {
-    await supabase.from('notifications').insert(notifRows)
+    const { error: notifError } = await supabase.from('notifications').insert(notifRows)
+    if (notifError) console.error('Tavoli notification insert failed:', notifError)
   }
 }
 

@@ -780,7 +780,7 @@ export function EventLogisticaTab({ event, users = [] }) {
                                 )}
                                 {(canEdit || canEditPart) && (
                                   <button type="button" onClick={() => setSingleEdit({ type: 'dettagli', person })}
-                                    className="inline-flex items-center gap-1 text-gray-300 hover:text-mikai-500 transition-colors p-0.5"
+                                    className="inline-flex items-center gap-1 text-gray-300 hover:text-mikai-500 transition-colors min-h-[48px] min-w-[48px] md:min-h-0 md:min-w-0 md:p-0.5 justify-center"
                                     title="Modifica dettagli persona"
                                   >
                                     <Icon icon={ACTION_ICONS.edit} size={16} />
@@ -791,7 +791,7 @@ export function EventLogisticaTab({ event, users = [] }) {
                             {(canEditStaff || canEditPart) && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setDeleting({ type: person.type, id: person.type === 'staff' ? person.staffId : person.participantId, personId: person.id, name: `${person.cognome} ${person.nome}` }) }}
-                                className="text-gray-300 hover:text-red-500 p-1 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                                className="text-gray-300 hover:text-red-500 p-1 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 min-h-[48px] min-w-[48px] md:min-h-0 md:min-w-0 flex items-center justify-center"
                                 aria-label={`Rimuovi ${person.cognome} ${person.nome}`}
                               >
                                 <Icon icon={ACTION_ICONS.close} size={14} />

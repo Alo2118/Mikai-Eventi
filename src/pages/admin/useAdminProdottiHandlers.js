@@ -88,7 +88,7 @@ export function useAdminProdottiHandlers() {
       setSpecimens([])
       setStock({ quantita_disponibile: 0, soglia_minima: 0 })
     }
-  }, [fetchKitContents, fetchProductSpecimens, fetchProductStock])
+  }, [fetchKitContents, fetchProductSpecimens, fetchProductStock, fetchStockHistory, fetchStockLocations])
 
   const resetEditState = () => {
     setNewPiece({ piece_name: '', piece_code: '', quantity: 1 })

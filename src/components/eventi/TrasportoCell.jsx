@@ -39,7 +39,7 @@ function SingleLeg({ record, onClick, canEdit }) {
 export function TrasportoCell({ records = [], onClickLeg, onAddLeg, canEdit }) {
   if (records.length === 0) {
     return canEdit ? (
-      <button onClick={onAddLeg} className="w-7 h-7 rounded border border-dashed border-gray-200 text-gray-300 hover:border-mikai-400 hover:text-mikai-500 flex items-center justify-center transition-colors" aria-label="Aggiungi trasporto" type="button">
+      <button onClick={onAddLeg} className="min-h-[48px] min-w-[48px] md:min-h-[28px] md:min-w-[28px] rounded-lg border border-dashed border-gray-200 text-gray-300 hover:border-mikai-400 hover:text-mikai-500 flex items-center justify-center transition-colors" aria-label="Aggiungi trasporto" type="button">
         <Icon icon={ACTION_ICONS.add} size={14} />
       </button>
     ) : null
@@ -51,7 +51,7 @@ export function TrasportoCell({ records = [], onClickLeg, onAddLeg, canEdit }) {
         <SingleLeg key={record.id} record={record} onClick={() => onClickLeg?.(record)} canEdit={canEdit} />
       ))}
       {canEdit && (
-        <button onClick={onAddLeg} className="flex items-center gap-1 text-xs text-gray-300 hover:text-mikai-500 transition-colors py-0.5" aria-label="Aggiungi tratta" type="button">
+        <button onClick={onAddLeg} className="flex items-center gap-1 text-xs text-gray-300 hover:text-mikai-500 transition-colors min-h-[48px] md:min-h-0 py-0.5" aria-label="Aggiungi tratta" type="button">
           <Icon icon={ACTION_ICONS.add} size={12} />
           <span>Tratta</span>
         </button>
