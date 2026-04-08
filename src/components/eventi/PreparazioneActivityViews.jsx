@@ -51,15 +51,13 @@ export function PreparazioneKanbanView({ visible, cardPropsContext }) {
         const acts = byStato[col.id] || []
         return (
           <div key={col.id} className={`rounded-xl border-2 ${col.color} overflow-hidden`}>
-            <div className={`${col.headerBg} px-4 py-3 flex items-center justify-between`}>
-              <h3 className={`text-sm font-semibold ${col.headerText}`}>{col.label}</h3>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.headerBg} ${col.headerText}`}>
-                {acts.length}
-              </span>
+            <div className={`${col.headerBg} px-3 py-2 flex items-center justify-between`}>
+              <h3 className={`text-xs font-semibold uppercase tracking-wide ${col.headerText}`}>{col.label}</h3>
+              <span className={`text-xs font-bold ${col.headerText}`}>{acts.length}</span>
             </div>
-            <div className="p-2 space-y-2 min-h-[100px]">
+            <div className="p-1.5 space-y-1.5 min-h-[60px]">
               {acts.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-6">Nessuna</p>
+                <p className="text-center text-xs text-gray-400 py-4">Nessuna</p>
               ) : (
                 acts.map(activity => (
                   <ActivityCard key={activity.id} {...getCardProps(activity, true)} />

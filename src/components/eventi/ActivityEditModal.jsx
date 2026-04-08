@@ -9,6 +9,7 @@ export function ActivityEditModal({ open, activity, onSave, onClose, saving }) {
     deadline: '',
     categoria: '',
     obbligatoria: false,
+    tipo_verifica: 'manuale',
     note: '',
   })
 
@@ -19,6 +20,7 @@ export function ActivityEditModal({ open, activity, onSave, onClose, saving }) {
         deadline: activity.deadline ? activity.deadline.slice(0, 10) : '',
         categoria: activity.categoria || '',
         obbligatoria: !!activity.obbligatoria,
+        tipo_verifica: activity.tipo_verifica || 'manuale',
         note: activity.note || '',
       })
     }
@@ -36,6 +38,7 @@ export function ActivityEditModal({ open, activity, onSave, onClose, saving }) {
       deadline: form.deadline || null,
       categoria: form.categoria || null,
       obbligatoria: form.obbligatoria,
+      tipo_verifica: form.tipo_verifica,
       note: form.note.trim() || null,
     }
     onSave(activity.id, updates)
@@ -94,15 +97,28 @@ export function ActivityEditModal({ open, activity, onSave, onClose, saving }) {
           </div>
         </div>
 
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.obbligatoria}
-            onChange={e => handleChange('obbligatoria', e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400"
-          />
-          <span className="text-sm text-gray-700">Attività obbligatoria</span>
-        </label>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+            <input
+              type="checkbox"
+              checked={form.obbligatoria}
+              onChange={e => handleChange('obbligatoria', e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400"
+            />
+            <span className="text-sm text-gray-700">Attività obbligatoria</span>
+          </label>
+          {activity?.tipo_verifica !== 'automatica' && (
+            <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+              <input
+                type="checkbox"
+                checked={form.tipo_verifica === 'documento'}
+                onChange={e => handleChange('tipo_verifica', e.target.checked ? 'documento' : 'manuale')}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-400"
+              />
+              <span className="text-sm text-gray-700">Richiede documento allegato</span>
+            </label>
+          )}
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>

@@ -3,8 +3,8 @@ import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { AssigneePickerModal } from './AssigneePickerModal'
-import { STATO_ATTIVITA, CATEGORIA_ATTIVITA, STATO_ATTIVITA_COLORE, CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
-import { ATTIVITA_STATO_ICONS, CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, STATO_DOCUMENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
+import { ATTIVITA_STATO_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, STATO_DOCUMENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { formatDate, daysFromToday, todayISO, daysBetween } from '../../lib/date-utils'
 import { StatusBadge } from '../ui/StatusBadge'
 
@@ -19,50 +19,7 @@ const COLOR_CLASSES = {
   yellow: 'text-yellow-700 bg-yellow-100',
 }
 
-function CategoryBadge({ categoria }) {
-  const label = CATEGORIA_ATTIVITA[categoria] || categoria
-  const color = CATEGORIA_ATTIVITA_COLORE[categoria] || 'gray'
-  const iconColor = COLOR_CLASSES[color] || COLOR_CLASSES.gray
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${iconColor}`}>
-      <Icon icon={CATEGORIA_ICONS[categoria]} size={12} />
-      {label}
-    </span>
-  )
-}
-
-function StatoBadge({ displayStato }) {
-  const label = STATO_ATTIVITA[displayStato] || displayStato
-  const colorKey = STATO_ATTIVITA_COLORE[displayStato] || 'gray'
-  const classes = COLOR_CLASSES[colorKey] || COLOR_CLASSES.gray
-  const iconComp = ATTIVITA_STATO_ICONS[displayStato] || ATTIVITA_STATO_ICONS.da_fare
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
-      <Icon icon={iconComp} size={12} />
-      {label}
-    </span>
-  )
-}
-
-function DocumentStatusInfo({ linkedDoc, onPreview }) {
-  if (!linkedDoc) return null
-  return (
-    <div className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2">
-      <Icon icon={STATO_DOCUMENTO_ICONS[linkedDoc.stato] || DOCUMENTO_ICONS.altro} size={14} className="text-gray-500 shrink-0" />
-      <span className="text-gray-700 truncate">{linkedDoc.nome}</span>
-      <button
-        onClick={() => onPreview?.(linkedDoc)}
-        className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-lg text-gray-400 hover:text-mikai-500 hover:bg-gray-100 transition-colors shrink-0"
-        aria-label={`Anteprima ${linkedDoc.nome}`}
-      >
-        <Icon icon={DOCUMENTO_ICONS.preview} size={18} />
-      </button>
-      <StatusBadge stato={linkedDoc.stato} labels={STATO_DOCUMENTO} colors={STATO_DOCUMENTO_COLORE} />
-    </div>
-  )
-}
-
-// C. Deadline badge — prominent overdue/warning indicators
+// Deadline badge — prominent overdue/warning indicators
 function DeadlineBadge({ deadline, stato }) {
   if (!deadline) return null
   // Only show urgency badges for active activities
@@ -98,52 +55,6 @@ function DeadlineBadge({ deadline, stato }) {
   }
   // Normal future deadline
   return <span className="text-xs text-gray-500">Scadenza: {formatDate(deadline)}</span>
-}
-
-// D. Document required indication badge
-function DocRequiredBadge({ linkedDoc }) {
-  if (!linkedDoc) {
-    // No document uploaded yet
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-gray-600 bg-gray-100">
-        <Icon icon={DOCUMENTO_ICONS.attachment} size={12} />
-        Documento richiesto
-      </span>
-    )
-  }
-  if (linkedDoc.stato === 'approvato') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-green-700 bg-green-100">
-        <Icon icon={STATO_DOCUMENTO_ICONS.approvato} size={12} />
-        Documento approvato
-      </span>
-    )
-  }
-  if (linkedDoc.stato === 'da_approvare') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-yellow-700 bg-yellow-100">
-        <Icon icon={STATO_DOCUMENTO_ICONS.da_approvare} size={12} />
-        In attesa approvazione
-      </span>
-    )
-  }
-  if (linkedDoc.stato === 'rifiutato') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-red-700 bg-red-100">
-        <Icon icon={STATO_DOCUMENTO_ICONS.rifiutato} size={12} />
-        Documento rifiutato
-      </span>
-    )
-  }
-  if (linkedDoc.stato === 'in_revisione') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-yellow-700 bg-yellow-100">
-        <Icon icon={STATO_DOCUMENTO_ICONS.in_revisione || DOCUMENTO_ICONS.altro} size={12} />
-        In revisione
-      </span>
-    )
-  }
-  return null
 }
 
 function ResponsabileBadge({ permesso }) {
@@ -218,168 +129,113 @@ export function ActivityCard({
       gray: 'bg-gray-300', mikai: 'bg-mikai-400', green: 'bg-green-400', red: 'bg-red-400',
       blue: 'bg-blue-400', purple: 'bg-purple-400', emerald: 'bg-emerald-400', yellow: 'bg-yellow-400',
     }
+    // Assignee: badge colorato se sono io, neutro se è qualcun altro
+    const isMyTask = currentUserId && activity.assegnato_a === currentUserId
+    const roleColor = PERMESSO_BADGE_COLORE[activity.permesso_responsabile] || 'gray'
+    const NAME_BADGE_MAP = {
+      gray: 'text-gray-700 bg-gray-100', mikai: 'text-mikai-700 bg-mikai-100', green: 'text-green-700 bg-green-100',
+      red: 'text-red-700 bg-red-100', blue: 'text-blue-700 bg-blue-100', purple: 'text-purple-700 bg-purple-100',
+      emerald: 'text-emerald-700 bg-emerald-100', yellow: 'text-yellow-700 bg-yellow-100',
+    }
+    const nameClasses = isMyTask
+      ? `${NAME_BADGE_MAP[roleColor] || NAME_BADGE_MAP.gray} px-1.5 py-0.5 rounded-lg`
+      : 'text-gray-400'
+    // Document indicator color
+    const docColor = linkedDoc
+      ? linkedDoc.stato === 'approvato' ? 'text-green-500' : linkedDoc.stato === 'rifiutato' ? 'text-red-500' : 'text-yellow-500'
+      : 'text-gray-400'
+    const docTitle = linkedDoc
+      ? `${linkedDoc.nome} — ${STATO_DOCUMENTO[linkedDoc.stato]}`
+      : 'Documento da allegare'
+    // Primary action: the most important next step
+    const primaryAction = canComplete ? { label: 'Completa', color: 'text-green-700 bg-green-100 hover:bg-green-200', onClick: () => onComplete?.(activity.id) }
+      : canStart && !isBlocked ? { label: 'Inizia', color: 'text-mikai-700 bg-mikai-100 hover:bg-mikai-200', onClick: () => onStart?.(activity.id) }
+      : canUploadDoc ? { label: 'Carica doc', color: 'text-blue-700 bg-blue-100 hover:bg-blue-200', onClick: () => onUploadDocument?.(activity) }
+      : canAssign ? { label: 'Assegna', color: 'text-mikai-700 bg-mikai-100 hover:bg-mikai-200', onClick: () => setShowAssignPicker(true) }
+      : null
+
     return (
       <div className={`bg-white rounded-lg border ${borderColor} overflow-hidden ${isOverdue ? 'ring-1 ring-red-200' : ''}`}>
         <div className="flex">
           <div className={`w-1 shrink-0 ${bandColors[catColor] || 'bg-gray-300'}`} />
-          <div className="flex-1 p-3 space-y-2">
-            <p className="text-sm font-medium text-gray-900 leading-snug">{activity.descrizione}</p>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {activity.obbligatoria && (
-                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">OBB</span>
-              )}
-              {activity.tipo_verifica === 'automatica' && (
-                <span className="text-[10px] font-bold text-mikai-600 bg-mikai-50 px-1.5 py-0.5 rounded">AUTO</span>
-              )}
-              {isDocumentType && (
-                <DocRequiredBadge linkedDoc={linkedDoc} />
-              )}
-              {deadline && (
-                <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />
-              )}
-            </div>
-            {linkedDoc && (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Icon icon={STATO_DOCUMENTO_ICONS[linkedDoc.stato] || DOCUMENTO_ICONS.altro} size={10} className="text-gray-500 shrink-0" />
-                  <span className="text-gray-700 truncate">{linkedDoc.nome}</span>
-                  <button
-                    onClick={() => onPreviewDoc?.(linkedDoc)}
-                    className="min-h-[28px] min-w-[28px] flex items-center justify-center rounded text-gray-400 hover:text-mikai-500 hover:bg-gray-100 transition-colors shrink-0"
-                    aria-label={`Anteprima ${linkedDoc.nome}`}
-                  >
-                    <Icon icon={DOCUMENTO_ICONS.preview} size={14} />
-                  </button>
-                  <StatusBadge stato={linkedDoc.stato} labels={STATO_DOCUMENTO} colors={STATO_DOCUMENTO_COLORE} />
-                </div>
-                {canApproveDoc && linkedDoc.stato === 'da_approvare' && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => onApproveDoc?.(linkedDoc)}
-                      className="text-[11px] text-green-600 hover:text-green-700 font-medium min-h-[28px] px-2 rounded hover:bg-green-50 transition-colors"
-                    >
-                      Approva
-                    </button>
-                    <button
-                      onClick={() => onRejectDoc?.(linkedDoc)}
-                      className="text-[11px] text-red-600 hover:text-red-700 font-medium min-h-[28px] px-2 rounded hover:bg-red-50 transition-colors"
-                    >
-                      Rifiuta
-                    </button>
-                    <button
-                      onClick={() => onRequestRevisionDoc?.(linkedDoc)}
-                      className="text-[11px] text-gray-500 hover:text-gray-700 font-medium min-h-[28px] px-2 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      Revisione
-                    </button>
-                  </div>
+          <div className="flex-1 px-2.5 py-2 space-y-1">
+            {/* Row 1: description + indicator icons */}
+            <div className="flex items-start gap-1">
+              <p className="text-sm font-medium text-gray-900 leading-snug flex-1 min-w-0">{activity.descrizione}</p>
+              <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                {activity.obbligatoria && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" title="Obbligatoria" />
+                )}
+                {activity.tipo_verifica === 'automatica' && (
+                  <Icon icon={ATTIVITA_STATO_ICONS.auto_verificata} size={14} className="text-mikai-500 shrink-0" title="Verifica automatica" />
+                )}
+                {isDocumentType && (
+                  <Icon icon={DOCUMENTO_ICONS.attachment} size={14} className={`shrink-0 ${docColor}`} title={docTitle} />
                 )}
               </div>
-            )}
-            {/* Toggle richiede documento (compact) */}
-            {onToggleDocumento && activity.stato !== 'completata' && activity.tipo_verifica !== 'automatica' && !linkedDoc && (
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-3.5 h-3.5 rounded border-gray-300 text-blue-500 focus:ring-blue-400"
-                  checked={isDocumentType}
-                  onChange={() => onToggleDocumento(activity.id, isDocumentType ? 'manuale' : 'documento')}
-                />
-                <span className="text-[11px] text-gray-500">Richiede documento</span>
-              </label>
-            )}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <ResponsabileBadge permesso={activity.permesso_responsabile} />
-              {assigneeName ? (
-                <span className="text-xs text-gray-400">{assigneeName}</span>
-              ) : activity.stato !== 'completata' && (
-                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Non assegnata</span>
-              )}
             </div>
-            {isBlocked && (
-              <p className="text-xs text-gray-400 flex items-center gap-1">
-                <Icon icon={ATTIVITA_STATO_ICONS.bloccata} size={10} />
-                {activity.dipendenza?.descrizione}
-              </p>
-            )}
-            {/* Inline actions */}
-            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-              {canAssign && (
-                <button
-                  onClick={() => setShowAssignPicker(true)}
-                  className="text-xs text-mikai-600 hover:text-mikai-700 font-medium min-h-[32px] px-2 rounded hover:bg-mikai-50 transition-colors"
-                >
-                  Assegna
-                </button>
+            {/* Row 2: deadline + assignee (colored by role) + actions — unified */}
+            <div className="flex items-center gap-1.5 flex-wrap text-xs">
+              {deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
+              {assigneeName ? (
+                <span className={`font-medium truncate max-w-[120px] ${nameClasses}`} title={`${assigneeName}${activity.permesso_responsabile ? ` — ${PERMESSO_SHORT_LABELS[activity.permesso_responsabile] || ''}` : ''}`}>
+                  {assigneeName}
+                </span>
+              ) : activity.stato !== 'completata' && (
+                <span className="text-red-500 font-medium" title="Nessun responsabile assegnato">Non assegnata</span>
               )}
               {canReassign && (
-                <button
-                  onClick={() => setShowAssignPicker(true)}
-                  className="text-xs text-gray-500 hover:text-mikai-600 font-medium min-h-[32px] px-2 rounded hover:bg-gray-100 transition-colors"
-                >
+                <button onClick={() => setShowAssignPicker(true)} className="text-gray-400 hover:text-mikai-600 px-1 min-h-[48px] md:min-h-0 rounded-lg hover:bg-gray-100 transition-colors">
                   Riassegna
                 </button>
               )}
-              {canStart && !isBlocked && (
-                <button
-                  onClick={() => onStart?.(activity.id)}
-                  className="text-xs text-mikai-600 hover:text-mikai-700 font-medium min-h-[32px] px-2 rounded hover:bg-mikai-50 transition-colors"
-                >
-                  Inizia
-                </button>
-              )}
-              {canComplete && (
-                <button
-                  onClick={() => onComplete?.(activity.id)}
-                  className="text-xs text-green-600 hover:text-green-700 font-medium min-h-[32px] px-2 rounded hover:bg-green-50 transition-colors"
-                >
-                  Completa
-                </button>
-              )}
-              {canUploadDoc && (
-                <button
-                  onClick={() => onUploadDocument?.(activity)}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium min-h-[32px] px-2 rounded hover:bg-blue-50 transition-colors"
-                >
-                  <Icon icon={DOCUMENTO_ICONS.upload} size={12} className="inline mr-1" />
-                  Carica documento
-                </button>
-              )}
+              <span className="flex-1" />
               {canRevertToDaFare && onRevert && (
-                <button
-                  onClick={() => onRevert(activity.id, activity.stato)}
-                  className="text-xs text-gray-500 hover:text-gray-700 font-medium min-h-[32px] px-2 rounded hover:bg-gray-100 transition-colors"
-                >
+                <button onClick={() => onRevert(activity.id, activity.stato)} className="text-gray-400 hover:text-gray-700 font-medium px-1 min-h-[48px] md:min-h-0 rounded-lg hover:bg-gray-100 transition-colors">
                   ← Da fare
                 </button>
               )}
               {canRevertToInCorso && onRevert && (
-                <button
-                  onClick={() => onRevert(activity.id, activity.stato)}
-                  className="text-xs text-gray-500 hover:text-gray-700 font-medium min-h-[32px] px-2 rounded hover:bg-gray-100 transition-colors"
-                >
+                <button onClick={() => onRevert(activity.id, activity.stato)} className="text-gray-400 hover:text-gray-700 font-medium px-1 min-h-[48px] md:min-h-0 rounded-lg hover:bg-gray-100 transition-colors">
                   ← In corso
                 </button>
               )}
+              {primaryAction && (
+                <button onClick={primaryAction.onClick} className={`font-semibold px-2 py-0.5 min-h-[48px] md:min-h-0 rounded-lg ${primaryAction.color} transition-colors`}>
+                  {primaryAction.label}
+                </button>
+              )}
               {canEditActivity && (
-                <button
-                  onClick={() => onEdit(activity)}
-                  className="text-gray-400 hover:text-mikai-500 min-h-[32px] min-w-[32px] flex items-center justify-center ml-auto transition-colors"
-                  aria-label="Modifica attività"
-                >
+                <button onClick={() => onEdit(activity)} className="text-gray-300 hover:text-mikai-500 min-h-[48px] min-w-[48px] md:min-h-0 md:min-w-0 md:w-6 md:h-6 flex items-center justify-center rounded-lg transition-colors" aria-label="Modifica attività">
                   <Icon icon={ACTION_ICONS.edit} size={14} />
                 </button>
               )}
               {onDisable && activity.stato !== 'completata' && (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className={`text-gray-300 hover:text-red-500 min-h-[32px] min-w-[32px] flex items-center justify-center ${!canEditActivity ? 'ml-auto' : ''} transition-colors`}
-                  aria-label="Rimuovi"
-                >
+                <button onClick={() => setShowDeleteConfirm(true)} className="text-gray-300 hover:text-red-500 min-h-[48px] min-w-[48px] md:min-h-0 md:min-w-0 md:w-6 md:h-6 flex items-center justify-center rounded-lg transition-colors" aria-label="Rimuovi">
                   <Icon icon={ACTION_ICONS.close} size={14} />
                 </button>
               )}
             </div>
+            {/* Optional: linked doc with approval (only when doc exists) */}
+            {linkedDoc && (
+              <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                <button onClick={() => onPreviewDoc?.(linkedDoc)} className="text-gray-600 hover:text-mikai-500 truncate max-w-[140px] min-h-[48px] md:min-h-0 transition-colors underline decoration-gray-300" title={linkedDoc.nome} aria-label={`Anteprima ${linkedDoc.nome}`}>
+                  {linkedDoc.nome}
+                </button>
+                {canApproveDoc && linkedDoc.stato === 'da_approvare' && (
+                  <>
+                    <button onClick={() => onApproveDoc?.(linkedDoc)} className="text-green-600 hover:text-green-700 font-medium px-1.5 min-h-[48px] md:min-h-0 rounded-lg hover:bg-green-50 transition-colors" aria-label={`Approva ${linkedDoc.nome}`}>Approva</button>
+                    <button onClick={() => onRejectDoc?.(linkedDoc)} className="text-red-600 hover:text-red-700 font-medium px-1.5 min-h-[48px] md:min-h-0 rounded-lg hover:bg-red-50 transition-colors" aria-label={`Rifiuta ${linkedDoc.nome}`}>Rifiuta</button>
+                  </>
+                )}
+              </div>
+            )}
+            {isBlocked && (
+              <p className="text-xs text-gray-400 flex items-center gap-1 truncate">
+                <Icon icon={ATTIVITA_STATO_ICONS.bloccata} size={12} className="shrink-0" />
+                <span className="truncate">{activity.dipendenza?.descrizione}</span>
+              </p>
+            )}
           </div>
         </div>
         <ConfirmDialog
@@ -413,174 +269,108 @@ export function ActivityCard({
   return (
     <div className={`bg-white rounded-xl border ${borderColor} overflow-hidden flex`}>
       <div className={`w-1.5 shrink-0 ${bandColorsF[catColor] || 'bg-gray-300'}`} />
-      <div className="flex-1 p-4 space-y-3">
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex-1 p-3 space-y-2">
+      {/* Row 1: title + flags + edit/delete */}
+      <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-base font-medium text-gray-900 leading-snug">
-            {activity.descrizione}
-          </p>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium text-gray-900 leading-snug">{activity.descrizione}</p>
             {activity.obbligatoria && (
-              <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                Obbligatoria
-              </span>
+              <span className="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-lg shrink-0">OBB</span>
             )}
-            {isDocumentType && (
-              <DocRequiredBadge linkedDoc={linkedDoc} />
+            {activity.tipo_verifica === 'automatica' && (
+              <span className="text-xs font-bold text-mikai-600 bg-mikai-50 px-1.5 py-0.5 rounded-lg shrink-0">AUTO</span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {activity.tipo_verifica === 'automatica' && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-mikai-600 bg-mikai-50">
-              <Icon icon={ATTIVITA_STATO_ICONS.auto_verificata} size={12} />
-              Auto
-            </span>
-          )}
+        <div className="flex items-center shrink-0">
           {canEditActivity && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
+            <button onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
               className="text-gray-400 hover:text-mikai-500 p-1.5 min-h-[48px] min-w-[48px] flex items-center justify-center transition-colors"
-              aria-label="Modifica attività"
-            >
+              aria-label="Modifica attività">
               <Icon icon={ACTION_ICONS.edit} size={16} />
             </button>
           )}
           {onDisable && activity.stato !== 'completata' && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
+            <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
               className="text-gray-400 hover:text-red-500 p-1.5 min-h-[48px] min-w-[48px] flex items-center justify-center transition-colors"
-              aria-label="Rimuovi attività"
-            >
+              aria-label="Rimuovi attività">
               <Icon icon={ACTION_ICONS.close} size={16} />
             </button>
           )}
         </div>
       </div>
 
-      {/* Meta row */}
+      {/* Row 2: meta — role + deadline + assignee */}
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        {activity.categoria && <CategoryBadge categoria={activity.categoria} />}
         <ResponsabileBadge permesso={activity.permesso_responsabile} />
-        {deadline && (
-          <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />
-        )}
+        {deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
         {assigneeName ? (
           <span className="text-xs text-gray-500">
-            Assegnata a: <span className="font-medium text-gray-700">{assigneeName}</span>
+            <span className="font-medium text-gray-700">{assigneeName}</span>
           </span>
         ) : activity.stato !== 'completata' && (
           <span className="text-xs font-semibold text-red-500">Non assegnata</span>
         )}
+        {/* Doc toggle inline in meta row */}
+        {onToggleDocumento && activity.stato !== 'completata' && activity.tipo_verifica !== 'automatica' && (
+          <label className="flex items-center gap-1.5 cursor-pointer min-h-[48px]">
+            <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-400"
+              checked={isDocumentType}
+              onChange={() => onToggleDocumento(activity.id, isDocumentType ? 'manuale' : 'documento')} />
+            <span className="text-xs text-gray-500">Richiede doc.</span>
+          </label>
+        )}
       </div>
 
-      {/* Toggle richiede documento (editable for non-completed activities) */}
-      {onToggleDocumento && activity.stato !== 'completata' && activity.tipo_verifica !== 'automatica' && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-400"
-            checked={isDocumentType}
-            onChange={() => onToggleDocumento(activity.id, isDocumentType ? 'manuale' : 'documento')}
-          />
-          <span className="text-sm text-gray-600">Richiede documento approvato</span>
-        </label>
-      )}
-
-      {/* Linked document status */}
-      {isDocumentType && <DocumentStatusInfo linkedDoc={linkedDoc} onPreview={onPreviewDoc} />}
-
-      {/* Document approval actions (full card) */}
-      {canApproveDoc && linkedDoc?.stato === 'da_approvare' && (
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => onApproveDoc?.(linkedDoc)}>Approva documento</Button>
-          <Button variant="danger" size="sm" onClick={() => onRejectDoc?.(linkedDoc)}>Rifiuta</Button>
-          <Button variant="secondary" size="sm" onClick={() => onRequestRevisionDoc?.(linkedDoc)}>Revisione</Button>
-        </div>
-      )}
-
-      {/* Blocked info */}
+      {/* Row 3 (conditional): context — blocked OR doc status with approval */}
       {isBlocked && (
-        <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-1.5">
           <Icon icon={ATTIVITA_STATO_ICONS.bloccata} size={14} className="text-gray-400 shrink-0" />
           <span>Bloccata da: {activity.dipendenza.descrizione}</span>
         </div>
       )}
-
-      {/* Action buttons */}
-      {(canAssign || canReassign || canStart || canComplete || canUploadDoc || canRevertToDaFare || canRevertToInCorso) && (
-        <div className="flex flex-wrap gap-2 pt-1">
-          {canAssign && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowAssignPicker(true)}
-            >
-              Assegna
-            </Button>
-          )}
-          {canReassign && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAssignPicker(true)}
-            >
-              Riassegna
-            </Button>
-          )}
-          {canStart && !isBlocked && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => onStart && onStart(activity.id)}
-            >
-              Inizia
-            </Button>
-          )}
-          {canComplete && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => onComplete && onComplete(activity.id)}
-            >
-              Segna completata
-            </Button>
-          )}
-          {canUploadDoc && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => onUploadDocument && onUploadDocument(activity)}
-            >
-              <Icon icon={DOCUMENTO_ICONS.upload} size={16} className="mr-1.5" />
-              Carica documento
-            </Button>
-          )}
-          {canRevertToDaFare && onRevert && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRevert(activity.id, activity.stato)}
-            >
-              ← Riporta a "Da fare"
-            </Button>
-          )}
-          {canRevertToInCorso && onRevert && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRevert(activity.id, activity.stato)}
-            >
-              ← Riporta a "In corso"
-            </Button>
+      {isDocumentType && linkedDoc && (
+        <div className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-1.5 flex-wrap">
+          <Icon icon={STATO_DOCUMENTO_ICONS[linkedDoc.stato] || DOCUMENTO_ICONS.altro} size={14} className="text-gray-500 shrink-0" />
+          <span className="text-gray-700 truncate">{linkedDoc.nome}</span>
+          <button onClick={() => onPreviewDoc?.(linkedDoc)}
+            className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-lg text-gray-400 hover:text-mikai-500 hover:bg-gray-100 transition-colors shrink-0"
+            aria-label={`Anteprima ${linkedDoc.nome}`}>
+            <Icon icon={DOCUMENTO_ICONS.preview} size={16} />
+          </button>
+          <StatusBadge stato={linkedDoc.stato} labels={STATO_DOCUMENTO} colors={STATO_DOCUMENTO_COLORE} />
+          {canApproveDoc && linkedDoc.stato === 'da_approvare' && (
+            <>
+              <Button size="sm" onClick={() => onApproveDoc?.(linkedDoc)}>Approva</Button>
+              <Button variant="danger" size="sm" onClick={() => onRejectDoc?.(linkedDoc)}>Rifiuta</Button>
+              <Button variant="secondary" size="sm" onClick={() => onRequestRevisionDoc?.(linkedDoc)}>Revisione</Button>
+            </>
           )}
         </div>
       )}
+      {isDocumentType && !linkedDoc && (
+        <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-1.5">
+          <Icon icon={DOCUMENTO_ICONS.attachment} size={14} className="text-gray-400 shrink-0" />
+          <span>Documento richiesto</span>
+        </div>
+      )}
 
-      {/* Hint for document activities waiting for approval */}
-      {isDocumentType && linkedDoc?.stato === 'da_approvare' && activity.stato === 'in_corso' && (
-        <p className="text-xs text-yellow-600">Documento in attesa di approvazione</p>
+      {/* Row 4: actions */}
+      {(canAssign || canReassign || canStart || canComplete || canUploadDoc || canRevertToDaFare || canRevertToInCorso) && (
+        <div className="flex flex-wrap gap-2">
+          {canAssign && <Button variant="secondary" size="sm" onClick={() => setShowAssignPicker(true)}>Assegna</Button>}
+          {canReassign && <Button variant="ghost" size="sm" onClick={() => setShowAssignPicker(true)}>Riassegna</Button>}
+          {canStart && !isBlocked && <Button variant="secondary" size="sm" onClick={() => onStart?.(activity.id)}>Inizia</Button>}
+          {canComplete && <Button variant="primary" size="sm" onClick={() => onComplete?.(activity.id)}>Completa</Button>}
+          {canUploadDoc && (
+            <Button variant="primary" size="sm" onClick={() => onUploadDocument?.(activity)}>
+              <Icon icon={DOCUMENTO_ICONS.upload} size={16} className="mr-1" />Carica documento
+            </Button>
+          )}
+          {canRevertToDaFare && onRevert && <Button variant="ghost" size="sm" onClick={() => onRevert(activity.id, activity.stato)}>← Da fare</Button>}
+          {canRevertToInCorso && onRevert && <Button variant="ghost" size="sm" onClick={() => onRevert(activity.id, activity.stato)}>← In corso</Button>}
+        </div>
       )}
 
       <ConfirmDialog

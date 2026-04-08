@@ -12,7 +12,7 @@ import { ActivityGateBar } from './ActivityGateBar'
 import { Modal } from '../ui/Modal'
 import { DocumentUploadModal } from './DocumentUploadModal'
 import { ActivityEditModal } from './ActivityEditModal'
-import { ActivityProgressSection } from './ActivityProgressSection'
+// ActivityProgressSection removed — progress inline in header
 import { DocApprovalDialog } from './DocApprovalDialog'
 import { CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
 import { PreparazioneAddActivityForm } from './PreparazioneAddActivityForm'
@@ -308,50 +308,61 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     canApproveDoc, docByActivity, currentUserId: user?.id, eventStaff,
   }
 
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0
+  const barColor = overdue > 0 ? 'bg-red-500' : completed === total ? 'bg-green-500' : 'bg-mikai-400'
+  const statusText = overdue > 0 ? `${overdue} in ritardo` : completed === total ? 'Tutto completato' : 'In corso'
+  const statusColor = overdue > 0 ? 'text-red-600' : completed === total ? 'text-green-600' : 'text-yellow-600'
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        {onShowPackingList && (
-          <Button variant="secondary" size="sm" onClick={onShowPackingList}>
-            <Icon icon={CATEGORIA_ICONS.materiale} size={16} className="mr-1" />
-            Lista preparazione
-          </Button>
-        )}
-        <div className="flex items-center gap-2 ml-auto">
-          {['kanban', 'lista'].map(v => (
-            <button
-              key={v}
-              onClick={() => setViewMode(v)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[48px] transition-colors ${
-                viewMode === v ? 'bg-mikai-400 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {v === 'kanban' ? 'Kanban' : 'Lista'}
-            </button>
-          ))}
+    <div className="space-y-4">
+      {/* Header: packing list + progress + view toggle */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          {onShowPackingList && (
+            <Button variant="secondary" size="sm" onClick={onShowPackingList}>
+              <Icon icon={CATEGORIA_ICONS.materiale} size={16} className="mr-1" />
+              Lista preparazione
+            </Button>
+          )}
+          <div className="flex items-center gap-2 ml-auto">
+            {canEdit && !showAddForm && (
+              <Button variant="secondary" size="sm" onClick={() => setShowAddForm(true)}>
+                <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
+                Aggiungi
+              </Button>
+            )}
+            {['kanban', 'lista'].map(v => (
+              <button
+                key={v}
+                onClick={() => setViewMode(v)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium min-h-[48px] transition-colors ${
+                  viewMode === v ? 'bg-mikai-400 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {v === 'kanban' ? 'Kanban' : 'Lista'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Inline progress bar */}
+        <div className="flex items-center gap-3 text-sm">
+          <span className="font-semibold text-gray-900 shrink-0">{completed}/{total}</span>
+          <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div className={`h-2 rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+          </div>
+          <span className={`font-medium shrink-0 ${statusColor}`}>{statusText}</span>
         </div>
       </div>
 
-      <ActivityProgressSection total={total} completed={completed} overdue={overdue} />
-
-      {/* Add custom activity */}
-      {['confermato', 'in_preparazione'].includes(event.stato) && (
-        <div>
-          {!showAddForm ? (
-            <Button variant="secondary" size="sm" onClick={() => setShowAddForm(true)}>
-              <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
-              Aggiungi attività
-            </Button>
-          ) : (
-            <PreparazioneAddActivityForm
-              newActivity={newActivity}
-              setNewActivity={setNewActivity}
-              adding={adding}
-              onSubmit={handleAddCustomActivity}
-              onCancel={() => setShowAddForm(false)}
-            />
-          )}
-        </div>
+      {/* Add custom activity — form only (button moved to header) */}
+      {canEdit && showAddForm && (
+        <PreparazioneAddActivityForm
+          newActivity={newActivity}
+          setNewActivity={setNewActivity}
+          adding={adding}
+          onSubmit={handleAddCustomActivity}
+          onCancel={() => setShowAddForm(false)}
+        />
       )}
 
       {/* Gate bar */}
