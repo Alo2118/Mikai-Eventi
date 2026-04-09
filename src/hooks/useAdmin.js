@@ -505,6 +505,35 @@ export const useAdminStore = create((set, get) => ({
     return { error: error?.message || null }
   },
 
+  // === Event Types ===
+  eventTypes: [],
+  eventTypesLoading: false,
+
+  fetchEventTypes: async () => {
+    set({ eventTypesLoading: true })
+    const { data, error } = await supabase.from('event_types').select('*').order('ordine')
+    set({ eventTypes: data || [], eventTypesLoading: false })
+    return { data: data || [], error: error?.message || null }
+  },
+
+  createEventType: async (et) => {
+    const { data, error } = await supabase.from('event_types').insert(et).select().single()
+    if (!error) get().fetchEventTypes()
+    return { data, error: error?.message || null }
+  },
+
+  updateEventType: async (id, updates) => {
+    const { data, error } = await supabase.from('event_types').update(updates).eq('id', id).select().single()
+    if (!error) get().fetchEventTypes()
+    return { data, error: error?.message || null }
+  },
+
+  deleteEventType: async (id) => {
+    const { error } = await supabase.from('event_types').delete().eq('id', id)
+    if (!error) get().fetchEventTypes()
+    return { error: error?.message || null }
+  },
+
   // === Users (for admin) ===
   users: [],
   usersLoading: false,

@@ -28,6 +28,7 @@ const CostiPage = lazy(() => import('./pages/costi/CostiPage').then(m => ({ defa
 const AdminSottoAttivita = lazy(() => import('./pages/admin/AdminSottoAttivita').then(m => ({ default: m.AdminSottoAttivita })))
 const AdminTemplate = lazy(() => import('./pages/admin/AdminTemplate').then(m => ({ default: m.AdminTemplate })))
 const AdminTipoProdotto = lazy(() => import('./pages/admin/AdminTipoProdotto').then(m => ({ default: m.AdminTipoProdotto })))
+const AdminTipoEvento = lazy(() => import('./pages/admin/AdminTipoEvento').then(m => ({ default: m.AdminTipoEvento })))
 const NotifichePage = lazy(() => import('./pages/notifiche/NotifichePage').then(m => ({ default: m.NotifichePage })))
 const ReportMaterialePage = lazy(() => import('./pages/report/ReportMaterialePage').then(m => ({ default: m.ReportMaterialePage })))
 const ComplianceDashboard = lazy(() => import('./pages/compliance/ComplianceDashboard').then(m => ({ default: m.ComplianceDashboard })))
@@ -94,6 +95,7 @@ function App() {
           <Route path="/admin/sotto-attivita" element={<AdminSottoAttivita />} />
           <Route path="/admin/template" element={<AdminTemplate />} />
           <Route path="/admin/tipo-prodotto" element={<AdminTipoProdotto />} />
+          <Route path="/admin/tipo-evento" element={<AdminTipoEvento />} />
           <Route path="/compliance" element={<ComplianceDashboard />} />
           <Route path="/compliance/tov" element={<TovList />} />
           <Route path="/compliance/tov/nuovo" element={<TovForm />} />

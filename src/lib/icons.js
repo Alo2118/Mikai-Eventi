@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Bone,
   HeartPulse,
+  Microscope,
 
   // Modalità evento
   Building,
@@ -647,4 +648,24 @@ export const TIPO_PRODOTTO_ICONS = {
   pezzo_sfuso: Cpu,
   gadget: Gift,
   ossa: Bone,
+}
+
+// ═══════════════════════════════════════════
+// Dynamic icon resolution by kebab-case name
+// Used by event_types.icona and product_types.icona DB fields
+// ═══════════════════════════════════════════
+export const ICON_BY_NAME = {
+  'presentation': Presentation,
+  'graduation-cap': GraduationCap,
+  'building-2': Building2,
+  'message-square': MessageSquare,
+  'bone': Bone,
+  'heart-pulse': HeartPulse,
+  'calendar': Calendar,
+  'users': Users,
+  'microscope': Microscope,
+  'stethoscope': Stethoscope,
+  'package': Package,
+  'truck': Truck,
+  'gift': Gift,
 }

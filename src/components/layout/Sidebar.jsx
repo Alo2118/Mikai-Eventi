@@ -26,6 +26,7 @@ const adminItems = [
   { to: '/admin/tipo-prodotto', label: 'Tipologie Prodotto', icon: ADMIN_ICONS.prodotti },
   { to: '/admin/sedi', label: 'Sedi & Corrieri', icon: ADMIN_ICONS.sedi },
   { to: '/admin/zone', label: 'Zone', icon: ADMIN_ICONS.zone },
+  { to: '/admin/tipo-evento', label: 'Tipologie Evento', icon: NAV_ICONS.eventi },
   { to: '/admin/sotto-attivita', label: 'Sotto-attività', icon: ADMIN_ICONS.sottoattivita },
   { to: '/admin/template', label: 'Template attività', icon: NAV_ICONS.checklist },
   { to: '/admin/utenti', label: 'Utenti', icon: ADMIN_ICONS.utenti, permissions: ['gestione_utenti'] },

@@ -39,6 +39,7 @@ import {
   TIPO_CONTATTO_ICONS,
   TIPO_PRODOTTO_ICONS,
   PASSWORD_ICONS,
+  ICON_BY_NAME,
 } from '../../lib/icons'
 
 // Flat lookup per uso con name string
@@ -87,7 +88,7 @@ export function Icon({
   strokeWidth = 2,
   ...props
 }) {
-  const Resolved = IconComponent || ALL_ICONS[name]
+  const Resolved = IconComponent || ALL_ICONS[name] || ICON_BY_NAME[name]
 
   if (!Resolved) {
     if (import.meta.env.DEV) {
