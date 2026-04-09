@@ -178,15 +178,22 @@ export function ActivityCard({
             <div className="flex items-center gap-1.5 flex-wrap text-xs">
               {deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
               {assigneeName ? (
-                <span className={`font-medium truncate max-w-[120px] ${nameClasses}`} title={`${assigneeName}${activity.permesso_responsabile ? ` — ${PERMESSO_SHORT_LABELS[activity.permesso_responsabile] || ''}` : ''}`}>
+                <button
+                  onClick={() => canReassign && setShowAssignPicker(true)}
+                  className={`font-medium truncate max-w-[120px] ${nameClasses} ${canReassign ? 'cursor-pointer hover:underline' : 'cursor-default'}`}
+                  title={`${assigneeName}${activity.permesso_responsabile ? ` — ${PERMESSO_SHORT_LABELS[activity.permesso_responsabile] || ''}` : ''}${canReassign ? ' (clicca per riassegnare)' : ''}`}
+                  aria-label={canReassign ? `Riassegna attività (attualmente: ${assigneeName})` : undefined}
+                >
                   {assigneeName}
-                </span>
+                </button>
               ) : activity.stato !== 'completata' && (
-                <span className="text-red-500 font-medium" title="Nessun responsabile assegnato">Non assegnata</span>
-              )}
-              {canReassign && (
-                <button onClick={() => setShowAssignPicker(true)} className="text-gray-400 hover:text-mikai-600 px-1 min-h-[48px] md:min-h-0 rounded-lg hover:bg-gray-100 transition-colors">
-                  Riassegna
+                <button
+                  onClick={() => setShowAssignPicker(true)}
+                  className="text-red-500 font-medium hover:text-mikai-600 hover:bg-mikai-50 px-1.5 py-0.5 rounded-lg transition-colors min-h-[48px] md:min-h-0"
+                  title="Clicca per assegnare"
+                  aria-label="Assegna attività"
+                >
+                  Non assegnata
                 </button>
               )}
               <span className="flex-1" />
@@ -306,11 +313,23 @@ export function ActivityCard({
         <ResponsabileBadge permesso={activity.permesso_responsabile} />
         {deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
         {assigneeName ? (
-          <span className="text-xs text-gray-500">
-            <span className="font-medium text-gray-700">{assigneeName}</span>
-          </span>
+          <button
+            onClick={() => canReassign && setShowAssignPicker(true)}
+            className={`text-xs font-medium text-gray-700 ${canReassign ? 'cursor-pointer hover:text-mikai-600 hover:underline' : 'cursor-default'}`}
+            title={canReassign ? `${assigneeName} (clicca per riassegnare)` : assigneeName}
+            aria-label={canReassign ? `Riassegna (attualmente: ${assigneeName})` : undefined}
+          >
+            {assigneeName}
+          </button>
         ) : activity.stato !== 'completata' && (
-          <span className="text-xs font-semibold text-red-500">Non assegnata</span>
+          <button
+            onClick={() => setShowAssignPicker(true)}
+            className="text-xs font-semibold text-red-500 hover:text-mikai-600 hover:bg-mikai-50 px-1.5 py-0.5 rounded-lg transition-colors min-h-[48px]"
+            title="Clicca per assegnare"
+            aria-label="Assegna attività"
+          >
+            Non assegnata
+          </button>
         )}
         {/* Doc toggle inline in meta row */}
         {onToggleDocumento && activity.stato !== 'completata' && activity.tipo_verifica !== 'automatica' && (
@@ -359,8 +378,6 @@ export function ActivityCard({
       {/* Row 4: actions */}
       {(canAssign || canReassign || canStart || canComplete || canUploadDoc || canRevertToDaFare || canRevertToInCorso) && (
         <div className="flex flex-wrap gap-2">
-          {canAssign && <Button variant="secondary" size="sm" onClick={() => setShowAssignPicker(true)}>Assegna</Button>}
-          {canReassign && <Button variant="ghost" size="sm" onClick={() => setShowAssignPicker(true)}>Riassegna</Button>}
           {canStart && !isBlocked && <Button variant="secondary" size="sm" onClick={() => onStart?.(activity.id)}>Inizia</Button>}
           {canComplete && <Button variant="primary" size="sm" onClick={() => onComplete?.(activity.id)}>Completa</Button>}
           {canUploadDoc && (

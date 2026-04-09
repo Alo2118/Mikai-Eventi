@@ -102,7 +102,14 @@ export function AuditTrailPage() {
                   {log.campo_modificato && (
                     <span className="text-gray-400">
                       {' '}— {log.campo_modificato}
-                      {log.valore_precedente && <span>: {log.valore_precedente} → {log.valore_nuovo}</span>}
+                      {log.valore_precedente && log.valore_nuovo
+                        ? <span>: {log.valore_precedente} → {log.valore_nuovo}</span>
+                        : log.valore_nuovo
+                          ? <span>: {log.valore_nuovo}</span>
+                          : log.valore_precedente
+                            ? <span>: {log.valore_precedente}</span>
+                            : null
+                      }
                     </span>
                   )}
                 </span>

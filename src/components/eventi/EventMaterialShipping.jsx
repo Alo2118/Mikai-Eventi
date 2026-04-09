@@ -1,12 +1,41 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { MATERIALE_ICONS } from '../../lib/icons'
-import { SUMMARY_BAR_STYLE, CARD_STYLE, INPUT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { MATERIALE_ICONS, FEEDBACK_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { CARD_STYLE, INPUT_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
 
-export function EventMaterialShipping({ event, packingItems, readyToShip, canApprove, onSaveShipping }) {
+// Step status indicator
+function StepStatus({ done, active, label, detail, action }) {
+  return (
+    <div className={`flex items-start gap-3 py-3 ${done ? '' : active ? '' : 'opacity-50'}`}>
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+        done ? 'bg-emerald-100' : active ? 'bg-yellow-100' : 'bg-gray-100'
+      }`}>
+        <Icon
+          icon={done ? ACTION_ICONS.check : active ? FEEDBACK_ICONS.warning : FEEDBACK_ICONS.info}
+          size={14}
+          className={done ? 'text-emerald-600' : active ? 'text-yellow-600' : 'text-gray-400'}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium ${done ? 'text-emerald-700' : active ? 'text-gray-900' : 'text-gray-400'}`}>
+          {label}
+        </p>
+        {detail && (
+          <p className={`text-xs mt-0.5 ${done ? 'text-emerald-600' : active ? 'text-yellow-700' : 'text-gray-400'}`}>
+            {detail}
+          </p>
+        )}
+      </div>
+      {action && active && <div className="flex-shrink-0">{action}</div>}
+    </div>
+  )
+}
+
+export function EventMaterialShipping({ event, packingItems, readyToShip, canApprove, onSaveShipping, onShowPackingList, allPrepared, pendingCount, confirmedCount, inPrepCount, speditoCount }) {
   const [showShippingForm, setShowShippingForm] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [shippingForm, setShippingForm] = useState({
     corriere: event.spedizione_corriere || '',
     tracking: event.spedizione_tracking || '',
@@ -19,70 +48,114 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
   const packingTotalItems = packingItems.length
   const packingPackedCount = packingItems.filter(i => i.imballato).length
   const allPacked = packingTotalItems > 0 && packingPackedCount === packingTotalItems
+  const hasColli = packingColliNumbers.length > 0
+  const isShipped = !!event.spedizione_data
+
+  // Step states
+  const step1Done = allPrepared || isShipped
+  const step2Done = (allPacked && hasColli) || isShipped
+  const step3Done = isShipped
 
   return (
     <section className="pt-6 border-t border-gray-200 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="font-semibold text-lg flex items-center gap-2">
-          <Icon icon={MATERIALE_ICONS.truck} size={20} className="text-gray-400" />
-          Spedizione
-        </h3>
-        {canApprove && !event.spedizione_data && !showShippingForm && readyToShip && (
-          <Button size="sm" onClick={() => {
-            setShippingForm(f => ({ ...f, colli: packingColliNumbers.length }))
-            setShowShippingForm(true)
-          }}>
-            <Icon icon={MATERIALE_ICONS.truck} size={16} className="mr-1" />
-            Registra spedizione
-          </Button>
-        )}
-      </div>
+      <h3 className="font-semibold text-lg flex items-center gap-2">
+        <Icon icon={MATERIALE_ICONS.truck} size={20} className="text-gray-400" />
+        Spedizione
+      </h3>
 
-      {/* Packing status summary */}
-      {!event.spedizione_data && packingTotalItems > 0 && (
-        <div className={SUMMARY_BAR_STYLE + ' flex flex-wrap gap-x-4 gap-y-1 text-sm'}>
-          <span className="text-mikai-700 font-medium">
-            {packingColliNumbers.length > 0 ? `${packingColliNumbers.length} colli` : 'Nessun collo creato'}
-          </span>
-          <span className="text-mikai-600">{packingPackedCount}/{packingTotalItems} imballati</span>
-          {!allPacked && <span className="text-yellow-600 font-medium">Completa l'imballaggio per spedire</span>}
-          {allPacked && packingColliNumbers.length === 0 && <span className="text-yellow-600 font-medium">Assegna le voci ai colli</span>}
-          {readyToShip && <span className="text-green-600 font-medium">Pronto per la spedizione</span>}
-        </div>
-      )}
-      {!event.spedizione_data && packingTotalItems === 0 && (
-        <p className="text-sm text-gray-400">Apri la packing list per preparare i colli</p>
-      )}
-
-      {/* Already shipped — display */}
-      {event.spedizione_data && !showShippingForm && (
-        <div className={CARD_STYLE + ' space-y-2'}>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            {event.spedizione_corriere && (
-              <div><span className="text-gray-500">Corriere:</span> <span className="font-medium">{event.spedizione_corriere}</span></div>
-            )}
-            {event.spedizione_tracking && (
-              <div><span className="text-gray-500">Tracking:</span> <span className="font-medium font-mono">{event.spedizione_tracking}</span></div>
-            )}
-            {event.spedizione_colli != null && (
-              <div><span className="text-gray-500">Colli:</span> <span className="font-medium">{event.spedizione_colli}</span></div>
-            )}
-            <div><span className="text-gray-500">Data:</span> <span className="font-medium">{formatDate(event.spedizione_data)}</span></div>
+      {/* ── Already shipped: success summary ── */}
+      {isShipped && !showShippingForm && (
+        <div className={CARD_STYLE + ' border-emerald-200 bg-emerald-50/50 space-y-3'}>
+          <div className="flex items-center gap-2">
+            <Icon icon={ACTION_ICONS.check} size={18} className="text-emerald-600" />
+            <span className="text-sm font-semibold text-emerald-700">Materiale spedito</span>
           </div>
-          {event.spedizione_note && <p className="text-sm text-gray-600">{event.spedizione_note}</p>}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+              <p className="text-gray-500 text-xs">Corriere</p>
+              <p className="font-medium">{event.spedizione_corriere || '—'}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs">Tracking</p>
+              <p className="font-medium font-mono">{event.spedizione_tracking || '—'}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs">Colli</p>
+              <p className="font-medium">{event.spedizione_colli ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs">Data</p>
+              <p className="font-medium">{formatDate(event.spedizione_data)}</p>
+            </div>
+          </div>
+          {event.spedizione_note && (
+            <p className="text-sm text-gray-600 bg-white/60 rounded-lg px-3 py-2">{event.spedizione_note}</p>
+          )}
           {canApprove && (
-            <Button variant="ghost" size="sm" onClick={() => setShowShippingForm(true)}>Modifica</Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowShippingForm(true)}>Modifica dati spedizione</Button>
           )}
         </div>
       )}
 
-      {/* Shipping form */}
+      {/* ── Not shipped yet: show progress steps ── */}
+      {!isShipped && !showShippingForm && (
+        <div className={CARD_STYLE + ' divide-y divide-gray-100'}>
+          <StepStatus
+            done={step1Done}
+            active={!step1Done}
+            label="Materiale confermato e in preparazione"
+            detail={step1Done
+              ? `${inPrepCount + speditoCount} materiali pronti`
+              : `${pendingCount > 0 ? `${pendingCount} da confermare` : ''}${pendingCount > 0 && confirmedCount > 0 ? ', ' : ''}${confirmedCount > 0 ? `${confirmedCount} da avviare in preparazione` : ''}`
+            }
+          />
+          <StepStatus
+            done={step2Done}
+            active={step1Done && !step2Done}
+            label="Packing list completata"
+            detail={step2Done
+              ? `${packingColliNumbers.length} colli — ${packingTotalItems} voci imballate`
+              : packingTotalItems === 0
+                ? 'Genera la packing list per iniziare'
+                : !allPacked
+                  ? `${packingPackedCount}/${packingTotalItems} imballati`
+                  : 'Assegna le voci ai colli'
+            }
+            action={step1Done && onShowPackingList ? (
+              <Button variant="secondary" size="sm" onClick={onShowPackingList}>
+                {packingTotalItems === 0 ? 'Apri packing list' : 'Gestisci packing'}
+              </Button>
+            ) : null}
+          />
+          <StepStatus
+            done={step3Done}
+            active={step1Done && step2Done && !step3Done}
+            label="Registra spedizione"
+            detail={readyToShip ? 'Tutto pronto — registra i dati di spedizione' : null}
+            action={canApprove && readyToShip ? (
+              <Button size="sm" onClick={() => {
+                setShippingForm(f => ({ ...f, colli: packingColliNumbers.length }))
+                setShowShippingForm(true)
+              }}>
+                <Icon icon={MATERIALE_ICONS.truck} size={16} className="mr-1" />
+                Spedisci
+              </Button>
+            ) : null}
+          />
+        </div>
+      )}
+
+      {/* ── Shipping form ── */}
       {showShippingForm && (
         <div className={FORM_CONTAINER_STYLE + ' space-y-3'}>
+          <p className="text-sm font-medium text-gray-700">
+            {isShipped ? 'Modifica dati spedizione' : 'Registra i dati della spedizione'}
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Corriere</label>
+              <label htmlFor="ship-corriere" className="block text-sm font-medium text-gray-700 mb-1">Corriere</label>
               <input
+                id="ship-corriere"
                 value={shippingForm.corriere}
                 onChange={e => setShippingForm(f => ({ ...f, corriere: e.target.value }))}
                 placeholder="Es. BRT, DHL, GLS..."
@@ -90,8 +163,9 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Numero tracking</label>
+              <label htmlFor="ship-tracking" className="block text-sm font-medium text-gray-700 mb-1">Numero tracking</label>
               <input
+                id="ship-tracking"
                 value={shippingForm.tracking}
                 onChange={e => setShippingForm(f => ({ ...f, tracking: e.target.value }))}
                 placeholder="Codice spedizione"
@@ -99,8 +173,9 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Numero colli</label>
+              <label htmlFor="ship-colli" className="block text-sm font-medium text-gray-700 mb-1">Numero colli</label>
               <input
+                id="ship-colli"
                 type="number"
                 min={1}
                 value={shippingForm.colli}
@@ -112,8 +187,9 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data spedizione</label>
+              <label htmlFor="ship-data" className="block text-sm font-medium text-gray-700 mb-1">Data spedizione</label>
               <input
+                id="ship-data"
                 type="date"
                 value={shippingForm.data}
                 onChange={e => setShippingForm(f => ({ ...f, data: e.target.value }))}
@@ -122,8 +198,9 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Note spedizione</label>
+            <label htmlFor="ship-note" className="block text-sm font-medium text-gray-700 mb-1">Note spedizione</label>
             <input
+              id="ship-note"
               value={shippingForm.note}
               onChange={e => setShippingForm(f => ({ ...f, note: e.target.value }))}
               placeholder="Es. Fermo deposito, chiamare prima..."
@@ -131,7 +208,8 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
             />
           </div>
           <div className="flex gap-3">
-            <Button onClick={async () => {
+            <Button loading={saving} onClick={async () => {
+              setSaving(true)
               const result = await onSaveShipping({
                 spedizione_corriere: shippingForm.corriere || null,
                 spedizione_tracking: shippingForm.tracking || null,
@@ -139,10 +217,11 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
                 spedizione_data: shippingForm.data || null,
                 spedizione_note: shippingForm.note || null,
               })
+              setSaving(false)
               if (result?.ok) setShowShippingForm(false)
             }}>
               <Icon icon={MATERIALE_ICONS.truck} size={16} className="mr-1" />
-              {event.spedizione_data ? 'Aggiorna spedizione' : 'Registra spedizione'}
+              {isShipped ? 'Aggiorna spedizione' : 'Conferma spedizione'}
             </Button>
             <Button variant="secondary" onClick={() => setShowShippingForm(false)}>Annulla</Button>
           </div>

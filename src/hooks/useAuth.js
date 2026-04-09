@@ -51,7 +51,7 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  hasPermission: (perm) => get().permissions.includes(perm),
+  hasPermission: (perm) => get().profile?.ruolo === 'admin' || get().permissions.includes(perm),
 
   hasRole: (...roles) => roles.includes(get().profile?.ruolo),
 

@@ -41,7 +41,7 @@ const NEXT_STATE = {
   in_corso: { stato: 'concluso', label: 'Concludi evento', nome: 'concluso' },
 }
 
-export function ActivityGateBar({ event, activities, onUpdate }) {
+export function ActivityGateBar({ event, activities, onUpdate, materialShipped }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [unreturnedMaterials, setUnreturnedMaterials] = useState([])
@@ -55,9 +55,11 @@ export function ActivityGateBar({ event, activities, onUpdate }) {
   const mandatoryIncomplete = activities.filter(
     a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata'
   )
-  // Gates: in_preparazione requires all mandatory activities complete
-  // in_corso → concluso is checked on click (async gate)
-  const canAdvance = event.stato !== 'in_preparazione' || mandatoryIncomplete.length === 0
+  // Gates: in_preparazione → pronto requires all mandatory activities complete AND material shipped
+  // materialShipped: true if no materials exist, or all are spedito, or spedizione_data is set
+  const activitiesReady = mandatoryIncomplete.length === 0
+  const shipmentReady = materialShipped !== false // undefined = no materials, true = shipped
+  const canAdvance = event.stato !== 'in_preparazione' || (activitiesReady && shipmentReady)
 
   async function handleAdvanceClick() {
     // For in_corso → concluso: check unreturned materials first
@@ -103,7 +105,14 @@ export function ActivityGateBar({ event, activities, onUpdate }) {
           {next.label}
         </Button>
         {!canAdvance && (
-          <p className="text-xs text-gray-400">Completa le attività obbligatorie prima di procedere</p>
+          <p className="text-xs text-gray-400">
+            {!activitiesReady && !shipmentReady
+              ? 'Completa le attività obbligatorie e registra la spedizione del materiale'
+              : !activitiesReady
+                ? 'Completa le attività obbligatorie prima di procedere'
+                : 'Registra la spedizione del materiale prima di procedere'
+            }
+          </p>
         )}
       </div>
 

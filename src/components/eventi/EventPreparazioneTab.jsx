@@ -364,8 +364,13 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
         />
       )}
 
-      {/* Gate bar */}
-      <ActivityGateBar event={event} activities={visible} onUpdate={onUpdate} />
+      {/* Gate bar — materialShipped: true if spedizione_data is set or event has no material tab */}
+      <ActivityGateBar
+        event={event}
+        activities={visible}
+        onUpdate={onUpdate}
+        materialShipped={event.modalita === 'contributo' || !!event.spedizione_data}
+      />
 
       {viewMode === 'kanban' && (
         <PreparazioneKanbanView visible={visible} cardPropsContext={cardPropsContext} />

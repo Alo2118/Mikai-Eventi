@@ -5,7 +5,7 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS, MATERIALE_ICONS, NAV_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { useEventsStore } from '../../hooks/useEvents'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
@@ -14,17 +14,19 @@ import { CatalogBrowser } from '../materiale/CatalogBrowser'
 import { MovementHistory } from '../materiale/MovementHistory'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
-import { MaterialSummaryHeader } from './MaterialSummaryHeader'
 import { EventMaterialShipping } from './EventMaterialShipping'
 import { SUMMARY_BAR_STYLE } from '../../lib/constants'
+import { formatDate } from '../../lib/date-utils'
 import { useMaterialBulkActions } from './useMaterialBulkActions'
 import { ConsumptionReport } from './ConsumptionReport'
+import { useProductTypes } from '../../hooks/useProductTypes'
 
 // Section header colors per status group
 const SECTION_STYLES = {
   richiesto: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
   approvato: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' },
   in_preparazione: { bg: 'bg-mikai-50', text: 'text-mikai-800', border: 'border-mikai-200' },
+  spedito: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
   rifiutato: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200' },
 }
 
@@ -55,6 +57,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const rejectMaterialRow = useMaterialsStore(s => s.rejectMaterialRow)
   const restoreGadgetStock = useMaterialsStore(s => s.restoreGadgetStock)
   const reportConsumption = useMaterialsStore(s => s.reportConsumption)
+  const registerEventShipping = useMaterialsStore(s => s.registerEventShipping)
 
   const instantiateMaterialTemplate = useActivitiesStore(s => s.instantiateMaterialTemplate)
 
@@ -62,6 +65,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const hasPermission = useAuthStore(s => s.hasPermission)
   const addToast = useToastStore(s => s.add)
   const [applyingTemplate, setApplyingTemplate] = useState(false)
+  const { labels: tipoLabels, colors: tipoColors, icons: tipoIcons } = useProductTypes()
 
   const closedStates = ['concluso', 'cancellato', 'rifiutato']
   const canEdit = hasPermission('richiedi_materiale') && !closedStates.includes(event.stato)
@@ -113,7 +117,10 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
 
       if (item.quantity === 0 && item.dbRowId) {
         const removedRow = rows.find(r => r.id === item.dbRowId)
-        if (removedRow) await restoreGadgetStock(removedRow)
+        if (removedRow) {
+          const stockRes = await restoreGadgetStock(removedRow)
+          if (stockRes?.error) { errors++; continue }
+        }
         const { error } = await removeMaterialListRow(item.dbRowId)
         if (error) errors++
         else changes++
@@ -122,7 +129,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
         const noteChanged = (item.note || '') !== (existingRow.note_commerciale || '')
         if (qtyChanged || noteChanged) {
           if (existingRow.stato === 'approvato' && existingRow.quantita_approvata && existingRow.product?.tipo === 'gadget') {
-            await restoreGadgetStock(existingRow)
+            const stockRes = await restoreGadgetStock(existingRow)
+            if (stockRes?.error) { errors++; continue }
           }
           const updates = {}
           if (qtyChanged) {
@@ -151,7 +159,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const handleUpdate = async (id, updates) => {
     const row = rows.find(r => r.id === id)
     if ((row?.stato === 'approvato' || row?.stato === 'in_preparazione') && updates.quantita) {
-      await restoreGadgetStock(row)
+      const stockRes = await restoreGadgetStock(row)
+      if (stockRes?.error) { addToast(stockRes.error, 'error'); return }
       updates.stato = 'richiesto'
       updates.quantita_approvata = null
     }
@@ -162,7 +171,10 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
 
   const handleRemove = async (id) => {
     const row = rows.find(r => r.id === id)
-    if (row) await restoreGadgetStock(row)
+    if (row) {
+      const stockRes = await restoreGadgetStock(row)
+      if (stockRes?.error) { addToast(stockRes.error, 'error'); return }
+    }
     const { error } = await removeMaterialListRow(id)
     if (error) addToast(error, 'error')
     else { addToast('Rimosso dalla lista', 'success'); loadData() }
@@ -188,6 +200,17 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     else { addToast('In preparazione', 'success'); loadData() }
   }
 
+  const handleRevert = async (id) => {
+    const row = rows.find(r => r.id === id)
+    if (row) {
+      const stockRes = await restoreGadgetStock(row)
+      if (stockRes?.error) { addToast(stockRes.error, 'error'); return }
+    }
+    const { error } = await updateMaterialListRow(id, { stato: 'richiesto', quantita_approvata: null, approvato_da: null, data_approvazione: null })
+    if (error) addToast(error, 'error')
+    else { addToast('Riportato in attesa di conferma', 'success'); loadData() }
+  }
+
   const pendingCount = rows.filter(r => r.stato === 'richiesto').length
   const confirmedCount = rows.filter(r => r.stato === 'approvato').length
   const inPrepCount = rows.filter(r => r.stato === 'in_preparazione').length
@@ -199,88 +222,94 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   })
 
   if (loading) return <LoadingSkeleton lines={5} />
+  const speditoCount = rows.filter(r => r.stato === 'spedito').length
   const allPrepared = rows.length > 0 && pendingCount === 0 && confirmedCount === 0
 
   // Packing list derived data for readyToShip
   const packingColliNumbers = [...new Set(packingItems.map(i => i.collo_numero).filter(n => n != null))]
   const allPacked = packingItems.length > 0 && packingItems.every(i => i.imballato)
-  const readyToShip = allPrepared && allPacked && packingColliNumbers.length > 0
+  const readyToShip = allPrepared && allPacked && packingColliNumbers.length > 0 && speditoCount === 0
 
   // Group rows by status for workflow
   const groups = [
     { key: 'richiesto', label: 'Da confermare', icon: FEEDBACK_ICONS.warning, color: 'text-yellow-600', rows: rows.filter(r => r.stato === 'richiesto') },
     { key: 'approvato', label: 'Da preparare', icon: MATERIALE_ICONS.package, color: 'text-blue-600', rows: rows.filter(r => r.stato === 'approvato') },
     { key: 'in_preparazione', label: 'In preparazione', icon: ACTION_ICONS.forward, color: 'text-mikai-600', rows: rows.filter(r => r.stato === 'in_preparazione') },
+    { key: 'spedito', label: 'Spediti', icon: MATERIALE_ICONS.truck, color: 'text-emerald-600', rows: rows.filter(r => r.stato === 'spedito') },
     { key: 'rifiutato', label: 'Rifiutati', icon: ACTION_ICONS.reject, color: 'text-red-500', rows: rows.filter(r => r.stato === 'rifiutato') },
   ].filter(g => g.rows.length > 0)
 
   return (
-    <div className="space-y-6">
-      <MaterialSummaryHeader
-        event={event}
-        rows={rows}
-        pendingCount={pendingCount}
-        confirmedCount={confirmedCount}
-        inPrepCount={inPrepCount}
-      />
+    <div className="space-y-4">
+      {/* ── Compact header: info + actions unified ── */}
+      <div className={SUMMARY_BAR_STYLE + ' space-y-2'}>
+        {/* Row 1: Key info */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-mikai-600">
+          {event.indirizzo_spedizione && (
+            <span className="flex items-center gap-1 text-mikai-700 font-medium">
+              <Icon icon={MATERIALE_ICONS.truck} size={14} />
+              {event.indirizzo_spedizione}
+            </span>
+          )}
+          {event.deadline_preparazione && (
+            <span className="flex items-center gap-1">
+              <Icon icon={FEEDBACK_ICONS.warning} size={14} />
+              Prep. entro: {formatDate(event.deadline_preparazione)}
+            </span>
+          )}
+          {event.data_spedizione_prevista && (
+            <span className="flex items-center gap-1">
+              <Icon icon={MATERIALE_ICONS.truck} size={14} />
+              Sped. entro: {formatDate(event.data_spedizione_prevista)}
+            </span>
+          )}
+        </div>
+        {/* Row 2: Counts inline */}
+        {rows.length > 0 && (
+          <div className="flex items-center gap-3 text-xs font-medium flex-wrap">
+            <span className="text-gray-600">{rows.length} materiali</span>
+            {pendingCount > 0 && <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{pendingCount} da confermare</span>}
+            {confirmedCount > 0 && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">{confirmedCount} confermati</span>}
+            {inPrepCount > 0 && <span className="px-2 py-0.5 rounded-full bg-mikai-100 text-mikai-700">{inPrepCount} in preparazione</span>}
+            {speditoCount > 0 && <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{speditoCount} spediti</span>}
+          </div>
+        )}
+      </div>
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      {/* ── Toolbar: title + actions ── */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold text-lg flex items-center gap-2">
           <Icon icon={MATERIALE_ICONS.package} size={20} className="text-gray-400" />
           Lista materiale
         </h3>
-        <div className="flex items-center gap-3 flex-wrap">
-          {onShowPackingList && rows.length > 0 && (
-            <Button variant="secondary" size="sm" onClick={onShowPackingList}>
-              <Icon icon={NAV_ICONS.checklist} size={16} className="mr-1" />
-              Packing list
-            </Button>
-          )}
+        <div className="flex items-center gap-2 flex-wrap">
           {canEdit && rows.length === 0 && (
-            <Button variant="secondary" size="sm" onClick={handleApplyTemplate} loading={applyingTemplate}>
-              Applica template
-            </Button>
+            <Button variant="secondary" size="sm" onClick={handleApplyTemplate} loading={applyingTemplate}>Template</Button>
           )}
           {canEdit && !showCatalog && (
-            <Button onClick={() => setShowCatalog(true)}>
+            <Button size="sm" onClick={() => setShowCatalog(true)}>
               <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
-              Aggiungi dal catalogo
+              Aggiungi
             </Button>
           )}
         </div>
       </div>
 
-      {/* Prominent bulk action bar — sticky at top when pending items exist */}
+      {/* Bulk action bar — sticky, compact */}
       {!showCatalog && canApprove && pendingCount > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 sticky top-0 z-10 flex items-center justify-between flex-wrap gap-3">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 sticky top-0 z-10 flex items-center justify-between flex-wrap gap-2">
+          <span className="text-xs font-semibold text-yellow-800 flex items-center gap-1.5">
+            <Icon icon={FEEDBACK_ICONS.warning} size={14} className="text-yellow-600" />
+            {pendingCount} da confermare
+          </span>
           <div className="flex items-center gap-2">
-            <Icon icon={FEEDBACK_ICONS.warning} size={18} className="text-yellow-600" />
-            <span className="text-sm font-semibold text-yellow-800">
-              {pendingCount} {pendingCount === 1 ? 'materiale da confermare' : 'materiali da confermare'}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
             {bulk.selectedIds.size > 0 && (
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => bulk.showRejectSelected()}
-              >
-                <Icon icon={ACTION_ICONS.reject} size={16} className="mr-1" />
-                Rifiuta selezionati ({bulk.selectedIds.size})
+              <Button variant="danger" size="sm" onClick={() => bulk.showRejectSelected()}>
+                Rifiuta ({bulk.selectedIds.size})
               </Button>
             )}
             {bulk.renderConfirmAllButton()}
           </div>
-        </div>
-      )}
-
-      {/* Icon legend for action buttons */}
-      {!showCatalog && canApprove && rows.length > 0 && (
-        <div className="flex items-center gap-4 text-xs text-gray-500 px-1">
-          <span className="flex items-center gap-1"><span className="w-5 h-5 rounded bg-green-100 flex items-center justify-center"><Icon icon={ACTION_ICONS.approve} size={12} className="text-green-700" /></span> Conferma</span>
-          <span className="flex items-center gap-1"><span className="w-5 h-5 rounded bg-red-100 flex items-center justify-center"><Icon icon={ACTION_ICONS.reject} size={12} className="text-red-700" /></span> Rifiuta</span>
-          <span className="flex items-center gap-1"><span className="w-5 h-5 rounded bg-mikai-100 flex items-center justify-center"><Icon icon={ACTION_ICONS.forward} size={12} className="text-mikai-700" /></span> Prepara</span>
         </div>
       )}
 
@@ -300,7 +329,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
           description={canEdit ? 'Aggiungi il materiale necessario per questo evento.' : undefined}
         />
       ) : rows.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {groups.map(group => {
             const isApprovableGroup = group.key === 'richiesto' && canApprove
             const sectionStyle = SECTION_STYLES[group.key] || SECTION_STYLES.richiesto
@@ -356,10 +385,10 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                 {!isCollapsed && (
                   <div className="space-y-3 mt-3">
                     {group.rows.map((row) => (
-                      <div key={row.id} className="flex items-start gap-2">
-                        {/* Checkbox — only for pending rows when user can approve */}
-                        <div className="flex items-center justify-center min-h-[48px] min-w-[48px] shrink-0 pt-0.5">
-                          {isApprovableGroup ? (
+                      <div key={row.id} className={`flex items-start ${isApprovableGroup ? 'gap-2' : ''}`}>
+                        {/* Checkbox — only for pending rows */}
+                        {isApprovableGroup && (
+                          <div className="flex items-center justify-center min-h-[48px] min-w-[48px] shrink-0 pt-0.5">
                             <input
                               type="checkbox"
                               checked={bulk.selectedIds.has(row.id)}
@@ -367,10 +396,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                               className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
                               aria-label={`Seleziona: ${row.product?.nome || 'materiale'}`}
                             />
-                          ) : (
-                            <span className="w-5 h-5" aria-hidden="true" />
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <MaterialListRow
                             row={row}
@@ -379,11 +406,15 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                             eventZoneId={eventZoneId}
                             canEdit={canEdit}
                             canApprove={canApprove}
+                            tipoLabels={tipoLabels}
+                            tipoColors={tipoColors}
+                            tipoIcons={tipoIcons}
                             onUpdate={handleUpdate}
                             onRemove={handleRemove}
                             onConfirm={handleConfirm}
                             onReject={(id, name) => setRejectTarget({ id, productName: name })}
                             onStartPreparation={handleStartPreparation}
+                            onRevert={handleRevert}
                           />
                         </div>
                       </div>
@@ -413,10 +444,27 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
           packingItems={packingItems}
           readyToShip={readyToShip}
           canApprove={canApprove}
+          onShowPackingList={onShowPackingList}
+          allPrepared={allPrepared}
+          pendingCount={pendingCount}
+          confirmedCount={confirmedCount}
+          inPrepCount={inPrepCount}
+          speditoCount={speditoCount}
           onSaveShipping={async (shippingData) => {
-            const { error } = await updateEvent(event.id, shippingData)
-            if (error) { addToast(error, 'error'); return { ok: false } }
-            addToast('Spedizione registrata', 'success', 6000)
+            // 1. Save event-level shipping fields
+            const { error: eventError } = await updateEvent(event.id, shippingData)
+            if (eventError) { addToast(eventError, 'error'); return { ok: false } }
+
+            // 2. Create movements + update material states (only on first registration)
+            if (!event.spedizione_data) {
+              const { error: shipError, movementsCreated } = await registerEventShipping(event.id, shippingData)
+              if (shipError) { addToast(shipError, 'error'); return { ok: false } }
+              addToast(`Spedizione registrata — ${movementsCreated || 0} movimenti creati`, 'success', 6000)
+            } else {
+              addToast('Spedizione aggiornata', 'success')
+            }
+
+            loadData()
             if (onUpdate) onUpdate()
             return { ok: true }
           }}

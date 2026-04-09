@@ -154,10 +154,61 @@ export const useMaterialsStore = create((set, get) => {
     return { data, error: error?.message || null }
   },
 
+  // Register event-level shipping + create uscita movements + update material states
+  registerEventShipping: async (eventId, shippingData) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Non autenticato' }
+
+    // 1. Fetch materials that need shipping (approved or in_preparazione, with material_id)
+    const { data: materials, error: matError } = await supabase
+      .from('event_materials')
+      .select('id, material_id, product_id, stato')
+      .eq('event_id', eventId)
+      .in('stato', ['approvato', 'in_preparazione'])
+
+    if (matError) return { error: matError.message }
+
+    const shippableMaterials = (materials || []).filter(m => m.material_id)
+
+    // 2. Create uscita movements for each physical material
+    if (shippableMaterials.length > 0) {
+      const movements = shippableMaterials.map(m => ({
+        material_id: m.material_id,
+        event_id: eventId,
+        tipo: 'uscita',
+        modalita: 'spedizione',
+        data_movimento: shippingData.spedizione_data ? new Date(shippingData.spedizione_data).toISOString() : nowISO(),
+        responsabile_id: user.id,
+        tracking_spedizione: shippingData.spedizione_tracking || null,
+        data_rientro_prevista: shippingData.data_rientro_prevista || null,
+        note: shippingData.spedizione_note || null,
+      }))
+
+      const { error: movError } = await supabase
+        .from('material_movements')
+        .insert(movements)
+
+      if (movError) return { error: `Errore creazione movimenti: ${movError.message}` }
+    }
+
+    // 3. Update all shippable event_materials stato to 'spedito'
+    const allShippableIds = (materials || []).filter(m => ['approvato', 'in_preparazione'].includes(m.stato)).map(m => m.id)
+    if (allShippableIds.length > 0) {
+      const { error: updError } = await supabase
+        .from('event_materials')
+        .update({ stato: 'spedito' })
+        .in('id', allShippableIds)
+
+      if (updError) return { error: `Errore aggiornamento stato materiali: ${updError.message}` }
+    }
+
+    return { error: null, movementsCreated: shippableMaterials.length, materialsUpdated: allShippableIds.length }
+  },
+
   fetchEventMaterialList: async (eventId) => {
     const { data, error } = await supabase
       .from('event_materials')
-      .select('*, product:products(id, nome, codice, descrizione, foto_url, tipo, quantita_disponibile, soglia_minima, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome)')
+      .select('*, product:products(id, nome, codice, descrizione, foto_url, tipo, quantita_disponibile, soglia_minima, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome), approvatore:users!event_materials_approvato_da_fkey(nome, cognome)')
       .eq('event_id', eventId)
       .order('data_richiesta', { ascending: true })
     set({ eventMaterials: data || [] })
@@ -212,6 +263,13 @@ export const useMaterialsStore = create((set, get) => {
       }
     }
 
+    // Decrement stock FIRST for gadgets — before changing stato
+    const isGadget = row?.product?.tipo === 'gadget' && row?.product?.quantita_disponibile != null
+    if (isGadget) {
+      const stockError = await get()._adjustStock(row.product_id, -quantitaApprovata)
+      if (stockError) return { data: null, error: stockError }
+    }
+
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('event_materials')
@@ -226,37 +284,31 @@ export const useMaterialsStore = create((set, get) => {
       .select('*, product:products(id, tipo, quantita_disponibile)')
       .single()
 
-    // Atomic stock decrement for gadgets — location-aware
-    if (!error && data?.product?.tipo === 'gadget' && data.product.quantita_disponibile != null) {
-      const { data: locs } = await supabase
-        .from('product_stock_locations')
-        .select('magazzino_id, user_id, quantita')
-        .eq('product_id', data.product_id)
-        .order('quantita', { ascending: false })
-        .limit(1)
-
-      if (locs && locs.length > 0) {
-        const { error: rpcError } = await supabase.rpc('adjust_product_stock_location', {
-          p_product_id: data.product_id,
-          p_magazzino_id: locs[0].magazzino_id,
-          p_user_id: locs[0].user_id,
-          p_delta: -quantitaApprovata,
-        })
-        if (rpcError) return { data, error: rpcError.message }
-      } else {
-        // Fallback for products without locations
-        const { error: rpcError } = await supabase.rpc('adjust_product_stock', {
-          p_product_id: data.product_id,
-          p_delta: -quantitaApprovata,
-        })
-        if (rpcError) return { data, error: rpcError.message }
-      }
+    // Rollback stock if status update failed
+    if (error && isGadget) {
+      await get()._adjustStock(row.product_id, quantitaApprovata)
+      return { data: null, error: error.message }
     }
 
     return { data, error: error?.message || null }
   },
 
   rejectMaterialRow: async (id, motivo) => {
+    // Fetch full row to restore stock if needed
+    const { data: existing } = await supabase
+      .from('event_materials')
+      .select('*, product:products(id, tipo, quantita_disponibile)')
+      .eq('id', id)
+      .single()
+
+    // Restore gadget stock before rejecting (only if was approved/in_preparazione)
+    if (existing && ['approvato', 'in_preparazione'].includes(existing.stato) && existing.quantita_approvata) {
+      if (existing.product?.tipo === 'gadget') {
+        const stockError = await get()._adjustStock(existing.product_id, existing.quantita_approvata)
+        if (stockError) return { data: null, error: `Errore ripristino stock: ${stockError}` }
+      }
+    }
+
     const { data, error } = await supabase
       .from('event_materials')
       .update({
@@ -266,35 +318,48 @@ export const useMaterialsStore = create((set, get) => {
       .eq('id', id)
       .select()
       .single()
+
+    // Rollback stock restore if reject failed
+    if (error && existing && ['approvato', 'in_preparazione'].includes(existing.stato) && existing.quantita_approvata && existing.product?.tipo === 'gadget') {
+      await get()._adjustStock(existing.product_id, -existing.quantita_approvata)
+    }
+
     return { data, error: error?.message || null }
   },
 
   restoreGadgetStock: async (row) => {
     if ((row.stato === 'approvato' || row.stato === 'in_preparazione') && row.quantita_approvata && row.product?.tipo === 'gadget') {
-      const { data: locs } = await supabase
-        .from('product_stock_locations')
-        .select('magazzino_id, user_id, quantita')
-        .eq('product_id', row.product_id)
-        .order('quantita', { ascending: false })
-        .limit(1)
-
-      if (locs && locs.length > 0) {
-        const { error } = await supabase.rpc('adjust_product_stock_location', {
-          p_product_id: row.product_id,
-          p_magazzino_id: locs[0].magazzino_id,
-          p_user_id: locs[0].user_id,
-          p_delta: row.quantita_approvata,
-        })
-        if (error) return { error: error.message }
-      } else {
-        const { error } = await supabase.rpc('adjust_product_stock', {
-          p_product_id: row.product_id,
-          p_delta: row.quantita_approvata,
-        })
-        if (error) return { error: error.message }
-      }
+      const stockError = await get()._adjustStock(row.product_id, row.quantita_approvata)
+      if (stockError) return { error: stockError }
     }
     return { error: null }
+  },
+
+  // Internal: adjust stock with location awareness. Returns error string or null.
+  _adjustStock: async (productId, delta) => {
+    const { data: locs } = await supabase
+      .from('product_stock_locations')
+      .select('magazzino_id, user_id, quantita')
+      .eq('product_id', productId)
+      .order('quantita', { ascending: false })
+      .limit(1)
+
+    if (locs && locs.length > 0) {
+      const { error } = await supabase.rpc('adjust_product_stock_location', {
+        p_product_id: productId,
+        p_magazzino_id: locs[0].magazzino_id,
+        p_user_id: locs[0].user_id,
+        p_delta: delta,
+      })
+      if (error) return error.message
+    } else {
+      const { error } = await supabase.rpc('adjust_product_stock', {
+        p_product_id: productId,
+        p_delta: delta,
+      })
+      if (error) return error.message
+    }
+    return null
   },
 
   fetchBatchMaterialStatus: async (eventIds) => {

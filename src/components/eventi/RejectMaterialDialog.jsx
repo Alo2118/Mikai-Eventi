@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
+import { TEXTAREA_STYLE } from '../../lib/constants'
 
 export function RejectMaterialDialog({ open, productName, onConfirm, onCancel }) {
   const [motivo, setMotivo] = useState('')
@@ -18,17 +19,23 @@ export function RejectMaterialDialog({ open, productName, onConfirm, onCancel })
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-labelledby="reject-dialog-title"
+      aria-describedby="reject-dialog-desc"
+    >
       <div className="bg-white rounded-xl p-6 max-w-md w-full space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Rifiuta materiale</h3>
-        <p className="text-base text-gray-600">
+        <h3 id="reject-dialog-title" className="text-lg font-semibold text-gray-900">Rifiuta materiale</h3>
+        <p id="reject-dialog-desc" className="text-base text-gray-600">
           Stai rifiutando <strong>{productName}</strong>. Indica il motivo per il commerciale.
         </p>
         <textarea
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
-          className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[100px] focus:ring-2 focus:ring-mikai-400"
-          placeholder="Es. Kit non disponibile, prova alternativa Y..."
+          className={TEXTAREA_STYLE}
+          placeholder="Es. Kit non disponibile, prova alternativa Y... (obbligatorio)"
+          aria-label="Motivo del rifiuto"
           required
         />
         <div className="flex gap-3 justify-end">
@@ -37,9 +44,6 @@ export function RejectMaterialDialog({ open, productName, onConfirm, onCancel })
             Rifiuta
           </Button>
         </div>
-        {!motivo.trim() && (
-          <p className="text-sm text-gray-500">Il motivo è obbligatorio per informare il commerciale.</p>
-        )}
       </div>
     </div>
   )

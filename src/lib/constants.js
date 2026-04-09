@@ -418,6 +418,7 @@ export const STATO_MATERIALE_LISTA = {
   approvato: 'Confermato',
   rifiutato: 'Non disponibile',
   in_preparazione: 'In preparazione',
+  spedito: 'Spedito',
 }
 
 export const STATO_MATERIALE_LISTA_COLORE = {
@@ -425,6 +426,7 @@ export const STATO_MATERIALE_LISTA_COLORE = {
   approvato: 'green',
   rifiutato: 'red',
   in_preparazione: 'mikai',
+  spedito: 'emerald',
 }
 
 // Product types for catalog filtering
@@ -468,6 +470,13 @@ export const TIPO_NOTIFICA = {
   preventivo_stato: 'Stato preventivo cambiato',
   evento_stato_cambiato: 'Stato evento cambiato',
   escalation: 'Escalation',
+  materiale_approvato: 'Materiale approvato',
+  materiale_rifiutato: 'Materiale rifiutato',
+  materiale_in_preparazione: 'Materiale in preparazione',
+  materiale_spedito: 'Materiale spedito',
+  materiale_rientrato: 'Materiale rientrato',
+  staff_assegnato: 'Aggiunto a evento',
+  staff_rimosso: 'Rimosso da evento',
 }
 
 export const TIPO_NOTIFICA_COLORE = {
@@ -482,6 +491,13 @@ export const TIPO_NOTIFICA_COLORE = {
   preventivo_stato: 'blue',
   evento_stato_cambiato: 'mikai',
   escalation: 'red',
+  materiale_approvato: 'green',
+  materiale_rifiutato: 'red',
+  materiale_in_preparazione: 'yellow',
+  materiale_spedito: 'emerald',
+  materiale_rientrato: 'blue',
+  staff_assegnato: 'mikai',
+  staff_rimosso: 'red',
 }
 
 // Tipo documento (allegati evento)
@@ -688,7 +704,7 @@ export const SUMMARY_BAR_STYLE = 'bg-mikai-50 border border-mikai-200 rounded-xl
 export const GROUP_HEADING_STYLE = 'bg-gray-100 px-4 py-2 rounded-lg font-medium text-sm text-gray-700'
 
 // Input patterns
-export const INPUT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+export const INPUT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none bg-white'
 export const INPUT_ERROR_STYLE = 'w-full px-4 py-3 text-base border border-red-400 rounded-lg min-h-[48px] focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none bg-red-50'
 export const SELECT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none bg-white'
-export const TEXTAREA_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[80px] resize-none focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none'
+export const TEXTAREA_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[80px] resize-none focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none bg-white'
