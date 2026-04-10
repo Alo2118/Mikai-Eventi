@@ -5,6 +5,8 @@ import { ACTION_ICONS, POSIZIONE_ICONS } from '../../lib/icons'
 import {
   POSIZIONE_MATERIALE,
   POSIZIONE_MATERIALE_COLORE,
+  COLOR_BG_100,
+  COLOR_TEXT_700,
   INPUT_STYLE,
   SELECT_STYLE,
   CARD_STYLE,
@@ -12,20 +14,11 @@ import {
 } from '../../lib/constants'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 
-const COLOR_TO_CLASSES = {
-  green:  { bg: 'bg-green-100',  text: 'text-green-700'  },
-  blue:   { bg: 'bg-blue-100',   text: 'text-blue-700'   },
-  yellow: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
-  mikai:  { bg: 'bg-mikai-100',  text: 'text-mikai-700'  },
-  red:    { bg: 'bg-red-100',    text: 'text-red-700'    },
-}
-
 function PositionPill({ posizione }) {
   const label = POSIZIONE_MATERIALE[posizione] || posizione
   const color = POSIZIONE_MATERIALE_COLORE[posizione] || 'green'
-  const cls = COLOR_TO_CLASSES[color] || COLOR_TO_CLASSES.green
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-sm font-medium ${cls.bg} ${cls.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-sm font-medium ${COLOR_BG_100[color] || COLOR_BG_100.green} ${COLOR_TEXT_700[color] || COLOR_TEXT_700.green}`}>
       <Icon icon={POSIZIONE_ICONS[posizione]} size={12} />
       {label}
     </span>
@@ -67,7 +60,7 @@ export function AdminProdottiSpecimens({
 
         {open && (
           <div className="mt-4 space-y-3">
-            {specimens.length > 0 && (
+            {specimens.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
@@ -84,14 +77,14 @@ export function AdminProdottiSpecimens({
                           <>
                             <td className="px-2 py-2">
                               <input
-                                className={INPUT_STYLE + ' text-sm py-1.5 min-h-[40px]'}
+                                className={INPUT_STYLE + ' text-sm py-1.5 '}
                                 value={editingSpecimenData.codice_inventario}
                                 onChange={e => setEditingSpecimenData(d => ({ ...d, codice_inventario: e.target.value }))}
                               />
                             </td>
                             <td className="px-2 py-2">
                               <select
-                                className={SELECT_STYLE + ' text-sm py-1.5 min-h-[40px]'}
+                                className={SELECT_STYLE + ' text-sm py-1.5 '}
                                 value={editingSpecimenData.posizione_attuale}
                                 onChange={e => setEditingSpecimenData(d => ({ ...d, posizione_attuale: e.target.value }))}
                               >
@@ -147,6 +140,8 @@ export function AdminProdottiSpecimens({
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <p className="text-sm text-gray-400 py-2">Nessun esemplare registrato. Aggiungi il primo qui sotto.</p>
             )}
 
             {/* Add specimen form */}
@@ -154,8 +149,9 @@ export function AdminProdottiSpecimens({
               <p className="text-sm font-medium text-gray-700">Aggiungi esemplare</p>
               <div className="flex flex-col md:flex-row gap-3">
                 <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">Cod. inventario <span className="text-red-500">*</span></label>
+                  <label htmlFor="specimen-codice" className="block text-sm text-gray-600 mb-1">Cod. inventario <span className="text-red-500">*</span></label>
                   <input
+                    id="specimen-codice"
                     className={INPUT_STYLE}
                     value={newSpecimen.codice_inventario}
                     onChange={e => setNewSpecimen(s => ({ ...s, codice_inventario: e.target.value }))}
@@ -163,8 +159,9 @@ export function AdminProdottiSpecimens({
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">Posizione</label>
+                  <label htmlFor="specimen-posizione" className="block text-sm text-gray-600 mb-1">Posizione</label>
                   <select
+                    id="specimen-posizione"
                     className={SELECT_STYLE}
                     value={newSpecimen.posizione_attuale}
                     onChange={e => setNewSpecimen(s => ({ ...s, posizione_attuale: e.target.value }))}
@@ -179,6 +176,7 @@ export function AdminProdottiSpecimens({
                   onClick={onAddSpecimen}
                   loading={specimenSaving}
                   disabled={!newSpecimen.codice_inventario.trim()}
+                  title={!newSpecimen.codice_inventario.trim() ? 'Inserisci il codice inventario' : ''}
                 >
                   <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />Aggiungi esemplare
                 </Button>

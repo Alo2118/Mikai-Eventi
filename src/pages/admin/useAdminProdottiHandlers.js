@@ -64,21 +64,25 @@ export function useAdminProdottiHandlers() {
 
   const loadRelated = useCallback(async (product) => {
     if (product.id) {
-      const { data: kc } = await fetchKitContents(product.id)
-      setKitContents(kc || [])
       if (product.serializzato) {
-        const { data: sp } = await fetchProductSpecimens(product.id)
-        setSpecimens(sp || [])
+        const [kcRes, spRes] = await Promise.all([
+          fetchKitContents(product.id),
+          fetchProductSpecimens(product.id),
+        ])
+        setKitContents(kcRes.data || [])
+        setSpecimens(spRes.data || [])
         setStock({ quantita_disponibile: 0, soglia_minima: 0 })
         setStockHistory([])
         setStockLocations([])
       } else {
-        setSpecimens([])
-        const [stRes, histRes, locRes] = await Promise.all([
+        const [kcRes, stRes, histRes, locRes] = await Promise.all([
+          fetchKitContents(product.id),
           fetchProductStock(product.id),
           fetchStockHistory(product.id),
           fetchStockLocations(product.id),
         ])
+        setKitContents(kcRes.data || [])
+        setSpecimens([])
         setStock({ quantita_disponibile: stRes.data?.quantita_disponibile ?? 0, soglia_minima: stRes.data?.soglia_minima ?? 0 })
         setStockHistory(histRes.data || [])
         setStockLocations(locRes.data || [])
@@ -183,7 +187,7 @@ export function useAdminProdottiHandlers() {
     })
   }
 
-  const handleSaveSpecimen = async () => {
+  const handleSaveSpecimen = async (productId) => {
     setSpecimenSaving(true)
     const { error } = await updateSpecimen(editingSpecimen, {
       codice_inventario: editingSpecimenData.codice_inventario || null,
@@ -192,8 +196,11 @@ export function useAdminProdottiHandlers() {
     })
     setSpecimenSaving(false)
     if (error) { addToast(error, 'error'); return }
-    // productId will be passed when needed, but for now we use editing context
     setEditingSpecimen(null)
+    if (productId) {
+      const { data } = await fetchProductSpecimens(productId)
+      setSpecimens(data || [])
+    }
   }
 
   const handleDeleteSpecimen = async (productId) => {

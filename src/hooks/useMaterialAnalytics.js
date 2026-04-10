@@ -102,4 +102,87 @@ export const useMaterialAnalyticsStore = create((set) => ({
     set({ upcomingBookings: data || [] })
     return data || []
   },
+
+  // Fabbisogno: aggregate material demand across active events
+  fabbisogno: [],
+  fabbisognoLoading: false,
+
+  fetchFabbisogno: async (filters = {}) => {
+    set({ fabbisognoLoading: true })
+    let query = supabase
+      .from('event_materials')
+      .select(`
+        id, quantita, quantita_approvata, stato, data_inizio_utilizzo, data_fine_utilizzo,
+        product:products!event_materials_product_id_fkey(id, nome, codice, tipo, quantita_disponibile, brand:brands(id, nome)),
+        evento:events!event_materials_event_id_fkey(id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita)
+      `)
+      .neq('stato', 'rifiutato')
+
+    // Filter by event status: only active events by default
+    const activeStati = ['confermato', 'in_preparazione', 'pronto', 'in_corso']
+    if (filters.includiProposti) activeStati.push('proposto')
+
+    // Date filter
+    if (filters.da) {
+      query = query.gte('data_inizio_utilizzo', filters.da)
+    }
+    if (filters.a) {
+      query = query.lte('data_inizio_utilizzo', filters.a)
+    }
+
+    const { data, error } = await query.order('data_inizio_utilizzo')
+
+    if (error) {
+      set({ fabbisognoLoading: false })
+      return { data: [], error: error.message }
+    }
+
+    // Filter by event stato in-memory (PostgREST can't filter on FK fields)
+    const filtered = (data || []).filter(r => r.evento && activeStati.includes(r.evento.stato))
+
+    // Aggregate by product
+    const byProduct = {}
+    for (const row of filtered) {
+      const productId = row.product?.id
+      if (!productId) continue
+
+      if (!byProduct[productId]) {
+        byProduct[productId] = {
+          product: row.product,
+          totaleRichiesto: 0,
+          totaleApprovato: 0,
+          richiesti: 0,
+          approvati: 0,
+          inPreparazione: 0,
+          spediti: 0,
+          eventi: new Set(),
+          dettaglio: [],
+        }
+      }
+      const agg = byProduct[productId]
+      agg.totaleRichiesto += row.quantita || 1
+      agg.totaleApprovato += row.quantita_approvata || 0
+      if (row.stato === 'richiesto') agg.richiesti += row.quantita || 1
+      if (row.stato === 'approvato') agg.approvati += row.quantita_approvata || row.quantita || 1
+      if (row.stato === 'in_preparazione') agg.inPreparazione += row.quantita_approvata || row.quantita || 1
+      if (row.stato === 'spedito') agg.spediti += row.quantita_approvata || row.quantita || 1
+      agg.eventi.add(row.evento.id)
+      agg.dettaglio.push({
+        eventoId: row.evento.id,
+        eventoTitolo: row.evento.titolo,
+        eventoData: row.evento.data_inizio,
+        quantita: row.quantita || 1,
+        quantitaApprovata: row.quantita_approvata,
+        stato: row.stato,
+      })
+    }
+
+    // Convert Sets to counts and sort by total requested desc
+    const result = Object.values(byProduct)
+      .map(p => ({ ...p, eventiCount: p.eventi.size, eventi: undefined }))
+      .sort((a, b) => b.totaleRichiesto - a.totaleRichiesto)
+
+    set({ fabbisogno: result, fabbisognoLoading: false })
+    return { data: result, error: null }
+  },
 }))

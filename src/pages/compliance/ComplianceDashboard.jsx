@@ -8,21 +8,15 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { Button } from '../../components/ui/Button'
 import { COMPLIANCE_ICONS } from '../../lib/icons'
-import { TIPO_TOV, TIPO_TOV_COLORE, CHART_COLORS, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { TIPO_TOV, TIPO_TOV_COLORE, CHART_COLORS, COLOR_BG_50, COLOR_TEXT_600, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 import { formatCurrencyDecimals, formatPercentage } from '../../lib/format-utils'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 function StatCard({ icon, label, value, color = 'mikai' }) {
-  const colorMap = {
-    mikai: 'bg-mikai-50 text-mikai-600',
-    green: 'bg-green-50 text-green-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
-    red: 'bg-red-50 text-red-600',
-  }
   return (
     <div className={CARD_STYLE}>
       <div className="flex items-center gap-3 mb-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorMap[color]}`}>
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${COLOR_BG_50[color] || COLOR_BG_50.mikai} ${COLOR_TEXT_600[color] || COLOR_TEXT_600.mikai}`}>
           <Icon icon={icon} size={20} />
         </div>
         <span className="text-sm text-gray-500">{label}</span>

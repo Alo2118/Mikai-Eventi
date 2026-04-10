@@ -1,18 +1,9 @@
-import { STATO_EVENTO, STATO_EVENTO_COLORE } from '../../lib/constants'
+import { STATO_EVENTO, STATO_EVENTO_COLORE, COLOR_BADGE } from '../../lib/constants'
 import { STATUS_COLOR_ICONS } from '../../lib/icons'
 import { Icon } from './Icon'
 
-const colorMap = {
-  green: 'bg-green-100 text-green-800',
-  yellow: 'bg-yellow-100 text-yellow-800',
-  red: 'bg-red-100 text-red-800',
-  blue: 'bg-blue-100 text-blue-800',
-  indigo: 'bg-mikai-100 text-mikai-700',
-  mikai: 'bg-mikai-100 text-mikai-700',
-  emerald: 'bg-emerald-100 text-emerald-800',
-  purple: 'bg-purple-100 text-purple-800',
-  gray: 'bg-gray-100 text-gray-600',
-}
+// Alias 'indigo' → mikai for backward compatibility
+const colorMap = { ...COLOR_BADGE, indigo: COLOR_BADGE.mikai }
 
 export function StatusBadge({ stato, labels = STATO_EVENTO, colors = STATO_EVENTO_COLORE }) {
   const color = colors[stato] || 'gray'

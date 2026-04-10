@@ -11,7 +11,7 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
-import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE } from '../../lib/constants'
+import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE, ISCRIZIONE_CHIP_COLORS } from '../../lib/constants'
 import { ACTION_ICONS, NAV_ICONS, LOGISTICA_PERSONE_ICONS, TAVOLI_ICONS } from '../../lib/icons'
 import { ContactPicker } from '../contatti/ContactPicker'
 import { BulkImportModal } from '../contatti/BulkImportModal'
@@ -43,12 +43,6 @@ const GROUP_MORE = [
 ]
 
 const ISCRIZIONE_CYCLE = { invitato: 'confermato', confermato: 'presente', presente: 'invitato', assente: 'invitato' }
-const ISCRIZIONE_CHIP_COLORS = {
-  invitato: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
-  confermato: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
-  presente: 'bg-green-100 text-green-700 hover:bg-green-200',
-  assente: 'bg-red-100 text-red-700 hover:bg-red-200',
-}
 
 // ─── More menu (secondary actions) ────────────────────────────
 function MoreMenu({ items }) {

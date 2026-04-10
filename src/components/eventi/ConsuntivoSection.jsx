@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
-import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, CARD_STYLE, COLOR_TEXT_600 } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
 import { formatCurrency, formatPercentage } from '../../lib/format-utils'
 
@@ -58,8 +58,6 @@ function ConsuntivoRow({ preventivo, canManage }) {
   const delta = effNum != null && preventivo.importo != null ? effNum - preventivo.importo : null
   const deltaPct = delta != null && preventivo.importo > 0 ? (delta / preventivo.importo) * 100 : null
 
-  const colorMap = { green: 'text-green-600', yellow: 'text-yellow-600', red: 'text-red-600', gray: 'text-gray-400' }
-
   return (
     <div className="p-4 rounded-xl border border-gray-200 space-y-2">
       <div className="flex items-center justify-between">
@@ -109,7 +107,7 @@ function ConsuntivoRow({ preventivo, canManage }) {
       )}
 
       <div className="flex items-center justify-between">
-        <span className={`text-sm font-medium ${colorMap[color]}`}>
+        <span className={`text-sm font-medium ${COLOR_TEXT_600[color] || COLOR_TEXT_600.gray}`}>
           {delta != null
             ? `${delta >= 0 ? '+' : ''}${formatCurrency(delta)} (${deltaPct != null ? (deltaPct >= 0 ? '+' : '') + formatPercentage(deltaPct, 1) : ''})`
             : 'Da rendicontare'}

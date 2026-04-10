@@ -6,7 +6,7 @@ import { ACTION_ICONS } from '../../lib/icons'
 import { CARD_HOVER_STYLE } from '../../lib/constants'
 import { EmptyState } from './EmptyState'
 
-export function AdminTable({ columns, rows, searchField, onAdd, onEdit, onDelete, addLabel = 'Nuovo' }) {
+export function AdminTable({ columns, rows, searchField, onAdd, onEdit, onDelete, addLabel = 'Nuovo', selected, onToggleSelect, onToggleSelectAll }) {
   const [search, setSearch] = useState('')
   const [sortCol, setSortCol] = useState(null)
   const [sortAsc, setSortAsc] = useState(true)
@@ -31,6 +31,30 @@ export function AdminTable({ columns, rows, searchField, onAdd, onEdit, onDelete
     else { setSortCol(col); setSortAsc(true) }
   }
 
+  const hasSelection = selected && onToggleSelect
+  const allFilteredSelected = hasSelection && filtered.length > 0 && filtered.every(r => selected.has(r.id))
+
+  // Build columns with optional select column prepended
+  const allColumns = hasSelection ? [
+    {
+      key: '_select',
+      label: () => (
+        <input type="checkbox" checked={allFilteredSelected}
+          onChange={() => onToggleSelectAll(filtered.map(r => r.id))}
+          className="w-4 h-4 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
+          aria-label="Seleziona tutti" />
+      ),
+      render: (r) => (
+        <input type="checkbox" checked={selected.has(r.id)}
+          onChange={(e) => { e.stopPropagation(); onToggleSelect(r.id) }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-4 h-4 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 cursor-pointer"
+          aria-label={`Seleziona ${r.nome || ''}`} />
+      ),
+    },
+    ...columns,
+  ] : columns
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
@@ -54,13 +78,13 @@ export function AdminTable({ columns, rows, searchField, onAdd, onEdit, onDelete
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  {columns.map((col) => (
+                  {allColumns.map((col) => (
                     <th
                       key={col.key}
-                      className="px-4 py-3 text-sm font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none"
-                      onClick={() => handleSort(col.key)}
+                      className={`px-4 py-3 text-sm font-medium text-gray-500 select-none ${col.key === '_select' ? 'w-10' : 'cursor-pointer hover:text-gray-700'}`}
+                      onClick={() => col.key !== '_select' && handleSort(col.key)}
                     >
-                      {col.label}
+                      {typeof col.label === 'function' ? col.label() : col.label}
                       {sortCol === col.key && (
                         <span className="ml-1">{sortAsc ? '\u2191' : '\u2193'}</span>
                       )}
@@ -76,8 +100,8 @@ export function AdminTable({ columns, rows, searchField, onAdd, onEdit, onDelete
                     className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                     onClick={() => onEdit?.(row)}
                   >
-                    {columns.map((col) => (
-                      <td key={col.key} className="px-4 py-3 text-base text-gray-900 min-h-[48px]">
+                    {allColumns.map((col) => (
+                      <td key={col.key} className={`px-4 py-3 text-base text-gray-900 min-h-[48px] ${col.key === '_select' ? 'w-10' : ''}`}>
                         {col.render ? col.render(row) : row[col.key]}
                       </td>
                     ))}
@@ -110,9 +134,9 @@ export function AdminTable({ columns, rows, searchField, onAdd, onEdit, onDelete
                 onKeyDown={(e) => { if (e.key === 'Enter') onEdit?.(row) }}
               >
                 <div className="space-y-1">
-                  {columns.map((col, i) => (
+                  {columns.filter(col => col.key !== '_select').map((col, i) => (
                     <div key={col.key} className={i === 0 ? 'font-semibold text-gray-900' : 'text-sm text-gray-600'}>
-                      {i > 0 && <span className="text-gray-400">{col.label}: </span>}
+                      {i > 0 && <span className="text-gray-400">{typeof col.label === 'function' ? '' : `${col.label}: `}</span>}
                       {col.render ? col.render(row) : row[col.key]}
                     </div>
                   ))}

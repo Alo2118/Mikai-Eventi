@@ -40,7 +40,7 @@ export const STATO_EVENTO = {
   proposto: 'In attesa di approvazione',
   confermato: 'Approvato',
   in_preparazione: 'In preparazione',
-  pronto: 'Tutto pronto',
+  pronto: 'Pronto',
   in_corso: 'In corso',
   concluso: 'Concluso',
   cancellato: 'Annullato',
@@ -708,3 +708,35 @@ export const INPUT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 ro
 export const INPUT_ERROR_STYLE = 'w-full px-4 py-3 text-base border border-red-400 rounded-lg min-h-[48px] focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none bg-red-50'
 export const SELECT_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none bg-white'
 export const TEXTAREA_STYLE = 'w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[80px] resize-none focus:ring-2 focus:ring-mikai-400 focus:border-mikai-400 outline-none bg-white'
+
+// ═══════════════════════════════════════════
+// Centralized color maps — single source of truth
+// Used by admin pages, badges, cards, charts, pickers
+// ═══════════════════════════════════════════
+
+// Available color names for pickers
+export const COLORI_LIST = ['gray', 'blue', 'emerald', 'purple', 'yellow', 'orange', 'amber', 'red', 'green', 'mikai', 'pink', 'sky']
+
+// Color → Tailwind class maps (one per shade/variant)
+export const COLOR_BG_400 = { gray: 'bg-gray-400', blue: 'bg-blue-400', emerald: 'bg-emerald-400', purple: 'bg-purple-400', yellow: 'bg-yellow-400', orange: 'bg-orange-400', amber: 'bg-amber-400', red: 'bg-red-400', green: 'bg-green-400', mikai: 'bg-mikai-400', pink: 'bg-pink-400', sky: 'bg-sky-400' }
+export const COLOR_BG_100 = { gray: 'bg-gray-100', blue: 'bg-blue-100', emerald: 'bg-emerald-100', purple: 'bg-purple-100', yellow: 'bg-yellow-100', orange: 'bg-orange-100', amber: 'bg-amber-100', red: 'bg-red-100', green: 'bg-green-100', mikai: 'bg-mikai-100', pink: 'bg-pink-100', sky: 'bg-sky-100' }
+export const COLOR_BG_50 = { gray: 'bg-gray-50', blue: 'bg-blue-50', emerald: 'bg-emerald-50', purple: 'bg-purple-50', yellow: 'bg-yellow-50', orange: 'bg-orange-50', amber: 'bg-amber-50', red: 'bg-red-50', green: 'bg-green-50', mikai: 'bg-mikai-50', pink: 'bg-pink-50', sky: 'bg-sky-50' }
+export const COLOR_TEXT_700 = { gray: 'text-gray-700', blue: 'text-blue-700', emerald: 'text-emerald-700', purple: 'text-purple-700', yellow: 'text-yellow-700', orange: 'text-orange-700', amber: 'text-amber-700', red: 'text-red-700', green: 'text-green-700', mikai: 'text-mikai-700', pink: 'text-pink-700', sky: 'text-sky-700' }
+export const COLOR_TEXT_600 = { gray: 'text-gray-600', blue: 'text-blue-600', emerald: 'text-emerald-600', purple: 'text-purple-600', yellow: 'text-yellow-600', orange: 'text-orange-600', amber: 'text-amber-600', red: 'text-red-600', green: 'text-green-600', mikai: 'text-mikai-600', pink: 'text-pink-600', sky: 'text-sky-600' }
+export const COLOR_BORDER_400 = { gray: 'border-gray-400', blue: 'border-blue-400', emerald: 'border-emerald-400', purple: 'border-purple-400', yellow: 'border-yellow-400', orange: 'border-orange-400', amber: 'border-amber-400', red: 'border-red-400', green: 'border-green-400', mikai: 'border-mikai-400', pink: 'border-pink-400', sky: 'border-sky-400' }
+export const COLOR_BORDER_200 = { gray: 'border-gray-200', blue: 'border-blue-200', emerald: 'border-emerald-200', purple: 'border-purple-200', yellow: 'border-yellow-200', orange: 'border-orange-200', amber: 'border-amber-200', red: 'border-red-200', green: 'border-green-200', mikai: 'border-mikai-200', pink: 'border-pink-200', sky: 'border-sky-200' }
+
+// Badge/chip: bg-100 + text-700 combined (for StatusBadge, pills, chips)
+export const COLOR_BADGE = { gray: 'bg-gray-100 text-gray-600', blue: 'bg-blue-100 text-blue-700', emerald: 'bg-emerald-100 text-emerald-700', purple: 'bg-purple-100 text-purple-700', yellow: 'bg-yellow-100 text-yellow-700', orange: 'bg-orange-100 text-orange-700', amber: 'bg-amber-100 text-amber-700', red: 'bg-red-100 text-red-700', green: 'bg-green-100 text-green-700', mikai: 'bg-mikai-100 text-mikai-700', pink: 'bg-pink-100 text-pink-700', sky: 'bg-sky-100 text-sky-700' }
+
+// Band/stripe: bg-300/400 for left-border color bands (e.g. activity cards)
+export const COLOR_BAND = { gray: 'bg-gray-300', mikai: 'bg-mikai-400', green: 'bg-green-400', red: 'bg-red-400', blue: 'bg-blue-400', purple: 'bg-purple-400', emerald: 'bg-emerald-400', yellow: 'bg-yellow-400', orange: 'bg-orange-400', amber: 'bg-amber-400', pink: 'bg-pink-400', sky: 'bg-sky-400' }
+
+// Iscrizione chip colors (badge + hover for clickable state chips)
+export const ISCRIZIONE_CHIP_COLORS = {
+  invitato: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
+  confermato: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
+  presente: 'bg-green-100 text-green-700 hover:bg-green-200',
+  assente: 'bg-red-100 text-red-700 hover:bg-red-200',
+}
+

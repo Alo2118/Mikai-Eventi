@@ -34,7 +34,7 @@ export function AdminProdottiKit({
       </button>
       {open && (
         <div className="mt-4 space-y-3">
-          {kitContents.length > 0 && (
+          {kitContents.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -86,21 +86,23 @@ export function AdminProdottiKit({
                 </tbody>
               </table>
             </div>
+          ) : (
+            <p className="text-sm text-gray-400 py-2">Nessun pezzo nel kit. Aggiungi i componenti qui sotto.</p>
           )}
           <div className="flex flex-col md:flex-row gap-3 items-end">
             <div className="flex-1">
-              <label className="block text-sm text-gray-600 mb-1">Nome pezzo</label>
-              <input className={INPUT_STYLE} value={newPiece.piece_name} onChange={e => setNewPiece({ ...newPiece, piece_name: e.target.value })} placeholder="Nome pezzo" />
+              <label htmlFor="kit-piece-name" className="block text-sm text-gray-600 mb-1">Nome pezzo</label>
+              <input id="kit-piece-name" className={INPUT_STYLE} value={newPiece.piece_name} onChange={e => setNewPiece({ ...newPiece, piece_name: e.target.value })} placeholder="Nome pezzo" />
             </div>
             <div className="w-full md:w-32">
-              <label className="block text-sm text-gray-600 mb-1">Codice</label>
-              <input className={INPUT_STYLE} value={newPiece.piece_code} onChange={e => setNewPiece({ ...newPiece, piece_code: e.target.value })} placeholder="Codice" />
+              <label htmlFor="kit-piece-code" className="block text-sm text-gray-600 mb-1">Codice</label>
+              <input id="kit-piece-code" className={INPUT_STYLE} value={newPiece.piece_code} onChange={e => setNewPiece({ ...newPiece, piece_code: e.target.value })} placeholder="Codice" />
             </div>
             <div className="w-full md:w-24">
-              <label className="block text-sm text-gray-600 mb-1">Qtà</label>
-              <input type="number" min="1" className={INPUT_STYLE} value={newPiece.quantity} onChange={e => setNewPiece({ ...newPiece, quantity: e.target.value })} />
+              <label htmlFor="kit-piece-qty" className="block text-sm text-gray-600 mb-1">Qtà</label>
+              <input id="kit-piece-qty" type="number" min="1" className={INPUT_STYLE} value={newPiece.quantity} onChange={e => setNewPiece({ ...newPiece, quantity: e.target.value })} />
             </div>
-            <Button size="sm" onClick={onAddPiece} disabled={!newPiece.piece_name.trim()}>
+            <Button size="sm" onClick={onAddPiece} disabled={!newPiece.piece_name.trim()} title={!newPiece.piece_name.trim() ? 'Inserisci il nome del pezzo' : ''}>
               <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />Aggiungi
             </Button>
           </div>

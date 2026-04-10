@@ -3,21 +3,11 @@ import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { AssigneePickerModal } from './AssigneePickerModal'
-import { CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
+import { CATEGORIA_ATTIVITA_COLORE, STATO_DOCUMENTO, STATO_DOCUMENTO_COLORE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE, COLOR_BADGE, COLOR_BAND } from '../../lib/constants'
 import { ATTIVITA_STATO_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, STATO_DOCUMENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { formatDate, daysFromToday, todayISO, daysBetween } from '../../lib/date-utils'
 import { StatusBadge } from '../ui/StatusBadge'
 
-const COLOR_CLASSES = {
-  gray: 'text-gray-500 bg-gray-100',
-  mikai: 'text-mikai-600 bg-mikai-50',
-  green: 'text-green-700 bg-green-100',
-  red: 'text-red-700 bg-red-100',
-  blue: 'text-blue-700 bg-blue-100',
-  purple: 'text-purple-700 bg-purple-100',
-  emerald: 'text-emerald-700 bg-emerald-100',
-  yellow: 'text-yellow-700 bg-yellow-100',
-}
 
 // Deadline badge — prominent overdue/warning indicators
 function DeadlineBadge({ deadline, stato }) {
@@ -61,7 +51,7 @@ function ResponsabileBadge({ permesso }) {
   if (!permesso) return null
   const label = PERMESSO_SHORT_LABELS[permesso] || permesso
   const color = PERMESSO_BADGE_COLORE[permesso] || 'gray'
-  const classes = COLOR_CLASSES[color] || COLOR_CLASSES.gray
+  const classes = COLOR_BADGE[color] || COLOR_BADGE.gray
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
       {label}
@@ -125,20 +115,11 @@ export function ActivityCard({
   // ── Compact kanban card ──
   if (compact) {
     const catColor = CATEGORIA_ATTIVITA_COLORE[activity.categoria] || 'gray'
-    const bandColors = {
-      gray: 'bg-gray-300', mikai: 'bg-mikai-400', green: 'bg-green-400', red: 'bg-red-400',
-      blue: 'bg-blue-400', purple: 'bg-purple-400', emerald: 'bg-emerald-400', yellow: 'bg-yellow-400',
-    }
     // Assignee: badge colorato se sono io, neutro se è qualcun altro
     const isMyTask = currentUserId && activity.assegnato_a === currentUserId
     const roleColor = PERMESSO_BADGE_COLORE[activity.permesso_responsabile] || 'gray'
-    const NAME_BADGE_MAP = {
-      gray: 'text-gray-700 bg-gray-100', mikai: 'text-mikai-700 bg-mikai-100', green: 'text-green-700 bg-green-100',
-      red: 'text-red-700 bg-red-100', blue: 'text-blue-700 bg-blue-100', purple: 'text-purple-700 bg-purple-100',
-      emerald: 'text-emerald-700 bg-emerald-100', yellow: 'text-yellow-700 bg-yellow-100',
-    }
     const nameClasses = isMyTask
-      ? `${NAME_BADGE_MAP[roleColor] || NAME_BADGE_MAP.gray} px-1.5 py-0.5 rounded-lg`
+      ? `${COLOR_BADGE[roleColor] || COLOR_BADGE.gray} px-1.5 py-0.5 rounded-lg`
       : 'text-gray-400'
     // Document indicator color
     const docColor = linkedDoc
@@ -157,7 +138,7 @@ export function ActivityCard({
     return (
       <div className={`bg-white rounded-lg border ${borderColor} overflow-hidden ${isOverdue ? 'ring-1 ring-red-200' : ''}`}>
         <div className="flex">
-          <div className={`w-1 shrink-0 ${bandColors[catColor] || 'bg-gray-300'}`} />
+          <div className={`w-1 shrink-0 ${COLOR_BAND[catColor] || 'bg-gray-300'}`} />
           <div className="flex-1 px-2.5 py-2 space-y-1">
             {/* Row 1: description + indicator icons */}
             <div className="flex items-start gap-1">
@@ -269,13 +250,9 @@ export function ActivityCard({
 
   // ── Full card (list view) ──
   const catColor = CATEGORIA_ATTIVITA_COLORE[activity.categoria] || 'gray'
-  const bandColorsF = {
-    gray: 'bg-gray-300', mikai: 'bg-mikai-400', green: 'bg-green-400', red: 'bg-red-400',
-    blue: 'bg-blue-400', purple: 'bg-purple-400', emerald: 'bg-emerald-400', yellow: 'bg-yellow-400',
-  }
   return (
     <div className={`bg-white rounded-xl border ${borderColor} overflow-hidden flex`}>
-      <div className={`w-1.5 shrink-0 ${bandColorsF[catColor] || 'bg-gray-300'}`} />
+      <div className={`w-1.5 shrink-0 ${COLOR_BAND[catColor] || 'bg-gray-300'}`} />
       <div className="flex-1 p-3 space-y-2">
       {/* Row 1: title + flags + edit/delete */}
       <div className="flex items-start justify-between gap-2">

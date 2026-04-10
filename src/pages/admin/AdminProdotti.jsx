@@ -8,11 +8,12 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Icon } from '../../components/ui/Icon'
 import { ADMIN_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
-import { SELECT_STYLE } from '../../lib/constants'
+import { SELECT_STYLE, SUMMARY_BAR_STYLE, COLOR_BADGE } from '../../lib/constants'
 import { useProductTypes } from '../../hooks/useProductTypes'
 import { toDriveImageUrl } from '../../lib/format-utils'
 import { AdminProdottiForm } from './AdminProdottiForm'
 import { useAdminProdottiHandlers } from './useAdminProdottiHandlers'
+import { Button } from '../../components/ui/Button'
 
 export function AdminProdotti() {
   const products = useAdminStore(s => s.products)
@@ -24,6 +25,7 @@ export function AdminProdotti() {
   const createProduct = useAdminStore(s => s.createProduct)
   const updateProduct = useAdminStore(s => s.updateProduct)
   const deleteProduct = useAdminStore(s => s.deleteProduct)
+  const bulkUpdateProducts = useAdminStore(s => s.bulkUpdateProducts)
   const setProductBodySections = useAdminStore(s => s.setProductBodySections)
   const addToast = useToastStore(s => s.add)
   const { productTypes, labels: tipoLabels } = useProductTypes()
@@ -37,6 +39,9 @@ export function AdminProdotti() {
   const [filterTipo, setFilterTipo] = useState('')
   const [filterBrand, setFilterBrand] = useState('')
   const [filterAttivo, setFilterAttivo] = useState('')
+  const [selected, setSelected] = useState(new Set())
+  const [bulkTipo, setBulkTipo] = useState('')
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   useEffect(() => {
     fetchProducts()
@@ -89,7 +94,10 @@ export function AdminProdotti() {
     const res = isNew ? await createProduct(payload) : await updateProduct(editing.id, payload)
     if (res.error) { setSaving(false); addToast(res.error, 'error'); return }
     const productId = isNew ? res.data?.id : editing.id
-    if (productId) await setProductBodySections(productId, selectedSections)
+    if (productId) {
+      const sectRes = await setProductBodySections(productId, selectedSections)
+      if (sectRes?.error) { addToast('Errore salvataggio distretti: ' + sectRes.error, 'error') }
+    }
     setSaving(false)
     addToast(isNew ? 'Prodotto creato' : 'Prodotto aggiornato', 'success')
     if (isNew && productId) setEditing(prev => ({ ...prev, id: productId }))
@@ -145,8 +153,8 @@ export function AdminProdotti() {
     { key: 'modalita', label: 'Modalità', render: (r) => {
       const ser = r.serializzato !== undefined ? r.serializzato : h.defaultSerializzato(r.tipo)
       return ser
-        ? <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Esemplari</span>
-        : <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Quantità</span>
+        ? <span className={`px-2 py-1 rounded-full text-xs font-medium ${COLOR_BADGE.blue}`}>Esemplari</span>
+        : <span className={`px-2 py-1 rounded-full text-xs font-medium ${COLOR_BADGE.amber}`}>Quantità</span>
     }},
     { key: 'inventario', label: 'Inventario', render: (r) => {
       const ser = r.serializzato !== undefined ? r.serializzato : h.defaultSerializzato(r.tipo)
@@ -165,13 +173,32 @@ export function AdminProdotti() {
       )
     }},
     { key: 'attivo', label: 'Attivo', render: (r) => (
-      <span className={`px-2 py-1 rounded-full text-sm font-medium ${r.attivo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+      <span className={`px-2 py-1 rounded-full text-sm font-medium ${r.attivo ? COLOR_BADGE.green : COLOR_BADGE.gray}`}>
         {r.attivo ? 'Sì' : 'No'}
       </span>
     )},
   ]
 
   const stockUnderThreshold = h.stock.quantita_disponibile <= h.stock.soglia_minima && h.stock.quantita_disponibile !== null
+
+  const toggleSelect = (id) => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+  const toggleSelectAll = (ids) => {
+    const allSelected = ids.every(id => selected.has(id))
+    setSelected(allSelected ? new Set() : new Set(ids))
+  }
+
+  const handleBulkTipo = async () => {
+    if (!bulkTipo || selected.size === 0) return
+    setBulkLoading(true)
+    const { error } = await bulkUpdateProducts([...selected], { tipo: bulkTipo })
+    setBulkLoading(false)
+    if (error) addToast(error, 'error')
+    else {
+      addToast(`${selected.size} prodotti aggiornati a "${tipoLabels[bulkTipo] || bulkTipo}"`, 'success')
+      setSelected(new Set())
+      setBulkTipo('')
+    }
+  }
 
   return (
     <div>
@@ -205,6 +232,31 @@ export function AdminProdotti() {
             )}
           </div>
         )}
+        {/* Bulk action bar */}
+        {!editing && selected.size > 0 && (
+          <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap mb-4'}>
+            <span className="text-sm font-semibold text-mikai-700">{selected.size} selezionati</span>
+            <select
+              value={bulkTipo}
+              onChange={e => setBulkTipo(e.target.value)}
+              className={SELECT_STYLE + ' max-w-[200px]'}
+            >
+              <option value="">Cambia tipologia...</option>
+              {productTypes.filter(pt => pt.attivo).map(pt => (
+                <option key={pt.codice} value={pt.codice}>{pt.nome}</option>
+              ))}
+            </select>
+            {bulkTipo && (
+              <Button size="sm" onClick={handleBulkTipo} loading={bulkLoading}>
+                Applica a {selected.size} prodotti
+              </Button>
+            )}
+            <button onClick={() => { setSelected(new Set()); setBulkTipo('') }} className="text-sm text-gray-500 hover:text-gray-700 min-h-[48px] px-2">
+              Deseleziona
+            </button>
+          </div>
+        )}
+
         {editing ? (
           <AdminProdottiForm
             editing={editing} setEditing={setEditing} saving={saving}
@@ -222,7 +274,7 @@ export function AdminProdotti() {
             editingSpecimen={h.editingSpecimen} editingSpecimenData={h.editingSpecimenData} setEditingSpecimenData={h.setEditingSpecimenData}
             deletingSpecimen={h.deletingSpecimen} setDeletingSpecimen={h.setDeletingSpecimen} specimenSaving={h.specimenSaving}
             handleAddSpecimen={() => h.handleAddSpecimen(editing.id, editing)} handleStartEditSpecimen={h.handleStartEditSpecimen}
-            handleSaveSpecimen={h.handleSaveSpecimen} handleDeleteSpecimen={() => h.handleDeleteSpecimen(editing?.id)}
+            handleSaveSpecimen={() => h.handleSaveSpecimen(editing.id)} handleDeleteSpecimen={() => h.handleDeleteSpecimen(editing?.id)}
             stock={h.stock} setStock={h.setStock} stockSaving={h.stockSaving} stockUnderThreshold={stockUnderThreshold}
             lottoQty={h.lottoQty} setLottoQty={h.setLottoQty} lottoMotivo={h.lottoMotivo} setLottoMotivo={h.setLottoMotivo} lottoSaving={h.lottoSaving}
             stockHistory={h.stockHistory} showHistory={h.showHistory} setShowHistory={h.setShowHistory}
@@ -240,6 +292,9 @@ export function AdminProdotti() {
             onEdit={handleEdit}
             onDelete={(row) => setDeleting(row)}
             addLabel="Nuovo prodotto"
+            selected={selected}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
           />
         )}
       </div>

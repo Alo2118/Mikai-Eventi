@@ -1,7 +1,7 @@
 import { useState, useEffect, memo } from 'react'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS, POSIZIONE_ICONS, NAV_ICONS } from '../../lib/icons'
-import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, CARD_ITEM_STYLE, CARD_STYLE } from '../../lib/constants'
+import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, CARD_ITEM_STYLE, CARD_STYLE, COLOR_BG_100, COLOR_TEXT_600 } from '../../lib/constants'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Button } from '../ui/Button'
 import { formatDateRange, formatDateShort } from '../../lib/date-utils'
@@ -9,9 +9,6 @@ import { formatDateRange, formatDateShort } from '../../lib/date-utils'
 // Compact action button — icon only, no label
 const ACT_BTN = 'min-h-[44px] min-w-[44px] md:min-h-[36px] md:min-w-[36px] rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105'
 
-// Color utilities for dynamic product types
-const COLOR_BG = { blue: 'bg-blue-100', purple: 'bg-purple-100', orange: 'bg-orange-100', gray: 'bg-gray-100', pink: 'bg-pink-100', amber: 'bg-amber-100', emerald: 'bg-emerald-100', yellow: 'bg-yellow-100', red: 'bg-red-100', green: 'bg-green-100', mikai: 'bg-mikai-100' }
-const COLOR_TEXT = { blue: 'text-blue-600', purple: 'text-purple-600', orange: 'text-orange-600', gray: 'text-gray-600', pink: 'text-pink-600', amber: 'text-amber-600', emerald: 'text-emerald-600', yellow: 'text-yellow-600', red: 'text-red-600', green: 'text-green-600', mikai: 'text-mikai-600' }
 
 const STATE_BORDER = {
   spedito: 'border-emerald-300 bg-emerald-50/30',
@@ -91,14 +88,14 @@ export const MaterialListRow = memo(function MaterialListRow({
       >
         <div className="flex items-center gap-2">
           {/* Type icon — small */}
-          <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${COLOR_BG[tipoColor] || 'bg-gray-100'}`}>
-            <Icon icon={tipoIcon} size={14} className={COLOR_TEXT[tipoColor] || 'text-gray-600'} />
+          <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${COLOR_BG_100[tipoColor] || 'bg-gray-100'}`}>
+            <Icon icon={tipoIcon} size={14} className={COLOR_TEXT_600[tipoColor] || 'text-gray-600'} />
           </div>
 
           {/* Name + meta inline */}
           <div className="flex-1 min-w-0 flex items-center gap-x-3 gap-y-0.5 flex-wrap">
             <span className="text-sm font-medium text-gray-900 truncate max-w-[200px] md:max-w-[280px]">{product?.nome}</span>
-            <span className={`text-xs ${COLOR_TEXT[tipoColor] || 'text-gray-500'}`}>{tipoLabel}</span>
+            <span className={`text-xs ${COLOR_TEXT_600[tipoColor] || 'text-gray-500'}`}>{tipoLabel}</span>
             {product?.brand?.nome && <span className="text-xs text-gray-400 hidden md:inline">· {product.brand.nome}</span>}
             {product?.codice && <span className="text-xs text-gray-400 font-mono hidden lg:inline">{product.codice}</span>}
             {hasAvailability && (

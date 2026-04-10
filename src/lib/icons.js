@@ -668,4 +668,29 @@ export const ICON_BY_NAME = {
   'package': Package,
   'truck': Truck,
   'gift': Gift,
+  'layers': Layers,
+  'flask': FlaskConical,
+  'wrench': Wrench,
+  'cpu': Cpu,
 }
+
+// Picker options for admin pages — single source of truth
+export const ICON_PICKER_OPTIONS = [
+  { value: 'package', label: 'Kit' },
+  { value: 'layers', label: 'Livelli' },
+  { value: 'gift', label: 'Gadget' },
+  { value: 'bone', label: 'Osso' },
+  { value: 'flask', label: 'Laboratorio' },
+  { value: 'wrench', label: 'Montaggio' },
+  { value: 'cpu', label: 'Componente' },
+  { value: 'truck', label: 'Spedizione' },
+  { value: 'presentation', label: 'Presentazione' },
+  { value: 'graduation-cap', label: 'Corso' },
+  { value: 'building-2', label: 'Edificio' },
+  { value: 'message-square', label: 'Convegno' },
+  { value: 'heart-pulse', label: 'Chirurgia' },
+  { value: 'microscope', label: 'Microscopio' },
+  { value: 'stethoscope', label: 'Stetoscopio' },
+  { value: 'users', label: 'Persone' },
+  { value: 'calendar', label: 'Calendario' },
+]

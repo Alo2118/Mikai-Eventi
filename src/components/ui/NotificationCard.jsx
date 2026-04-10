@@ -1,17 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { Icon } from './Icon'
 import { NOTIFICA_ICONS } from '../../lib/icons'
-import { TIPO_NOTIFICA, TIPO_NOTIFICA_COLORE } from '../../lib/constants'
+import { TIPO_NOTIFICA, TIPO_NOTIFICA_COLORE, COLOR_TEXT_600 } from '../../lib/constants'
 import { formatRelativeTime } from '../../lib/date-utils'
 import { useNotificationsStore } from '../../hooks/useNotifications'
 
-const COLOR_MAP = {
-  yellow: 'text-yellow-600',
-  green: 'text-green-600',
-  red: 'text-red-600',
-  blue: 'text-blue-600',
-  mikai: 'text-mikai-500',
-}
 
 // Map notification types to event detail tabs
 const TIPO_TAB_MAP = {
@@ -46,7 +39,7 @@ export function NotificationCard({ notification, compact = false, onNavigate }) 
   const unread = !notification.letta
   const tipo = notification.tipo
   const IconComp = NOTIFICA_ICONS[tipo] || NOTIFICA_ICONS.bell_ring
-  const colorClass = COLOR_MAP[TIPO_NOTIFICA_COLORE[tipo]] || 'text-gray-500'
+  const colorClass = COLOR_TEXT_600[TIPO_NOTIFICA_COLORE[tipo]] || 'text-gray-500'
 
   function handleClick() {
     if (unread) markAsRead(notification.id)

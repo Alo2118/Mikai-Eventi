@@ -5,25 +5,17 @@ import { Modal } from '../ui/Modal'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { ACTION_ICONS, MATERIALE_ICONS, POSIZIONE_ICONS } from '../../lib/icons'
-import { POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE } from '../../lib/constants'
+import { POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, COLOR_TEXT_700, COLOR_BG_50, COLOR_BORDER_200 } from '../../lib/constants'
 import { useCatalogStore } from '../../hooks/useCatalog'
 import { toDriveImageUrl } from '../../lib/format-utils'
 
 function PositionBadge({ posizione }) {
   const label = POSIZIONE_MATERIALE[posizione] ?? posizione
   const color = POSIZIONE_MATERIALE_COLORE[posizione] ?? 'gray'
-  const iconMap = {
-    green: 'text-green-700 bg-green-50 border-green-200',
-    blue: 'text-blue-700 bg-blue-50 border-blue-200',
-    yellow: 'text-yellow-700 bg-yellow-50 border-yellow-200',
-    mikai: 'text-mikai-700 bg-mikai-50 border-mikai-200',
-    red: 'text-red-700 bg-red-50 border-red-200',
-    gray: 'text-gray-700 bg-gray-50 border-gray-200',
-  }
   const iconComp = POSIZIONE_ICONS[posizione]
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${iconMap[color]}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${COLOR_TEXT_700[color] || COLOR_TEXT_700.gray} ${COLOR_BG_50[color] || COLOR_BG_50.gray} ${COLOR_BORDER_200[color] || COLOR_BORDER_200.gray}`}>
       {iconComp && <Icon icon={iconComp} size={12} />}
       {label}
     </span>

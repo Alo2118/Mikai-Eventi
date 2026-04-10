@@ -1,26 +1,6 @@
 import { useEventTypes } from '../../hooks/useEventTypes'
 import { Icon } from '../ui/Icon'
-
-const COLOR_BG_SELECTED = {
-  gray: 'bg-gray-400', blue: 'bg-blue-400', emerald: 'bg-emerald-400', purple: 'bg-purple-400',
-  yellow: 'bg-yellow-400', orange: 'bg-orange-400', amber: 'bg-amber-400', red: 'bg-red-400',
-  green: 'bg-green-400', mikai: 'bg-mikai-400', pink: 'bg-pink-400', sky: 'bg-sky-400',
-}
-const COLOR_BG_LIGHT = {
-  gray: 'bg-gray-50', blue: 'bg-blue-50', emerald: 'bg-emerald-50', purple: 'bg-purple-50',
-  yellow: 'bg-yellow-50', orange: 'bg-orange-50', amber: 'bg-amber-50', red: 'bg-red-50',
-  green: 'bg-green-50', mikai: 'bg-mikai-50', pink: 'bg-pink-50', sky: 'bg-sky-50',
-}
-const COLOR_BORDER = {
-  gray: 'border-gray-400', blue: 'border-blue-400', emerald: 'border-emerald-400', purple: 'border-purple-400',
-  yellow: 'border-yellow-400', orange: 'border-orange-400', amber: 'border-amber-400', red: 'border-red-400',
-  green: 'border-green-400', mikai: 'border-mikai-400', pink: 'border-pink-400', sky: 'border-sky-400',
-}
-const COLOR_TEXT = {
-  gray: 'text-gray-700', blue: 'text-blue-700', emerald: 'text-emerald-700', purple: 'text-purple-700',
-  yellow: 'text-yellow-700', orange: 'text-orange-700', amber: 'text-amber-700', red: 'text-red-700',
-  green: 'text-green-700', mikai: 'text-mikai-700', pink: 'text-pink-700', sky: 'text-sky-700',
-}
+import { COLOR_BG_400, COLOR_BG_50, COLOR_BORDER_400, COLOR_TEXT_700 } from '../../lib/constants'
 
 export function WizardStepTipo({ value, onChange }) {
   const { eventTypes, icons } = useEventTypes()
@@ -43,12 +23,12 @@ export function WizardStepTipo({ value, onChange }) {
               onClick={() => onChange(et.codice)}
               className={`relative flex items-center gap-4 p-5 rounded-xl border-2 text-left min-h-[72px] transition-all ${
                 isSelected
-                  ? `${COLOR_BORDER[color] || 'border-mikai-400'} ${COLOR_BG_LIGHT[color] || 'bg-mikai-50'} ${COLOR_TEXT[color] || 'text-mikai-700'} shadow-sm`
+                  ? `${COLOR_BORDER_400[color] || 'border-mikai-400'} ${COLOR_BG_50[color] || 'bg-mikai-50'} ${COLOR_TEXT_700[color] || 'text-mikai-700'} shadow-sm`
                   : 'border-gray-200 hover:border-gray-300 text-gray-700'
               }`}
             >
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                isSelected ? `${COLOR_BG_SELECTED[color] || 'bg-mikai-400'} text-white` : 'bg-gray-100 text-gray-500'
+                isSelected ? `${COLOR_BG_400[color] || 'bg-mikai-400'} text-white` : 'bg-gray-100 text-gray-500'
               }`}>
                 {tipoIcon
                   ? <Icon icon={tipoIcon} size={24} />
@@ -58,7 +38,7 @@ export function WizardStepTipo({ value, onChange }) {
               <span className="text-lg font-medium">{et.nome}</span>
 
               {isSelected && (
-                <div className={`absolute top-3 right-3 w-7 h-7 rounded-full ${COLOR_BG_SELECTED[color] || 'bg-mikai-400'} text-white flex items-center justify-center`}>
+                <div className={`absolute top-3 right-3 w-7 h-7 rounded-full ${COLOR_BG_400[color] || 'bg-mikai-400'} text-white flex items-center justify-center`}>
                   <Icon name="check" size={16} strokeWidth={3} />
                 </div>
               )}

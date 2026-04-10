@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 import { CATEGORIA_ICONS, FEEDBACK_ICONS, ACTION_ICONS, NAV_ICONS } from '../../lib/icons'
-import { PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
+import { PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE, COLOR_BADGE } from '../../lib/constants'
 import { formatDate, todayISO } from '../../lib/date-utils'
 
 const URGENCY = {
@@ -11,15 +11,6 @@ const URGENCY = {
   soon:    { border: 'border-l-mikai-400', badge: 'bg-mikai-50 text-mikai-700', bg: '' },
   normal:  { border: 'border-l-gray-300', badge: 'bg-gray-100 text-gray-600', bg: '' },
   none:    { border: 'border-l-gray-200', badge: '', bg: '' },
-}
-
-const PERM_COLORS = {
-  purple: 'text-purple-700 bg-purple-100',
-  blue: 'text-blue-700 bg-blue-100',
-  mikai: 'text-mikai-600 bg-mikai-50',
-  emerald: 'text-emerald-700 bg-emerald-100',
-  yellow: 'text-yellow-700 bg-yellow-100',
-  gray: 'text-gray-500 bg-gray-100',
 }
 
 function deadlineInfo(deadline) {
@@ -42,7 +33,7 @@ function deadlineInfo(deadline) {
 export const ActivityCard = memo(function ActivityCard({ act, onComplete, onAssign, completing }) {
   const dl = deadlineInfo(act.deadline)
   const u = URGENCY[dl.urgency]
-  const permColor = PERM_COLORS[PERMESSO_BADGE_COLORE[act.permesso_responsabile] || 'gray'] || PERM_COLORS.gray
+  const permColor = COLOR_BADGE[PERMESSO_BADGE_COLORE[act.permesso_responsabile] || 'gray'] || COLOR_BADGE.gray
 
   return (
     <div className={`rounded-xl border border-gray-200 border-l-4 ${u.border} overflow-hidden hover:shadow-md transition-shadow ${u.bg || 'bg-white'}`}>

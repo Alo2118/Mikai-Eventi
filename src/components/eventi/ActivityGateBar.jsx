@@ -5,7 +5,6 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FEEDBACK_ICONS, ACTION_ICONS } from '../../lib/icons'
-import { SUMMARY_BAR_STYLE } from '../../lib/constants'
 
 function GateBlockerBanner({ items }) {
   const [expanded, setExpanded] = useState(false)
@@ -33,7 +32,6 @@ function GateBlockerBanner({ items }) {
   )
 }
 
-// Maps current stato → next stato + button label + human-readable name
 const NEXT_STATE = {
   confermato: { stato: 'in_preparazione', label: 'Avvia preparazione', nome: 'in preparazione' },
   in_preparazione: { stato: 'pronto', label: 'Segna come pronto', nome: 'pronto' },
@@ -41,7 +39,7 @@ const NEXT_STATE = {
   in_corso: { stato: 'concluso', label: 'Concludi evento', nome: 'concluso' },
 }
 
-export function ActivityGateBar({ event, activities, onUpdate, materialShipped }) {
+export function ActivityGateBar({ event, activities, onUpdate, materialShipped, hasMaterials, hasLogistics }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [unreturnedMaterials, setUnreturnedMaterials] = useState([])
@@ -55,14 +53,28 @@ export function ActivityGateBar({ event, activities, onUpdate, materialShipped }
   const mandatoryIncomplete = activities.filter(
     a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata'
   )
-  // Gates: in_preparazione → pronto requires all mandatory activities complete AND material shipped
-  // materialShipped: true if no materials exist, or all are spedito, or spedizione_data is set
+
+  // Gate for in_preparazione → pronto
   const activitiesReady = mandatoryIncomplete.length === 0
-  const shipmentReady = materialShipped !== false // undefined = no materials, true = shipped
+  const shipmentReady = !hasMaterials || materialShipped
+  const hasContent = activities.length > 0 || hasMaterials || hasLogistics
   const canAdvance = event.stato !== 'in_preparazione' || (activitiesReady && shipmentReady)
 
+  // Determine confirm dialog message
+  function getConfirmMessage() {
+    if (unreturnedMaterials.length > 0) {
+      return `Attenzione: ${unreturnedMaterials.length} materiali non sono ancora rientrati. Vuoi concludere comunque?`
+    }
+    if (event.stato === 'in_preparazione' && !hasContent) {
+      return 'Questo evento non ha attività, materiale o persone assegnate. Vuoi procedere alla fase successiva senza nessuna preparazione?'
+    }
+    if (event.stato === 'in_preparazione' && !shipmentReady) {
+      return 'Il materiale non è stato ancora spedito. Vuoi procedere comunque?'
+    }
+    return `Confermi di voler passare l'evento a "${next.nome}"?`
+  }
+
   async function handleAdvanceClick() {
-    // For in_corso → concluso: check unreturned materials first
     if (event.stato === 'in_corso') {
       const { canAdvance: matOk, unreturned } = await checkGateConcluded(event.id)
       if (!matOk) {
@@ -82,19 +94,26 @@ export function ActivityGateBar({ event, activities, onUpdate, materialShipped }
     if (error) {
       addToast('Impossibile aggiornare lo stato. Riprova.', 'error')
     } else {
-      addToast(`Stato aggiornato: ${next.label}`, 'success')
+      addToast(`Evento passato a: ${next.nome}`, 'success')
       if (onUpdate) onUpdate()
     }
   }
 
+  // Explanation text for disabled state
+  const blockerText = !activitiesReady && !shipmentReady
+    ? 'Completa le attività obbligatorie e registra la spedizione'
+    : !activitiesReady
+      ? 'Completa le attività obbligatorie prima di procedere'
+      : !shipmentReady
+        ? 'Registra la spedizione del materiale prima di procedere'
+        : null
+
   return (
     <div className="space-y-3">
-      {/* Gate blocker banner — visible when mandatory activities are incomplete */}
       {mandatoryIncomplete.length > 0 && (
         <GateBlockerBanner items={mandatoryIncomplete} />
       )}
 
-      {/* Advance state bar — compact inline */}
       <div className="flex items-center gap-3 flex-wrap">
         <Button
           variant="primary"
@@ -104,26 +123,17 @@ export function ActivityGateBar({ event, activities, onUpdate, materialShipped }
         >
           {next.label}
         </Button>
-        {!canAdvance && (
-          <p className="text-xs text-gray-400">
-            {!activitiesReady && !shipmentReady
-              ? 'Completa le attività obbligatorie e registra la spedizione del materiale'
-              : !activitiesReady
-                ? 'Completa le attività obbligatorie prima di procedere'
-                : 'Registra la spedizione del materiale prima di procedere'
-            }
-          </p>
+        {!canAdvance && blockerText && (
+          <p className="text-xs text-gray-400">{blockerText}</p>
         )}
       </div>
 
       <ConfirmDialog
         open={showConfirm}
         title={next.label}
-        message={unreturnedMaterials.length > 0
-          ? `Attenzione: ${unreturnedMaterials.length} materiali non sono ancora rientrati. Vuoi concludere comunque?`
-          : 'Confermi di voler avanzare lo stato dell\'evento?'}
+        message={getConfirmMessage()}
         confirmLabel="Conferma"
-        danger={unreturnedMaterials.length > 0}
+        danger={unreturnedMaterials.length > 0 || (event.stato === 'in_preparazione' && !hasContent)}
         onConfirm={handleConfirm}
         onCancel={() => { setShowConfirm(false); setUnreturnedMaterials([]) }}
       />

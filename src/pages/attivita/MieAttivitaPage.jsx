@@ -9,20 +9,9 @@ import { Icon } from '../../components/ui/Icon'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { useToastStore } from '../../components/ui/Toast'
-import { CATEGORIA_ATTIVITA, CARD_HOVER_STYLE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE } from '../../lib/constants'
+import { CATEGORIA_ATTIVITA, CARD_HOVER_STYLE, PERMESSO_SHORT_LABELS, PERMESSO_BADGE_COLORE, COLOR_BADGE } from '../../lib/constants'
 import { CATEGORIA_ICONS, ATTIVITA_STATO_ICONS, FEEDBACK_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { formatDate } from '../../lib/date-utils'
-
-const COLOR_CLASSES = {
-  gray: 'text-gray-500 bg-gray-100',
-  mikai: 'text-mikai-600 bg-mikai-50',
-  green: 'text-green-700 bg-green-100',
-  red: 'text-red-700 bg-red-100',
-  blue: 'text-blue-700 bg-blue-100',
-  purple: 'text-purple-700 bg-purple-100',
-  emerald: 'text-emerald-700 bg-emerald-100',
-  yellow: 'text-yellow-700 bg-yellow-100',
-}
 
 function urgencyLabel(deadline) {
   if (!deadline) return null
@@ -78,7 +67,7 @@ function MyActivityCard({ act }) {
 function UnclaimedActivityCard({ act, onClaim, claiming }) {
   const urgency = urgencyLabel(act.deadline)
   const badgeColor = PERMESSO_BADGE_COLORE[act.permesso_responsabile] || 'gray'
-  const badgeClasses = COLOR_CLASSES[badgeColor] || COLOR_CLASSES.gray
+  const badgeClasses = COLOR_BADGE[badgeColor] || COLOR_BADGE.gray
 
   return (
     <div className={CARD_HOVER_STYLE + ' space-y-2'}>

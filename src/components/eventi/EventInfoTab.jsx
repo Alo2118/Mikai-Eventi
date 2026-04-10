@@ -5,9 +5,13 @@ import { EventStatusFlow } from './EventStatusFlow'
 import { EventApprovalBar } from './EventApprovalBar'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { useEventTypes } from '../../hooks/useEventTypes'
 import { useEventsStore } from '../../hooks/useEvents'
+import { useActivitiesStore } from '../../hooks/useActivities'
+import { useStaffStore } from '../../hooks/useStaff'
+import { useParticipantsStore } from '../../hooks/useParticipants'
+import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useAdminStore } from '../../hooks/useAdmin'
 import { useContactsStore } from '../../hooks/useContacts'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -59,6 +63,10 @@ export function EventInfoTab({ event, onUpdate }) {
   const hasPermission = useAuthStore(s => s.hasPermission)
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
+  const eventActivities = useActivitiesStore(s => s.eventActivities)
+  const eventStaff = useStaffStore(s => s.staff)
+  const eventParticipants = useParticipantsStore(s => s.participants)
+  const eventMaterials = useMaterialsStore(s => s.eventMaterials)
 
   const canEdit =
     !NON_EDITABLE_STATES.includes(event.stato) &&
@@ -140,8 +148,32 @@ export function EventInfoTab({ event, onUpdate }) {
   return (
     <div className="space-y-4">
       <EventApprovalBar event={event} onUpdate={onUpdate} />
-      <div className="flex items-center justify-between gap-3">
-        <EventStatusFlow stato={event.stato} />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <EventStatusFlow
+          event={event}
+          onUpdate={onUpdate}
+          canAdvance={(() => {
+            if (!['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(event.stato)) return false
+            if (event.stato === 'in_preparazione') {
+              const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
+              const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
+              const shipped = event.modalita === 'contributo' || !!event.spedizione_data
+              return mandatoryIncomplete.length === 0 && (!hasMat || shipped)
+            }
+            return true
+          })()}
+          blockerText={(() => {
+            if (event.stato !== 'in_preparazione') return null
+            const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
+            const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
+            const shipped = event.modalita === 'contributo' || !!event.spedizione_data
+            if (mandatoryIncomplete.length > 0 && hasMat && !shipped) return 'Completa le attività e registra la spedizione'
+            if (mandatoryIncomplete.length > 0) return 'Completa le attività obbligatorie'
+            if (hasMat && !shipped) return 'Registra la spedizione del materiale'
+            return null
+          })()}
+          hasContent={eventActivities.length > 0 || eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0 || eventStaff.length > 0 || eventParticipants.length > 0}
+        />
         {canEdit && !editing && (
           <Button variant="secondary" onClick={handleStartEdit} className="shrink-0">
             <Icon icon={ACTION_ICONS.edit} size={16} className="mr-1.5" />

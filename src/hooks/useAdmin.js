@@ -86,6 +86,12 @@ export const useAdminStore = create((set, get) => ({
     return { data, error: error?.message || null }
   },
 
+  bulkUpdateProducts: async (ids, updates) => {
+    const { error } = await supabase.from('products').update(updates).in('id', ids)
+    if (!error) get().fetchProducts()
+    return { count: ids.length, error: error?.message || null }
+  },
+
   deleteProduct: async (id) => {
     const { error } = await supabase.from('products').delete().eq('id', id)
     if (!error) get().fetchProducts()

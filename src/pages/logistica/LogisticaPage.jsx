@@ -8,6 +8,7 @@ import { LogisticaTimeline } from './LogisticaTimeline'
 import { LogisticaMatrice } from './LogisticaMatrice'
 import { LogisticaRientri } from './LogisticaRientri'
 import { LogisticaInventario } from './LogisticaInventario'
+import { LogisticaFabbisogno } from './LogisticaFabbisogno'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { exportToExcelMultiSheet } from '../../lib/export-utils'
 import { STATO_PRENOTAZIONE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO } from '../../lib/constants'
@@ -15,6 +16,7 @@ import { formatDate, todayISO } from '../../lib/date-utils'
 import { useToastStore } from '../../components/ui/Toast'
 
 const TABS = [
+  { id: 'fabbisogno', label: 'Fabbisogno' },
   { id: 'timeline', label: 'Spedizioni' },
   { id: 'matrice', label: 'Matrice' },
   { id: 'rientri', label: 'Rientri' },
@@ -45,7 +47,7 @@ function personName(r) {
 }
 
 export function LogisticaPage() {
-  const [activeTab, setActiveTab] = useState('timeline')
+  const [activeTab, setActiveTab] = useState('fabbisogno')
   const [exporting, setExporting] = useState(false)
   const fetchAllPendingHotels = useLogisticsStore(s => s.fetchAllPendingHotels)
   const fetchAllPendingTrasporti = useLogisticsStore(s => s.fetchAllPendingTrasporti)
@@ -109,6 +111,7 @@ export function LogisticaPage() {
       <div className="px-4 md:px-6">
         <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
       </div>
+      {activeTab === 'fabbisogno' && <LogisticaFabbisogno />}
       {activeTab === 'timeline' && <LogisticaTimeline />}
       {activeTab === 'matrice' && <LogisticaMatrice />}
       {activeTab === 'rientri' && <LogisticaRientri />}

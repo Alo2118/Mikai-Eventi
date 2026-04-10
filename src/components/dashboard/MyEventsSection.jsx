@@ -1,19 +1,12 @@
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { EmptyState } from '../ui/EmptyState'
-import { STATO_EVENTO, STATO_EVENTO_COLORE, CARD_STYLE } from '../../lib/constants'
+import { STATO_EVENTO, STATO_EVENTO_COLORE, COLOR_BG_50, COLOR_BORDER_200, COLOR_TEXT_700, CARD_STYLE } from '../../lib/constants'
 import { formatDateRange, todayISO, daysFromToday } from '../../lib/date-utils'
 
-// Color classes for stato mini-cards
-const STATO_BADGE_CLASSES = {
-  proposto:       'bg-yellow-50 border-yellow-200 text-yellow-700',
-  confermato:     'bg-blue-50 border-blue-200 text-blue-700',
-  in_preparazione:'bg-mikai-50 border-mikai-200 text-mikai-700',
-  pronto:         'bg-green-50 border-green-200 text-green-700',
-  in_corso:       'bg-emerald-50 border-emerald-200 text-emerald-700',
-  concluso:       'bg-gray-50 border-gray-200 text-gray-600',
-  cancellato:     'bg-red-50 border-red-200 text-red-700',
-  rifiutato:      'bg-red-50 border-red-200 text-red-700',
+function statoBadgeClasses(stato) {
+  const color = STATO_EVENTO_COLORE[stato] || 'gray'
+  return `${COLOR_BG_50[color] || COLOR_BG_50.gray} ${COLOR_BORDER_200[color] || COLOR_BORDER_200.gray} ${COLOR_TEXT_700[color] || COLOR_TEXT_700.gray}`
 }
 
 export function MyEventsSection({ events }) {
@@ -49,7 +42,7 @@ export function MyEventsSection({ events }) {
             <Link
               key={stato}
               to={`/eventi?stato=${stato}`}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium min-h-[48px] transition-opacity hover:opacity-80 ${STATO_BADGE_CLASSES[stato] || 'bg-gray-50 border-gray-200 text-gray-700'}`}
+              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium min-h-[48px] transition-opacity hover:opacity-80 ${statoBadgeClasses(stato)}`}
             >
               <span className="truncate">{STATO_EVENTO[stato]}</span>
               <span className="text-lg font-bold ml-2 shrink-0">{count}</span>

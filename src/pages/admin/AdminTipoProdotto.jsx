@@ -7,16 +7,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { ACTION_ICONS } from '../../lib/icons'
-import { CARD_STYLE, FORM_CONTAINER_STYLE, INPUT_STYLE } from '../../lib/constants'
-
-const COLORI = ['gray', 'blue', 'emerald', 'purple', 'yellow', 'orange', 'amber', 'red', 'green', 'mikai', 'pink', 'sky']
-
-const COLOR_PREVIEW = {
-  gray: 'bg-gray-400', blue: 'bg-blue-400', emerald: 'bg-emerald-400', purple: 'bg-purple-400',
-  yellow: 'bg-yellow-400', orange: 'bg-orange-400', amber: 'bg-amber-400', red: 'bg-red-400',
-  green: 'bg-green-400', mikai: 'bg-mikai-400', pink: 'bg-pink-400', sky: 'bg-sky-400',
-}
+import { ACTION_ICONS, ICON_PICKER_OPTIONS } from '../../lib/icons'
+import { CARD_STYLE, FORM_CONTAINER_STYLE, INPUT_STYLE, COLORI_LIST, COLOR_BG_400 } from '../../lib/constants'
 
 export function AdminTipoProdotto() {
   const productTypes = useAdminStore(s => s.productTypes)
@@ -34,7 +26,7 @@ export function AdminTipoProdotto() {
   useEffect(() => { fetchProductTypes() }, [])
 
   function handleNew() {
-    setEditing({ codice: '', nome: '', colore: 'gray', icona: 'package', ordine: (productTypes.length + 1) * 10, attivo: true })
+    setEditing({ codice: '', nome: '', colore: 'gray', icona: 'package', ordine: (productTypes.length + 1) * 10, attivo: true, _isNew: true })
   }
 
   function handleEdit(pt) {
@@ -125,12 +117,12 @@ export function AdminTipoProdotto() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Colore</label>
                 <div className="flex flex-wrap gap-2">
-                  {COLORI.map(c => (
+                  {COLORI_LIST.map(c => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setEditing(prev => ({ ...prev, colore: c }))}
-                      className={`w-8 h-8 rounded-full ${COLOR_PREVIEW[c]} transition-all ${
+                      className={`w-8 h-8 rounded-full ${COLOR_BG_400[c]} transition-all ${
                         editing.colore === c ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : 'hover:scale-105'
                       }`}
                       aria-label={c}
@@ -138,6 +130,29 @@ export function AdminTipoProdotto() {
                   ))}
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Icona</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ICON_PICKER_OPTIONS.map(ic => (
+                    <button
+                      key={ic.value}
+                      type="button"
+                      onClick={() => setEditing(prev => ({ ...prev, icona: ic.value }))}
+                      className={`min-h-[44px] min-w-[44px] rounded-lg flex items-center justify-center transition-all text-sm ${
+                        editing.icona === ic.value
+                          ? 'bg-mikai-100 text-mikai-700 ring-2 ring-mikai-400'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                      aria-label={ic.label}
+                      title={ic.label}
+                    >
+                      <Icon name={ic.value} size={18} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ordine</label>
                 <input type="number" className={INPUT_STYLE} value={editing.ordine} onChange={set('ordine')} />
@@ -167,7 +182,9 @@ export function AdminTipoProdotto() {
               className={CARD_STYLE + ' flex items-center gap-4 cursor-pointer hover:shadow-md transition-all'}
               onClick={() => handleEdit(pt)}
             >
-              <div className={`w-4 h-4 rounded-full ${COLOR_PREVIEW[pt.colore] || 'bg-gray-400'}`} />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${COLOR_BG_400[pt.colore] || 'bg-gray-400'}`}>
+                <Icon name={pt.icona || 'package'} size={16} className="text-white" />
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-base font-medium text-gray-900">{pt.nome}</p>
                 <p className="text-sm text-gray-500">{pt.codice}</p>

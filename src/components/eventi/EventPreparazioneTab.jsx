@@ -3,17 +3,18 @@ import { useActivitiesStore } from '../../hooks/useActivities'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useStaffStore } from '../../hooks/useStaff'
+import { useParticipantsStore } from '../../hooks/useParticipants'
+import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
-import { ActivityGateBar } from './ActivityGateBar'
 import { Modal } from '../ui/Modal'
 import { DocumentUploadModal } from './DocumentUploadModal'
 import { ActivityEditModal } from './ActivityEditModal'
 import { DocApprovalDialog } from './DocApprovalDialog'
-import { CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
+import { CATEGORIA_ICONS, ACTION_ICONS, DOCUMENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { PreparazioneAddActivityForm } from './PreparazioneAddActivityForm'
 import { PreparazioneKanbanView, PreparazioneListView } from './PreparazioneActivityViews'
 import { usePreparazioneDocHandlers } from './usePreparazioneDocHandlers'
@@ -42,6 +43,8 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const profile = useAuthStore(s => s.profile)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const eventStaff = useStaffStore(s => s.staff)
+  const participants = useParticipantsStore(s => s.participants)
+  const eventMaterials = useMaterialsStore(s => s.eventMaterials)
   const addToast = useToastStore(s => s.add)
 
   // A. Default to list on mobile, kanban on desktop
@@ -364,13 +367,17 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
         />
       )}
 
-      {/* Gate bar — materialShipped: true if spedizione_data is set or event has no material tab */}
-      <ActivityGateBar
-        event={event}
-        activities={visible}
-        onUpdate={onUpdate}
-        materialShipped={event.modalita === 'contributo' || !!event.spedizione_data}
-      />
+      {/* Gate — mandatory activity blocker only (advance is in StatusFlow) */}
+      {visible.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata').length > 0 && (
+        <div className="bg-mikai-50 border border-mikai-200 rounded-xl px-3 py-1.5">
+          <div className="flex items-center gap-2 min-h-[32px]">
+            <Icon icon={FEEDBACK_ICONS.warning} size={14} className="text-yellow-500 shrink-0" />
+            <span className="text-xs font-medium text-mikai-700">
+              {visible.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata').length} attività obbligatorie da completare prima di avanzare
+            </span>
+          </div>
+        </div>
+      )}
 
       {viewMode === 'kanban' && (
         <PreparazioneKanbanView visible={visible} cardPropsContext={cardPropsContext} />

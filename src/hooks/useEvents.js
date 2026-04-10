@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
 const EVENTS_PAGE_SIZE = 25
-const EVENTS_SELECT = 'id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, promotore_contact_id, manager_user_id, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)'
+const EVENTS_SELECT = 'id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, promotore_contact_id, manager_user_id, spedizione_data, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)'
 
 function buildEventQuery(filters, roleFilter, from, to) {
   let query = supabase

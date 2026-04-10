@@ -92,7 +92,6 @@ export function useMaterialBulkActions({
             await loadData()
             setBulkConfirming(false)
           }}
-          className="bg-green-600 hover:bg-green-700 text-white border-green-600"
         >
           <Icon icon={ACTION_ICONS.check} size={16} className="mr-1" />
           Conferma tutto ({pendingCount})

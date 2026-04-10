@@ -70,8 +70,9 @@ export function AdminProdottiStock({
       <div className={CARD_STYLE + ' md:p-6 space-y-4'}>
         <h3 className="font-semibold text-lg">Stock</h3>
         <div className="max-w-xs">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Soglia minima alert (pz)</label>
+          <label htmlFor="stock-soglia" className="block text-sm font-medium text-gray-700 mb-1">Soglia minima alert (pz)</label>
           <input
+            id="stock-soglia"
             type="number"
             min="0"
             className={INPUT_STYLE}
@@ -106,6 +107,11 @@ export function AdminProdottiStock({
     setEditSaving(false)
     setDeletingAdj(null)
   }
+
+  const lottoDisabledReason = !lottoQty ? 'Inserisci la quantità'
+    : parseInt(lottoQty, 10) <= 0 ? 'La quantità deve essere maggiore di 0'
+    : !lottoDest ? 'Seleziona la destinazione'
+    : ''
 
   const handleLottoSubmit = () => {
     const [type, id] = (lottoDest || '').split(':')
@@ -155,9 +161,10 @@ export function AdminProdottiStock({
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Soglia minima alert (pz)</label>
+              <label htmlFor="stock-soglia-edit" className="block text-sm font-medium text-gray-700 mb-1">Soglia minima alert (pz)</label>
               <div className="flex items-center gap-2">
                 <input
+                  id="stock-soglia-edit"
                   type="number"
                   min="0"
                   className={INPUT_STYLE}
@@ -191,8 +198,9 @@ export function AdminProdottiStock({
             <h4 className="font-medium text-base text-gray-800">Carica lotto</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantità</label>
+                <label htmlFor="lotto-qty" className="block text-sm font-medium text-gray-700 mb-1">Quantità</label>
                 <input
+                  id="lotto-qty"
                   type="number"
                   min="1"
                   className={INPUT_STYLE}
@@ -202,8 +210,9 @@ export function AdminProdottiStock({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Destinazione <span className="text-red-500">*</span></label>
+                <label htmlFor="lotto-dest" className="block text-sm font-medium text-gray-700 mb-1">Destinazione <span className="text-red-500">*</span></label>
                 <select
+                  id="lotto-dest"
                   className={SELECT_STYLE}
                   value={lottoDest}
                   onChange={e => setLottoDest(e.target.value)}
@@ -222,8 +231,9 @@ export function AdminProdottiStock({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo (opzionale)</label>
+                <label htmlFor="lotto-motivo" className="block text-sm font-medium text-gray-700 mb-1">Motivo (opzionale)</label>
                 <input
+                  id="lotto-motivo"
                   className={INPUT_STYLE}
                   value={lottoMotivo}
                   onChange={e => setLottoMotivo(e.target.value)}
@@ -237,6 +247,7 @@ export function AdminProdottiStock({
                 onClick={handleLottoSubmit}
                 loading={lottoSaving}
                 disabled={!lottoQty || parseInt(lottoQty) <= 0 || !lottoDest}
+                title={lottoDisabledReason}
               >
                 <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
                 Carica lotto
