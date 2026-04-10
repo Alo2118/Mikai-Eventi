@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, memo } from 'react'
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Button } from '../ui/Button'
@@ -6,18 +6,18 @@ import { Icon } from '../ui/Icon'
 import { useToastStore } from '../ui/Toast'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useAuthStore } from '../../hooks/useAuth'
-import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
+import { TIPO_MATERIALE, POSIZIONE_MATERIALE, POSIZIONE_MATERIALE_COLORE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE, TEXTAREA_STYLE, RIENTRO_STATO_STYLE } from '../../lib/constants'
 import { MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, STATO_RIENTRO_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { nowISO } from '../../lib/date-utils'
 import { toDriveImageUrl } from '../../lib/format-utils'
 
 const CONDITION_BUTTONS = [
-  { val: 'integro', label: 'Integro', selectedClass: 'border-green-600 bg-green-100 text-green-700', hoverClass: 'hover:border-green-300' },
-  { val: 'parziale', label: 'Parziale', selectedClass: 'border-yellow-600 bg-yellow-100 text-yellow-700', hoverClass: 'hover:border-yellow-300' },
-  { val: 'danneggiato', label: 'Danneggiato', selectedClass: 'border-red-600 bg-red-100 text-red-700', hoverClass: 'hover:border-red-300' },
+  { val: 'integro', label: 'Integro', hoverClass: 'hover:border-green-300' },
+  { val: 'parziale', label: 'Parziale', hoverClass: 'hover:border-yellow-300' },
+  { val: 'danneggiato', label: 'Danneggiato', hoverClass: 'hover:border-red-300' },
 ]
 
-export function MaterialCard({ material, linkTo, showQuickAction }) {
+export const MaterialCard = memo(function MaterialCard({ material, linkTo, showQuickAction }) {
   const [showRientro, setShowRientro] = useState(false)
   const [statoRientro, setStatoRientro] = useState('')
   const [noteDanno, setNoteDanno] = useState('')
@@ -55,7 +55,7 @@ export function MaterialCard({ material, linkTo, showQuickAction }) {
       stato_rientro: statoRientro,
     }
     if (statoRientro === 'danneggiato' && noteDanno.trim()) {
-      movementData.note = noteDanno.trim()
+      movementData.note_danni = noteDanno.trim()
     }
 
     const { error } = await createMovement(movementData)
@@ -169,7 +169,7 @@ export function MaterialCard({ material, linkTo, showQuickAction }) {
             <div>
               <p className="text-sm font-medium text-gray-600 mb-2">Stato del materiale al rientro</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {CONDITION_BUTTONS.map(({ val, label, selectedClass, hoverClass }) => {
+                {CONDITION_BUTTONS.map(({ val, label, hoverClass }) => {
                   const selected = statoRientro === val
                   return (
                     <button
@@ -178,7 +178,7 @@ export function MaterialCard({ material, linkTo, showQuickAction }) {
                       onClick={() => setStatoRientro(val)}
                       className={`flex items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold min-h-[48px] transition-all ${
                         selected
-                          ? selectedClass
+                          ? RIENTRO_STATO_STYLE[val]
                           : 'bg-white border-gray-200 text-gray-600 ' + hoverClass
                       }`}
                     >
@@ -232,4 +232,4 @@ export function MaterialCard({ material, linkTo, showQuickAction }) {
       </div>
     </div>
   )
-}
+})

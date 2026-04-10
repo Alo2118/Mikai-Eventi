@@ -1,10 +1,11 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 import { MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, FEEDBACK_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { CARD_HOVER_STYLE } from '../../lib/constants'
 import { toDriveImageUrl } from '../../lib/format-utils'
 
-export function StockProductCard({ product, tipoLabels }) {
+export const StockProductCard = memo(function StockProductCard({ product, tipoLabels }) {
   const imgUrl = toDriveImageUrl(product.foto_url)
   const sottoSoglia = product.soglia_minima != null && product.quantita_disponibile <= product.soglia_minima
   const tipo = tipoLabels[product.tipo] || product.tipo
@@ -35,7 +36,8 @@ export function StockProductCard({ product, tipoLabels }) {
             )}
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            <span className={`text-2xl font-bold tabular-nums ${sottoSoglia ? 'text-red-600' : 'text-gray-900'}`}>
+            <span className={`inline-flex items-center gap-1 text-2xl font-bold tabular-nums ${sottoSoglia ? 'text-red-600' : 'text-gray-900'}`}>
+              {sottoSoglia && <Icon icon={FEEDBACK_ICONS.warning} size={18} />}
               {product.quantita_disponibile ?? '—'}
             </span>
             <span className="text-xs text-gray-400">disponibili</span>
@@ -62,4 +64,4 @@ export function StockProductCard({ product, tipoLabels }) {
       </div>
     </Link>
   )
-}
+})

@@ -81,8 +81,8 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
       )}
 
       <div>
-        <label className="block text-base font-medium text-gray-700 mb-1">Modalit&agrave; <span className="text-red-500">*</span></label>
-        <select value={modalita} onChange={(e) => setModalita(e.target.value)} required
+        <label htmlFor="mov-modalita" className="block text-base font-medium text-gray-700 mb-1">Modalit&agrave; <span className="text-red-500">*</span></label>
+        <select id="mov-modalita" value={modalita} onChange={(e) => setModalita(e.target.value)} required
           className={SELECT_STYLE}>
           <option value="">Seleziona...</option>
           {Object.entries(MODALITA_MOVIMENTO).map(([k, v]) => (
@@ -126,8 +126,8 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
 
       {modalita === 'spedizione' && (
         <div>
-          <label className="block text-base font-medium text-gray-700 mb-1">Tracking spedizione</label>
-          <input type="text" value={tracking} onChange={(e) => setTracking(e.target.value)}
+          <label htmlFor="mov-tracking" className="block text-base font-medium text-gray-700 mb-1">Tracking spedizione</label>
+          <input id="mov-tracking" type="text" value={tracking} onChange={(e) => setTracking(e.target.value)}
             className={INPUT_STYLE}
             placeholder="Numero tracking..." />
         </div>
@@ -136,10 +136,10 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
       {tipo === 'rientro' && (
         <>
           <div>
-            <label className="block text-base font-medium text-gray-700 mb-1">Stato rientro <span className="text-red-500">*</span></label>
-            <div className="flex flex-wrap gap-3">
+            <label id="mov-stato-rientro-label" className="block text-base font-medium text-gray-700 mb-1">Stato rientro <span className="text-red-500">*</span></label>
+            <div className="flex flex-wrap gap-3" role="radiogroup" aria-labelledby="mov-stato-rientro-label">
               {[['integro', 'Integro'], ['parziale', 'Parziale'], ['danneggiato', 'Danneggiato']].map(([val, label]) => (
-                <button key={val} type="button" onClick={() => setStatoRientro(val)}
+                <button key={val} type="button" role="radio" aria-checked={statoRientro === val} onClick={() => setStatoRientro(val)}
                   className={`px-5 py-3 rounded-xl border-2 text-base font-medium min-h-[48px] transition-all ${
                     statoRientro === val ? STATO_RIENTRO_COLORS[val] : 'border-gray-200 text-gray-600'
                   }`}>
@@ -150,8 +150,8 @@ export function MaterialMovementForm({ materialId, eventId, tipo = 'uscita', all
           </div>
           {statoRientro === 'danneggiato' && (
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-1">Descrizione danni <span className="text-red-500">*</span></label>
-              <textarea value={noteDanni} onChange={(e) => setNoteDanni(e.target.value)} required
+              <label htmlFor="mov-note-danni" className="block text-base font-medium text-gray-700 mb-1">Descrizione danni <span className="text-red-500">*</span></label>
+              <textarea id="mov-note-danni" value={noteDanni} onChange={(e) => setNoteDanni(e.target.value)} required
                 className={TEXTAREA_STYLE}
                 placeholder="Descrivi i danni..." />
             </div>

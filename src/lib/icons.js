@@ -10,6 +10,9 @@ import {
   Bone,
   HeartPulse,
   Microscope,
+  Bolt,
+  BookOpen,
+  Projector,
 
   // Modalità evento
   Building,
@@ -672,6 +675,10 @@ export const ICON_BY_NAME = {
   'flask': FlaskConical,
   'wrench': Wrench,
   'cpu': Cpu,
+  'bolt': Bolt,
+  'book-open': BookOpen,
+  'projector': Projector,
+  'factory': Factory,
 }
 
 // Picker options for admin pages — single source of truth
@@ -693,4 +700,8 @@ export const ICON_PICKER_OPTIONS = [
   { value: 'stethoscope', label: 'Stetoscopio' },
   { value: 'users', label: 'Persone' },
   { value: 'calendar', label: 'Calendario' },
+  { value: 'bolt', label: 'Bullone' },
+  { value: 'projector', label: 'Espositore' },
+  { value: 'book-open', label: 'Libro' },
+  { value: 'factory', label: 'Fabbrica' },
 ]

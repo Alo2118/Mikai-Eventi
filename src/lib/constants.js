@@ -399,6 +399,13 @@ export const STATO_RIENTRO_COLORS = {
   danneggiato: 'border-red-400 bg-red-50 text-red-800',
 }
 
+// Condition button styles (rientro stato) — used by MaterialCard quick rientro
+export const RIENTRO_STATO_STYLE = {
+  integro: 'border-green-600 bg-green-100 text-green-700',
+  parziale: 'border-yellow-600 bg-yellow-100 text-yellow-700',
+  danneggiato: 'border-red-600 bg-red-100 text-red-700',
+}
+
 export const TIPO_BRAND = {
   produttore: 'Produttore',
   distributore: 'Distributore',

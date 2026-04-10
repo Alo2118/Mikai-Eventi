@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 import { POSIZIONE_MATERIALE, POSIZIONE_ORDER, POSIZIONE_BG, CARD_STYLE } from '../../lib/constants'
 import { POSIZIONE_ICONS, TIPO_PRODOTTO_ICONS, MATERIALE_ICONS } from '../../lib/icons'
 import { toDriveImageUrl } from '../../lib/format-utils'
 
-export function ProductGroupCard({ group }) {
+export const ProductGroupCard = memo(function ProductGroupCard({ group }) {
   const [expanded, setExpanded] = useState(false)
   const imgUrl = toDriveImageUrl(group.foto_url)
 
@@ -105,4 +105,4 @@ export function ProductGroupCard({ group }) {
       )}
     </div>
   )
-}
+})
