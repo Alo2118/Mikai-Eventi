@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
-import { TIPO_EVENTO_ICONS, STATO_EVENTO_ICONS, MODALITA_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS, ADMIN_ICONS } from '../../lib/icons'
-import { STATO_EVENTO_COLORE, STATO_EVENTO, TIPO_EVENTO, MODALITA_EVENTO_SHORT, MODALITA_COLORE, PILL_COLORS } from '../../lib/constants'
+import { STATO_EVENTO_ICONS, MODALITA_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS, ADMIN_ICONS } from '../../lib/icons'
+import { STATO_EVENTO_COLORE, STATO_EVENTO, MODALITA_EVENTO_SHORT, MODALITA_COLORE, PILL_COLORS } from '../../lib/constants'
+import { useEventTypes } from '../../hooks/useEventTypes'
 
 const MODALITA_BORDER = {
   mikai: 'border-l-mikai-400',
@@ -15,8 +16,9 @@ const ATTENTION_DOT = {
 }
 
 export function CalendarEventPill({ event, compact = false, showStatus = false, attention = null, indicators = null }) {
+  const { labels: tipoLabels, icons: tipoIcons } = useEventTypes()
   const color = STATO_EVENTO_COLORE[event.stato] || 'gray'
-  const TipoIcon = TIPO_EVENTO_ICONS[event.tipo_evento]
+  const TipoIcon = tipoIcons[event.tipo_evento]
   const StatoIcon = STATO_EVENTO_ICONS[event.stato]
   const ModalitaIcon = MODALITA_ICONS[event.modalita]
   const pillClass = PILL_COLORS[color] || PILL_COLORS.gray
@@ -30,7 +32,7 @@ export function CalendarEventPill({ event, compact = false, showStatus = false, 
         to={`/eventi/${event.id}`}
         className={`relative flex items-center gap-1 px-2 py-1 rounded-r-lg text-xs font-medium border-l-[3px] ${borderClass} ${pillClass} hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-mikai-400 focus:ring-offset-1`}
         title={`${event.titolo} — ${STATO_EVENTO[event.stato]} — ${MODALITA_EVENTO_SHORT[event.modalita] || ''}`}
-        aria-label={`${event.titolo}, ${TIPO_EVENTO[event.tipo_evento] || ''}, ${STATO_EVENTO[event.stato]}`}
+        aria-label={`${event.titolo}, ${tipoLabels[event.tipo_evento] || ''}, ${STATO_EVENTO[event.stato]}`}
         onClick={e => e.stopPropagation()}
       >
         {TipoIcon && <Icon icon={TipoIcon} size={12} className="flex-shrink-0" />}
@@ -50,7 +52,7 @@ export function CalendarEventPill({ event, compact = false, showStatus = false, 
       to={`/eventi/${event.id}`}
       className={`relative flex items-center gap-2 px-3 py-2.5 rounded-r-xl text-sm font-medium min-h-[48px] border-l-4 ${borderClass} ${pillClass} hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-mikai-400 focus:ring-offset-1`}
       title={`${event.titolo} — ${STATO_EVENTO[event.stato]}`}
-      aria-label={`${event.titolo}, ${TIPO_EVENTO[event.tipo_evento] || ''}, ${STATO_EVENTO[event.stato]}`}
+      aria-label={`${event.titolo}, ${tipoLabels[event.tipo_evento] || ''}, ${STATO_EVENTO[event.stato]}`}
     >
       {TipoIcon && <Icon icon={TipoIcon} size={16} className="flex-shrink-0" />}
       <div className="flex-1 min-w-0">

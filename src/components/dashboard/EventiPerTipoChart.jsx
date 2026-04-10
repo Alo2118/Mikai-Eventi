@@ -1,6 +1,6 @@
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
-import { TIPO_EVENTO_CHART_COLOR, TIPO_EVENTO } from '../../lib/constants'
 import { KpiCard } from './KpiCard'
+import { useEventTypes } from '../../hooks/useEventTypes'
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
@@ -14,9 +14,10 @@ function CustomTooltip({ active, payload }) {
 }
 
 export function EventiPerTipoChart({ data }) {
+  const { labels: tipoLabels, chartColors: tipoChartColors } = useEventTypes()
   const chartData = Object.entries(data || {}).map(([tipo, count]) => ({
     tipo,
-    label: TIPO_EVENTO[tipo] || tipo,
+    label: tipoLabels[tipo] || tipo,
     count,
   }))
 
@@ -43,7 +44,7 @@ export function EventiPerTipoChart({ data }) {
               {chartData.map(entry => (
                 <Cell
                   key={entry.tipo}
-                  fill={TIPO_EVENTO_CHART_COLOR[entry.tipo] || '#9ca3af'}
+                  fill={tipoChartColors[entry.tipo] || '#9ca3af'}
                 />
               ))}
             </Bar>

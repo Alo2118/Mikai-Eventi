@@ -12,7 +12,7 @@ import { ACTION_ICONS, NAV_ICONS, MODALITA_ICONS, FEEDBACK_ICONS } from '../../l
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import {
-  STATO_EVENTO, STATO_EVENTO_COLORE, TIPO_EVENTO,
+  STATO_EVENTO, STATO_EVENTO_COLORE,
   MODALITA_EVENTO_SHORT, MODALITA_COLORE,
   PILL_COLORS, SUMMARY_BAR_STYLE
 } from '../../lib/constants'

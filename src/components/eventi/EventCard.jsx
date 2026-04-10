@@ -2,8 +2,9 @@ import { useState, memo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
-import { TIPO_EVENTO, STATO_EVENTO_COLORE, MODALITA_EVENTO } from '../../lib/constants'
-import { TIPO_EVENTO_ICONS, FEEDBACK_ICONS, NAV_ICONS, MATERIALE_ICONS, INFO_EVENTO_ICONS, CATEGORIA_ICONS, COSTI_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS, DASHBOARD_ICONS } from '../../lib/icons'
+import { STATO_EVENTO_COLORE, MODALITA_EVENTO } from '../../lib/constants'
+import { FEEDBACK_ICONS, NAV_ICONS, MATERIALE_ICONS, INFO_EVENTO_ICONS, CATEGORIA_ICONS, COSTI_ICONS, ACTION_ICONS, ATTIVITA_STATO_ICONS, DASHBOARD_ICONS } from '../../lib/icons'
+import { useEventTypes } from '../../hooks/useEventTypes'
 import { formatDateRange, todayISO } from '../../lib/date-utils'
 import { formatCurrency, getPromotoreName } from '../../lib/format-utils'
 
@@ -50,7 +51,8 @@ const INVOLVEMENT_CFG = [
 export const EventCard = memo(function EventCard({ event, semaphore, readiness, involvement, currentUserId }) {
   const [expanded, setExpanded] = useState(false)
   const navigate = useNavigate()
-  const TipoIcon = TIPO_EVENTO_ICONS[event.tipo_evento]
+  const { labels: tipoLabels, icons: tipoIcons } = useEventTypes()
+  const TipoIcon = tipoIcons[event.tipo_evento]
   const color = STATO_EVENTO_COLORE[event.stato] || 'gray'
   const today = todayISO()
   const startDate = event.data_inizio ? event.data_inizio.slice(0, 10) : null
@@ -111,7 +113,7 @@ export const EventCard = memo(function EventCard({ event, semaphore, readiness, 
               <Icon icon={INFO_EVENTO_ICONS.luogo} size={14} className="text-gray-400" />{event.luogo}
             </span>}
             <span className="flex items-center gap-1">
-              <Icon icon={TipoIcon || NAV_ICONS.eventi} size={14} className="text-gray-400" />{TIPO_EVENTO[event.tipo_evento]}
+              <Icon icon={TipoIcon || NAV_ICONS.eventi} size={14} className="text-gray-400" />{tipoLabels[event.tipo_evento] || event.tipo_evento}
             </span>
             {event.modalita && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
               event.modalita === 'interno' ? 'bg-mikai-50 text-mikai-600' : event.modalita === 'contributo' ? 'bg-yellow-50 text-yellow-700' : 'bg-gray-100 text-gray-600'

@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { TIPO_EVENTO, MODALITA_EVENTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, CARD_STYLE } from '../../lib/constants'
+import { MODALITA_EVENTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, CARD_STYLE } from '../../lib/constants'
 import { formatDateRange, formatDate } from '../../lib/date-utils'
 import { EventStatusFlow } from './EventStatusFlow'
 import { EventApprovalBar } from './EventApprovalBar'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS, TIPO_EVENTO_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS, MATERIALE_ICONS } from '../../lib/icons'
+import { useEventTypes } from '../../hooks/useEventTypes'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAdminStore } from '../../hooks/useAdmin'
 import { useContactsStore } from '../../hooks/useContacts'
@@ -45,6 +46,7 @@ export function EventInfoTab({ event, onUpdate }) {
   const [saving, setSaving] = useState(false)
   const [fields, setFields] = useState({})
   const [touched, setTouched] = useState({})
+  const { eventTypes, labels: tipoLabels, icons: tipoIcons } = useEventTypes()
 
   const handleBlur = (field) => setTouched(prev => ({ ...prev, [field]: true }))
   const fieldError = (field, value) => touched[field] && !value?.toString().trim() ? true : false
@@ -171,8 +173,8 @@ export function EventInfoTab({ event, onUpdate }) {
                 onChange={set('tipo_evento')}
                 onBlur={() => handleBlur('tipo_evento')}
               >
-                {Object.entries(TIPO_EVENTO).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
+                {eventTypes.filter(t => t.attivo).map(t => (
+                  <option key={t.codice} value={t.codice}>{t.nome}</option>
                 ))}
               </select>
               {fieldError('tipo_evento', fields.tipo_evento) && (
@@ -322,8 +324,8 @@ export function EventInfoTab({ event, onUpdate }) {
       ) : (
         <>
         {/* Dettagli + Date + Luogo — una card sola */}
-        <InfoSection title="Dettagli" icon={TIPO_EVENTO_ICONS[event.tipo_evento] || NAV_ICONS.eventi}>
-          <InfoField label="Tipo" value={TIPO_EVENTO[event.tipo_evento]} />
+        <InfoSection title="Dettagli" icon={tipoIcons[event.tipo_evento] || NAV_ICONS.eventi}>
+          <InfoField label="Tipo" value={tipoLabels[event.tipo_evento] || event.tipo_evento} />
           <InfoField label="Modalità" value={MODALITA_EVENTO[event.modalita]} />
           <InfoField label="Date" value={formatDateRange(event.data_inizio, event.data_fine)} />
           <InfoField label="Ora inizio" value={event.ora_inizio ? event.ora_inizio.substring(0, 5) : null} placeholder="—" />

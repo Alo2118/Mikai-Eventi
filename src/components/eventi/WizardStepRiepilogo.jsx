@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { TIPO_EVENTO, MODALITA_EVENTO, FORM_CONTAINER_STYLE, INPUT_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
+import { MODALITA_EVENTO, FORM_CONTAINER_STYLE, INPUT_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
+import { useEventTypes } from '../../hooks/useEventTypes'
 import { formatDateRange } from '../../lib/date-utils'
 import { FormField } from '../ui/FormField'
 
 export function WizardStepRiepilogo({ data, onChange, promotoreNome, managerNome }) {
   const [touched, setTouched] = useState({})
+  const { labels: tipoLabels } = useEventTypes()
   const touch = (field) => setTouched(t => ({ ...t, [field]: true }))
 
   const budgetError = touched.budget_previsto && data.budget_previsto !== '' && data.budget_previsto !== null && Number(data.budget_previsto) < 0
@@ -19,7 +21,7 @@ export function WizardStepRiepilogo({ data, onChange, promotoreNome, managerNome
       <div className={FORM_CONTAINER_STYLE + ' space-y-3 mb-6'}>
         <div>
           <span className="text-sm text-gray-500">Tipo evento</span>
-          <p className="text-base font-medium text-gray-900">{TIPO_EVENTO[data.tipo_evento]}</p>
+          <p className="text-base font-medium text-gray-900">{tipoLabels[data.tipo_evento] || data.tipo_evento}</p>
         </div>
         <div>
           <span className="text-sm text-gray-500">Titolo</span>

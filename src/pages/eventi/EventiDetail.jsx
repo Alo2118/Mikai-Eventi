@@ -17,7 +17,8 @@ import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCostsStore } from '../../hooks/useCosts'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useTavoliStore } from '../../hooks/useTavoli'
-import { TIPO_EVENTO, TIPI_EVENTO_CON_TAVOLI } from '../../lib/constants'
+import { TIPI_EVENTO_CON_TAVOLI } from '../../lib/constants'
+import { useEventTypes } from '../../hooks/useEventTypes'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
@@ -148,6 +149,7 @@ export function EventiDetail() {
   const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
   const preventivi = useCostsStore(s => s.preventivi)
   const addToast = useToastStore(s => s.add)
+  const { labels: tipoLabels } = useEventTypes()
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -288,7 +290,7 @@ export function EventiDetail() {
     status: tabStatuses[tab.id],
     detail: readinessMap[tab.id] || null,
   }))
-  const subtitle = `${TIPO_EVENTO[event.tipo_evento]} \u00B7 ${formatDateRange(event.data_inizio, event.data_fine)}${event.luogo ? ` \u00B7 ${event.luogo}` : ''}`
+  const subtitle = `${tipoLabels[event.tipo_evento] || event.tipo_evento} \u00B7 ${formatDateRange(event.data_inizio, event.data_fine)}${event.luogo ? ` \u00B7 ${event.luogo}` : ''}`
 
   const refreshEvent = () => {
     fetchEvent(id)

@@ -1,5 +1,6 @@
 import { SearchInput } from '../ui/SearchInput'
-import { STATO_EVENTO, TIPO_EVENTO, SELECT_STYLE } from '../../lib/constants'
+import { STATO_EVENTO, SELECT_STYLE } from '../../lib/constants'
+import { useEventTypes } from '../../hooks/useEventTypes'
 import { useEventsStore } from '../../hooks/useEvents'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
@@ -14,6 +15,7 @@ export function EventFilters({ promotori, filterPromotore, onFilterPromotore, vi
   const filters = useEventsStore(s => s.filters)
   const setFilter = useEventsStore(s => s.setFilter)
   const resetFilters = useEventsStore(s => s.resetFilters)
+  const { eventTypes } = useEventTypes()
 
   const hasFilters = filters.search || filters.stato || filters.tipo || filterPromotore
 
@@ -50,8 +52,8 @@ export function EventFilters({ promotori, filterPromotore, onFilterPromotore, vi
           aria-label="Filtra per tipo"
         >
           <option value="">Tipo</option>
-          {Object.entries(TIPO_EVENTO).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+          {eventTypes.filter(t => t.attivo).map(t => (
+            <option key={t.codice} value={t.codice}>{t.nome}</option>
           ))}
         </select>
 

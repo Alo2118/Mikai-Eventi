@@ -16,6 +16,7 @@ import { Icon } from '../../components/ui/Icon'
 import { NAV_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { TIPO_EVENTO, STATO_EVENTO } from '../../lib/constants'
+import { useEventTypes } from '../../hooks/useEventTypes'
 import { formatDate, todayISO } from '../../lib/date-utils'
 import { getPromotoreName } from '../../lib/format-utils'
 
@@ -71,6 +72,7 @@ export function EventiList() {
   const fetchBatchLogisticsStatus = useLogisticsStore(s => s.fetchBatchLogisticsStatus)
   const fetchBatchCostsStatus = useCostsStore(s => s.fetchBatchCostsStatus)
   const { exporting, handleExport } = useExportHandler()
+  const { labels: tipoLabels } = useEventTypes()
   const [searchParams] = useSearchParams()
 
   const fetchMyInvolvement = useEventsStore(s => s.fetchMyInvolvement)
@@ -356,9 +358,9 @@ export function EventiList() {
             <button
               onClick={() => setFilter('tipo', '')}
               className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
-              aria-label={`Rimuovi filtro tipo: ${TIPO_EVENTO[filters.tipo]}`}
+              aria-label={`Rimuovi filtro tipo: ${tipoLabels[filters.tipo] || filters.tipo}`}
             >
-              {TIPO_EVENTO[filters.tipo]}
+              {tipoLabels[filters.tipo] || filters.tipo}
               <Icon name="close" size={14} />
             </button>
           )}

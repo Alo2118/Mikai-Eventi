@@ -14,10 +14,11 @@ import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { useToastStore } from '../../components/ui/Toast'
 import { ACTION_ICONS, CATEGORIA_ICONS, SOTTO_ATTIVITA_ICONS } from '../../lib/icons'
 import {
-  TIPO_EVENTO, MODALITA_EVENTO,
+  MODALITA_EVENTO,
   CATEGORIA_ATTIVITA, VERIFICATION_FUNCTIONS,
   INPUT_STYLE, SELECT_STYLE, CARD_HOVER_STYLE,
 } from '../../lib/constants'
+import { useEventTypes } from '../../hooks/useEventTypes'
 
 function wouldCreateCycle(itemId, targetId, allItems) {
   if (!itemId || !targetId) return false
@@ -98,6 +99,7 @@ export function AdminTemplate() {
   const saTypes = useSubActivitiesStore(s => s.types)
   const fetchSaTypes = useSubActivitiesStore(s => s.fetchTypes)
   const addToast = useToastStore(s => s.add)
+  const { labels: tipoLabels, eventTypes: dynamicEventTypes } = useEventTypes()
 
   const [templates, setTemplates] = useState([])
   const [selectedTemplate, setSelectedTemplate] = useState(null)
@@ -391,7 +393,7 @@ export function AdminTemplate() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo evento</label>
                   <select className={SELECT_STYLE} value={newTipo} onChange={e => setNewTipo(e.target.value)}>
                     <option value="">Seleziona...</option>
-                    {Object.entries(TIPO_EVENTO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {dynamicEventTypes.map(et => <option key={et.codice} value={et.codice}>{et.nome}</option>)}
                   </select>
                 </div>
                 <div>
@@ -421,7 +423,7 @@ export function AdminTemplate() {
                 onClick={() => handleSelectTemplate(t)}
               >
                 <p className="text-base font-semibold text-gray-900">
-                  {TIPO_EVENTO[t.tipo_evento] || t.tipo_evento}
+                  {tipoLabels[t.tipo_evento] || t.tipo_evento}
                 </p>
                 <p className="text-sm text-gray-500">
                   {MODALITA_EVENTO[t.modalita] || t.modalita}
@@ -465,7 +467,7 @@ export function AdminTemplate() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Checklist: {TIPO_EVENTO[selectedTemplate.tipo_evento]} — {MODALITA_EVENTO[selectedTemplate.modalita]}
+                    Checklist: {tipoLabels[selectedTemplate.tipo_evento] || selectedTemplate.tipo_evento} — {MODALITA_EVENTO[selectedTemplate.modalita]}
                   </h2>
                   <Button onClick={() => openEdit(null)}>
                     <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
@@ -530,7 +532,7 @@ export function AdminTemplate() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Programma: {TIPO_EVENTO[selectedTemplate.tipo_evento]} — {MODALITA_EVENTO[selectedTemplate.modalita]}
+                    Programma: {tipoLabels[selectedTemplate.tipo_evento] || selectedTemplate.tipo_evento} — {MODALITA_EVENTO[selectedTemplate.modalita]}
                   </h2>
                   <Button onClick={() => openEditProgram(null)}>
                     <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
@@ -583,7 +585,7 @@ export function AdminTemplate() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Materiale: {TIPO_EVENTO[selectedTemplate.tipo_evento]} — {MODALITA_EVENTO[selectedTemplate.modalita]}
+                    Materiale: {tipoLabels[selectedTemplate.tipo_evento] || selectedTemplate.tipo_evento} — {MODALITA_EVENTO[selectedTemplate.modalita]}
                   </h2>
                   <Button onClick={() => openEditMaterial(null)}>
                     <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
@@ -980,7 +982,7 @@ export function AdminTemplate() {
       <ConfirmDialog
         open={!!deletingTemplate}
         title="Elimina template"
-        message={`Eliminare il template "${TIPO_EVENTO[deletingTemplate?.tipo_evento]} — ${MODALITA_EVENTO[deletingTemplate?.modalita]}"? Tutte le voci (checklist e programma) saranno eliminate. Le attività già create per eventi esistenti non saranno modificate.`}
+        message={`Eliminare il template "${tipoLabels[deletingTemplate?.tipo_evento] || deletingTemplate?.tipo_evento} — ${MODALITA_EVENTO[deletingTemplate?.modalita]}"? Tutte le voci (checklist e programma) saranno eliminate. Le attività già create per eventi esistenti non saranno modificate.`}
         confirmLabel="Elimina"
         danger
         onConfirm={handleDeleteTemplate}

@@ -8,7 +8,8 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Tabs } from '../../components/ui/Tabs'
-import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, TIPO_EVENTO, SELECT_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, SELECT_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
+import { useEventTypes } from '../../hooks/useEventTypes'
 import { formatDate, formatDayISO } from '../../lib/date-utils'
 import { useExportHandler } from '../../hooks/useExportHandler'
 import { formatCurrency } from '../../lib/format-utils'
@@ -159,6 +160,7 @@ function AnalisiTable({ grouped }) {
 
 function AnalisiCostiSection() {
   const fetchCostiAnalysis = useCostsStore(s => s.fetchCostiAnalysis)
+  const { labels: eventTypeLabels } = useEventTypes()
   const [period, setPeriod] = useState('anno')
   const [view, setView] = useState('fornitore')
   const [data, setData] = useState([])
@@ -177,7 +179,7 @@ function AnalisiCostiSection() {
     if (item.fornitore_ref?.nome) return `${item.fornitore_ref.nome} ${item.fornitore_ref.cognome}`
     return item.fornitore_nome
   }
-  const tipoKey = (item) => TIPO_EVENTO[item.evento?.tipo_evento] || item.evento?.tipo_evento || 'Altro'
+  const tipoKey = (item) => eventTypeLabels[item.evento?.tipo_evento] || item.evento?.tipo_evento || 'Altro'
   const meseKey = (item) => {
     if (!item.evento?.data_inizio) return 'Sconosciuto'
     const d = new Date(item.evento.data_inizio)
