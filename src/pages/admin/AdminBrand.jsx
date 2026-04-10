@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
-import { TIPO_BRAND, INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { TIPO_BRAND, INPUT_STYLE, CARD_STYLE, ATTIVO_BADGE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminBrand() {
@@ -29,7 +29,7 @@ export function AdminBrand() {
     { key: 'nome', label: 'Nome' },
     { key: 'tipo', label: 'Tipo', render: (r) => TIPO_BRAND[r.tipo] || r.tipo },
     { key: 'attivo', label: 'Attivo', render: (r) => (
-      <span className={`px-2 py-1 rounded-full text-sm font-medium ${r.attivo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+      <span className={`px-2 py-1 rounded-full text-sm font-medium ${ATTIVO_BADGE[r.attivo]}`}>
         {r.attivo ? 'Si' : 'No'}
       </span>
     )},

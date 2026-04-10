@@ -15,7 +15,7 @@ import { MovementHistory } from '../materiale/MovementHistory'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
 import { EventMaterialShipping } from './EventMaterialShipping'
-import { SUMMARY_BAR_STYLE } from '../../lib/constants'
+import { SUMMARY_BAR_STYLE, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
 import { useMaterialBulkActions } from './useMaterialBulkActions'
 import { ConsumptionReport } from './ConsumptionReport'
@@ -268,10 +268,10 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
         {rows.length > 0 && (
           <div className="flex items-center gap-3 text-xs font-medium flex-wrap">
             <span className="text-gray-600">{rows.length} materiali</span>
-            {pendingCount > 0 && <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{pendingCount} da confermare</span>}
-            {confirmedCount > 0 && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">{confirmedCount} confermati</span>}
-            {inPrepCount > 0 && <span className="px-2 py-0.5 rounded-full bg-mikai-100 text-mikai-700">{inPrepCount} in preparazione</span>}
-            {speditoCount > 0 && <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{speditoCount} spediti</span>}
+            {pendingCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.yellow}>{pendingCount} da confermare</span>}
+            {confirmedCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.green}>{confirmedCount} confermati</span>}
+            {inPrepCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.mikai}>{inPrepCount} in preparazione</span>}
+            {speditoCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.emerald}>{speditoCount} spediti</span>}
           </div>
         )}
       </div>

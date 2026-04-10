@@ -9,7 +9,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS } from '../../lib/icons'
 import { formatDate, formatTime, toLocalDateTime } from '../../lib/date-utils'
-import { INPUT_STYLE, SELECT_STYLE, GROUP_HEADING_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, SELECT_STYLE, GROUP_HEADING_STYLE, CONFERMATO_BADGE } from '../../lib/constants'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 
@@ -244,7 +244,7 @@ export function EventProgrammaTab({ event }) {
                   )}
                   {sa.note && <p className="text-xs text-gray-400 mt-0.5 truncate italic" title={sa.note}>{sa.note}</p>}
                 </div>
-                <span className={`px-2 py-0.5 rounded-lg text-xs font-medium shrink-0 ${sa.confermata ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                <span className={`px-2 py-0.5 rounded-lg text-xs font-medium shrink-0 ${CONFERMATO_BADGE[sa.confermata]}`}>
                   {sa.confermata ? 'Confermata' : 'Da confermare'}
                 </span>
               </button>

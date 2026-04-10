@@ -2,7 +2,7 @@ import { useState, memo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
-import { STATO_EVENTO_COLORE, COLOR_BAND, COLOR_TEXT_600, COLOR_BG_50 } from '../../lib/constants'
+import { STATO_EVENTO_COLORE, COLOR_BAND, COLOR_TEXT_600, COLOR_BG_50, COLOR_ICON_STATUS } from '../../lib/constants'
 import { FEEDBACK_ICONS, NAV_ICONS, MATERIALE_ICONS, INFO_EVENTO_ICONS, CATEGORIA_ICONS, ACTION_ICONS } from '../../lib/icons'
 import { formatDateRange, todayISO } from '../../lib/date-utils'
 import { getPromotoreName } from '../../lib/format-utils'
@@ -32,9 +32,6 @@ function computeAreas(r, event) {
   ]
 }
 
-const AREA_ICON_COLOR = {
-  green: 'text-green-500', yellow: 'text-yellow-500', red: 'text-red-500', gray: 'text-gray-200',
-}
 
 export const EventCard = memo(function EventCard({ event, semaphore, readiness, involvement, currentUserId, tipoLabels, tipoIcons }) {
   const [expanded, setExpanded] = useState(false)
@@ -108,7 +105,7 @@ export const EventCard = memo(function EventCard({ event, semaphore, readiness, 
                   aria-label={problemAreas.length > 0 ? `${problemAreas.length} aree da completare` : 'Tutto in ordine'}
                 >
                   {areas.map(a => (
-                    <Icon key={a.label} icon={a.icon} size={14} className={`md:w-[18px] md:h-[18px] ${AREA_ICON_COLOR[a.color] || 'text-gray-200'}`} />
+                    <Icon key={a.label} icon={a.icon} size={14} className={`md:w-[18px] md:h-[18px] ${COLOR_ICON_STATUS[a.color] || 'text-gray-200'}`} />
                   ))}
                 </button>
               )}

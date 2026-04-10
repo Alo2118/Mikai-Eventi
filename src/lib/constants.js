@@ -740,3 +740,16 @@ export const ISCRIZIONE_CHIP_COLORS = {
   assente: 'bg-red-100 text-red-700 hover:bg-red-200',
 }
 
+// Icon color by status (for readiness indicators, semaphores)
+export const COLOR_ICON_STATUS = { green: 'text-green-500', yellow: 'text-yellow-500', red: 'text-red-500', gray: 'text-gray-200' }
+
+// Attivo/non attivo badge (for admin tables)
+export const ATTIVO_BADGE = { true: 'bg-green-100 text-green-700', false: 'bg-gray-100 text-gray-500' }
+
+// Confermato badge (for staff/sub-activities)
+export const CONFERMATO_BADGE = { true: 'bg-green-100 text-green-700', false: 'bg-yellow-100 text-yellow-700' }
+export const CONFERMATO_CHIP = { true: 'bg-green-100 text-green-700 hover:bg-green-200', false: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' }
+
+// Base pill/badge class (no color, add COLOR_BADGE[color] for full style)
+export const BADGE_BASE = 'px-2 py-0.5 rounded-full text-xs font-medium'
+

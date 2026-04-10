@@ -11,7 +11,7 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
-import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE, ISCRIZIONE_CHIP_COLORS } from '../../lib/constants'
+import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE, ISCRIZIONE_CHIP_COLORS, BADGE_BASE, COLOR_BADGE, CONFERMATO_CHIP, CONFERMATO_BADGE } from '../../lib/constants'
 import { ACTION_ICONS, NAV_ICONS, LOGISTICA_PERSONE_ICONS, TAVOLI_ICONS } from '../../lib/icons'
 import { ContactPicker } from '../contatti/ContactPicker'
 import { BulkImportModal } from '../contatti/BulkImportModal'
@@ -486,10 +486,10 @@ export function EventLogisticaTab({ event, users = [] }) {
         <h3 className="font-semibold text-lg flex-shrink-0">Persone</h3>
         {people.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs font-medium flex-shrink-0">
-            <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{people.length}</span>
-            <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">{confirmedCount} conf.</span>
-            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{withHotel} hotel</span>
-            <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{withFullTransport} trasporti</span>
+            <span className={BADGE_BASE + ' ' + COLOR_BADGE.gray}>{people.length}</span>
+            <span className={BADGE_BASE + ' ' + COLOR_BADGE.green}>{confirmedCount} conf.</span>
+            <span className={BADGE_BASE + ' ' + COLOR_BADGE.blue}>{withHotel} hotel</span>
+            <span className={BADGE_BASE + ' ' + COLOR_BADGE.purple}>{withFullTransport} trasporti</span>
           </div>
         )}
         <div className="flex items-center gap-2 ml-auto">
@@ -744,7 +744,7 @@ export function EventLogisticaTab({ event, users = [] }) {
                                   {person.type === 'staff' && canEditStaff && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setStatoConfirm({ person, newStato: !person.confermato, label: person.confermato ? 'Da confermare' : 'Confermato', type: 'staff' }) }}
-                                      className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${person.confermato ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
+                                      className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${CONFERMATO_CHIP[person.confermato]}`}
                                     >
                                       {person.confermato ? 'Confermato' : 'Da confermare'}
                                     </button>
@@ -897,13 +897,13 @@ export function EventLogisticaTab({ event, users = [] }) {
                     {person.type === 'staff' && canEditStaff && (
                       <button
                         onClick={() => setStatoConfirm({ person, newStato: !person.confermato, label: person.confermato ? 'Da confermare' : 'Confermato', type: 'staff' })}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium min-h-[48px] transition-colors ${person.confermato ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium min-h-[48px] transition-colors ${CONFERMATO_CHIP[person.confermato]}`}
                       >
                         {person.confermato ? 'Confermato' : 'Da confermare'}
                       </button>
                     )}
                     {person.type === 'staff' && !canEditStaff && (
-                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${person.confermato ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${CONFERMATO_BADGE[person.confermato]}`}>
                         {person.confermato ? 'Confermato' : 'Da confermare'}
                       </span>
                     )}
