@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useActivitiesStore } from '../../hooks/useActivities'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -225,6 +225,27 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const speditoCount = rows.filter(r => r.stato === 'spedito').length
   const allPrepared = rows.length > 0 && pendingCount === 0 && confirmedCount === 0
 
+  // Map event_material_id → collo info (numero + imballato) aggregating quantities across multi-collo splits
+  const colloByMaterialId = useMemo(() => {
+    const map = {}
+    for (const p of packingItems) {
+      if (!p.event_material_id || p.collo_numero == null) continue
+      if (!map[p.event_material_id]) {
+        map[p.event_material_id] = { numeri: new Set(), imballatiCount: 0, totalCount: 0 }
+      }
+      map[p.event_material_id].numeri.add(p.collo_numero)
+      map[p.event_material_id].totalCount++
+      if (p.imballato) map[p.event_material_id].imballatiCount++
+    }
+    // Convert Sets to sorted arrays for easier display
+    const result = {}
+    for (const [id, info] of Object.entries(map)) {
+      const numeri = [...info.numeri].sort((a, b) => a - b)
+      result[id] = { numeri, imballato: info.imballatiCount === info.totalCount && info.totalCount > 0 }
+    }
+    return result
+  }, [packingItems])
+
   // Packing list derived data for readyToShip
   const packingColliNumbers = [...new Set(packingItems.map(i => i.collo_numero).filter(n => n != null))]
   const allPacked = packingItems.length > 0 && packingItems.every(i => i.imballato)
@@ -404,6 +425,9 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                             availability={availability[row.product_id]}
                             stockLocations={stockLocations[row.product_id] || []}
                             eventZoneId={eventZoneId}
+                            collo={colloByMaterialId[row.id]}
+                            eventSpedizioneData={event.spedizione_data}
+                            eventTracking={event.spedizione_tracking}
                             canEdit={canEdit}
                             canApprove={canApprove}
                             tipoLabels={tipoLabels}

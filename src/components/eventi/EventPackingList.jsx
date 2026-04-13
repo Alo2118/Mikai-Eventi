@@ -211,21 +211,85 @@ export function EventPackingList({ event, onBack }) {
         )}
       </div>
 
-      {/* Selection bar */}
+      {/* Selection bar — shows when items selected */}
       {selected.size > 0 && (
-        <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap no-print'}>
-          <span className="text-sm font-medium text-mikai-700">{selected.size} selezionati</span>
-          <Button size="sm" onClick={openAssignModal}>
-            <Icon icon={MATERIALE_ICONS.package} size={16} className="mr-1" />
-            Assegna a collo
+        <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap no-print sticky top-0 z-10'}>
+          <span className="text-sm font-medium text-mikai-700">{selected.size} voci selezionate</span>
+          <span className="text-xs text-mikai-600">Scegli un collo dove spostarle:</span>
+          {colloNumbers.map(num => (
+            <Button key={`move-${num}`} size="sm" variant="secondary" onClick={async () => {
+              const selectedItems = items.filter(i => selected.has(i.id))
+              for (const item of selectedItems) await assignToCollo(item.id, num)
+              addToast(`${selectedItems.length} voci spostate nel collo ${num}`, 'success')
+              setSelected(new Set())
+            }}>
+              → Collo {num}
+            </Button>
+          ))}
+          <Button size="sm" onClick={async () => {
+            const nextCollo = maxCollo + 1
+            const selectedItems = items.filter(i => selected.has(i.id))
+            for (const item of selectedItems) await assignToCollo(item.id, nextCollo)
+            addToast(`Collo ${nextCollo} creato con ${selectedItems.length} voci`, 'success')
+            setSelected(new Set())
+          }}>
+            <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
+            Nuovo collo
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Deseleziona</Button>
+          <Button size="sm" variant="ghost" onClick={openAssignModal}>
+            Quantità parziali...
+          </Button>
+          {colloNumbers.length > 0 && (
+            <Button size="sm" variant="ghost" onClick={async () => {
+              const selectedItems = items.filter(i => selected.has(i.id))
+              for (const item of selectedItems) await assignToCollo(item.id, null)
+              addToast(`${selectedItems.length} voci rimosse dai colli`, 'success')
+              setSelected(new Set())
+            }}>
+              Rimuovi dal collo
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Annulla selezione</Button>
         </div>
       )}
 
       {/* Items grouped by collo */}
       {items.length > 0 && (
         <div className="space-y-4">
+          {/* Unassigned section — shown first, highlighted */}
+          {unassigned.length > 0 && (
+            <PackingGroup
+              title="Voci da assegnare a un collo"
+              count={unassigned.length}
+              items={unassigned}
+              onToggle={handleToggle}
+              onDelete={i => !i.event_material_id ? setDeleteTarget(i) : null}
+              selected={selected}
+              onSelect={id => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })}
+              highlight
+              headerExtra={(
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button size="sm" onClick={async () => {
+                    const nextCollo = maxCollo + 1
+                    for (const item of unassigned) await assignToCollo(item.id, nextCollo)
+                    addToast(`Collo ${nextCollo} creato con ${unassigned.length} voci`, 'success')
+                  }}>
+                    <Icon icon={ACTION_ICONS.add} size={14} className="mr-1" />
+                    Nuovo collo con tutto
+                  </Button>
+                  {colloNumbers.map(num => (
+                    <Button key={`move-all-${num}`} size="sm" variant="secondary" onClick={async () => {
+                      for (const item of unassigned) await assignToCollo(item.id, num)
+                      addToast(`${unassigned.length} voci spostate nel collo ${num}`, 'success')
+                    }}>
+                      → Collo {num}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            />
+          )}
+
           {colloNumbers.map(num => {
             const colloItems = items.filter(i => i.collo_numero === num)
             const colloPackedCount = colloItems.filter(i => i.imballato).length
@@ -245,37 +309,6 @@ export function EventPackingList({ event, onBack }) {
             )
           })}
 
-          {unassigned.length > 0 && (
-            <PackingGroup
-              title="Da assegnare a un collo"
-              count={unassigned.length}
-              items={unassigned}
-              onToggle={handleToggle}
-              onDelete={i => !i.event_material_id ? setDeleteTarget(i) : null}
-              selected={selected}
-              onSelect={id => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })}
-              highlight
-            />
-          )}
-
-          {/* Quick collo creation */}
-          {unassigned.length > 0 && (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="no-print"
-              onClick={async () => {
-                const nextCollo = maxCollo + 1
-                for (const item of unassigned) {
-                  await assignToCollo(item.id, nextCollo)
-                }
-                addToast(`Collo ${nextCollo} creato con ${unassigned.length} voci`, 'success')
-              }}
-            >
-              <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
-              Crea collo {maxCollo + 1} con tutte le voci ({unassigned.length})
-            </Button>
-          )}
         </div>
       )}
 
@@ -400,14 +433,14 @@ export function EventPackingList({ event, onBack }) {
   )
 }
 
-function PackingGroup({ title, count, packedCount, items, onToggle, onDelete, selected, onSelect, onPrintCollo, highlight }) {
+function PackingGroup({ title, count, packedCount, items, onToggle, onDelete, selected, onSelect, onPrintCollo, highlight, headerExtra }) {
   const allDone = packedCount != null && packedCount === count
   return (
     <div className={`border rounded-xl overflow-hidden ${
       highlight ? 'border-yellow-300 bg-yellow-50/30' :
       allDone ? 'border-emerald-200' : 'border-gray-200'
     }`}>
-      <div className={`px-4 py-2.5 flex items-center justify-between ${
+      <div className={`px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 ${
         highlight ? 'bg-yellow-50' : allDone ? 'bg-emerald-50' : 'bg-gray-50'
       }`}>
         <div className="flex items-center gap-2">
@@ -418,16 +451,19 @@ function PackingGroup({ title, count, packedCount, items, onToggle, onDelete, se
             {packedCount != null ? `${packedCount}/${count} imballati` : `${count} voci`}
           </span>
         </div>
-        {onPrintCollo && (
-          <button
-            onClick={onPrintCollo}
-            className="text-sm text-mikai-500 hover:text-mikai-700 no-print flex items-center gap-1 min-h-[48px] px-2 rounded-lg hover:bg-mikai-50 transition-colors"
-            aria-label={`Stampa ${title}`}
-          >
-            <Icon icon={DOCUMENTO_ICONS.print} size={14} />
-            Stampa
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap no-print">
+          {headerExtra}
+          {onPrintCollo && (
+            <button
+              onClick={onPrintCollo}
+              className="text-sm text-mikai-500 hover:text-mikai-700 flex items-center gap-1 min-h-[48px] px-2 rounded-lg hover:bg-mikai-50 transition-colors"
+              aria-label={`Stampa ${title}`}
+            >
+              <Icon icon={DOCUMENTO_ICONS.print} size={14} />
+              Stampa
+            </button>
+          )}
+        </div>
       </div>
       <div className="p-3 space-y-2">
         {items.map(item => (

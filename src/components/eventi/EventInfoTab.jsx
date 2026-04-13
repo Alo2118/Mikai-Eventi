@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { MODALITA_EVENTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, CARD_STYLE } from '../../lib/constants'
 import { formatDateRange, formatDate } from '../../lib/date-utils'
-import { EventStatusFlow } from './EventStatusFlow'
-import { EventApprovalBar } from './EventApprovalBar'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, MODALITA_ICONS, NAV_ICONS, COSTI_ICONS, INFO_EVENTO_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
@@ -147,40 +145,15 @@ export function EventInfoTab({ event, onUpdate }) {
 
   return (
     <div className="space-y-4">
-      <EventApprovalBar event={event} onUpdate={onUpdate} />
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <EventStatusFlow
-          event={event}
-          onUpdate={onUpdate}
-          canAdvance={(() => {
-            if (!['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(event.stato)) return false
-            if (event.stato === 'in_preparazione') {
-              const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
-              const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
-              const shipped = event.modalita === 'contributo' || !!event.spedizione_data
-              return mandatoryIncomplete.length === 0 && (!hasMat || shipped)
-            }
-            return true
-          })()}
-          blockerText={(() => {
-            if (event.stato !== 'in_preparazione') return null
-            const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
-            const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
-            const shipped = event.modalita === 'contributo' || !!event.spedizione_data
-            if (mandatoryIncomplete.length > 0 && hasMat && !shipped) return 'Completa le attività e registra la spedizione'
-            if (mandatoryIncomplete.length > 0) return 'Completa le attività obbligatorie'
-            if (hasMat && !shipped) return 'Registra la spedizione del materiale'
-            return null
-          })()}
-          hasContent={eventActivities.length > 0 || eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0 || eventStaff.length > 0 || eventParticipants.length > 0}
-        />
-        {canEdit && !editing && (
+      {/* Status flow + approval bar moved to EventiDetail (always visible across tabs) */}
+      {canEdit && !editing && (
+        <div className="flex justify-end">
           <Button variant="secondary" onClick={handleStartEdit} className="shrink-0">
             <Icon icon={ACTION_ICONS.edit} size={16} className="mr-1.5" />
             Modifica
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {editing ? (
         <div className={FORM_CONTAINER_STYLE + ' border border-gray-200 space-y-4'}>

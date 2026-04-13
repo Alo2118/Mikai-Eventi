@@ -1,7 +1,7 @@
-import { useState, useEffect, memo } from 'react'
+import { useState, useEffect, useMemo, memo } from 'react'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS, POSIZIONE_ICONS, NAV_ICONS } from '../../lib/icons'
-import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, CARD_ITEM_STYLE, CARD_STYLE, COLOR_BG_100, COLOR_TEXT_600 } from '../../lib/constants'
+import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, COLOR_BG_100, COLOR_TEXT_600, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Button } from '../ui/Button'
 import { formatDateRange, formatDateShort } from '../../lib/date-utils'
@@ -9,12 +9,25 @@ import { formatDateRange, formatDateShort } from '../../lib/date-utils'
 // Compact action button — icon only, no label
 const ACT_BTN = 'min-h-[44px] min-w-[44px] md:min-h-[36px] md:min-w-[36px] rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105'
 
-
 const STATE_BORDER = {
   spedito: 'border-emerald-300 bg-emerald-50/30',
   in_preparazione: 'border-mikai-300 bg-mikai-50/30',
   approvato: 'border-green-200 bg-green-50/30',
   rifiutato: 'border-red-200 bg-red-50/30',
+}
+
+// Pick the primary source location — prefers zone-matched agent, then first magazzino, then first any
+function pickPrimaryLocation(stockLocations, eventZoneId) {
+  if (!stockLocations || stockLocations.length === 0) return null
+  const zoneMatch = stockLocations.find(l => eventZoneId && l.agent?.zone_id === eventZoneId)
+  if (zoneMatch) return { ...zoneMatch, isZoneMatch: true }
+  const magazzino = stockLocations.find(l => l.magazzino)
+  return magazzino || stockLocations[0]
+}
+
+function locationLabel(loc) {
+  if (!loc) return null
+  return loc.magazzino ? loc.magazzino.nome : `${loc.agent?.cognome || ''} ${loc.agent?.nome || ''}`.trim()
 }
 
 // Compact quantity editor for pending rows
@@ -36,8 +49,118 @@ function QuantityEditor({ value, onChange }) {
   )
 }
 
+// ── Stato-adaptive compact meta — shows only relevant info per stato ──
+function CompactMeta({ stato, row, availability, collo, primaryLocation, richiedente, approvatore, eventSpedizioneData, eventTracking }) {
+  const qtyRequested = row.quantita || 1
+  const inMagazzino = availability?.inMagazzino ?? null
+  const hasAvail = availability != null
+  const insufficient = hasAvail && inMagazzino < qtyRequested
+  const noteCommerciale = row.note_commerciale
+  const noteUfficio = row.note_ufficio
+
+  switch (stato) {
+    case 'richiesto':
+      return (
+        <>
+          {hasAvail && (
+            insufficient
+              ? <span className="text-xs font-medium text-red-600 flex items-center gap-0.5"><Icon icon={FEEDBACK_ICONS.warning} size={10} />{inMagazzino}/{qtyRequested}</span>
+              : <span className="text-xs text-green-600 flex items-center gap-0.5"><Icon icon={ACTION_ICONS.check} size={10} />{inMagazzino} disp.</span>
+          )}
+          {richiedente && <span className="text-xs text-gray-400 hidden lg:inline">da {richiedente}</span>}
+          {noteCommerciale && <span className="text-xs text-gray-400 italic truncate max-w-[200px] hidden md:inline" title={noteCommerciale}>"{noteCommerciale}"</span>}
+        </>
+      )
+
+    case 'approvato':
+      return (
+        <>
+          {primaryLocation && (
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-medium ${primaryLocation.isZoneMatch ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`} title={primaryLocation.isZoneMatch ? 'Stessa zona dell\'evento' : undefined}>
+              <Icon icon={primaryLocation.magazzino ? POSIZIONE_ICONS.in_magazzino : POSIZIONE_ICONS.magazzino_agente} size={10} />
+              {locationLabel(primaryLocation)}: {primaryLocation.quantita}
+            </span>
+          )}
+          {approvatore && <span className="text-xs text-gray-400 hidden lg:inline">✓ {approvatore}</span>}
+          {noteUfficio && <span className="text-xs text-mikai-600 italic truncate max-w-[180px] hidden md:inline" title={noteUfficio}>"{noteUfficio}"</span>}
+        </>
+      )
+
+    case 'in_preparazione':
+      return (
+        <>
+          {collo && collo.numeri.length > 0 ? (
+            <span className={`inline-flex items-center gap-1 ${BADGE_BASE} ${COLOR_BADGE.mikai}`} title={`Assegnato ${collo.numeri.length > 1 ? 'ai colli' : 'al collo'} ${collo.numeri.join(', ')}${collo.imballato ? ' — imballato' : ''}`}>
+              <Icon icon={MATERIALE_ICONS.package} size={10} />
+              Collo {collo.numeri.join(', ')}
+              {collo.imballato && <Icon icon={ACTION_ICONS.check} size={10} className="text-emerald-600" />}
+            </span>
+          ) : (
+            <span className="text-xs text-yellow-600 flex items-center gap-0.5" title="Non ancora nella packing list">
+              <Icon icon={FEEDBACK_ICONS.warning} size={10} />
+              Non in packing list
+            </span>
+          )}
+          {primaryLocation && (
+            <span className="text-xs text-gray-500 flex items-center gap-0.5 hidden md:flex">
+              <Icon icon={primaryLocation.magazzino ? POSIZIONE_ICONS.in_magazzino : POSIZIONE_ICONS.magazzino_agente} size={10} className="text-gray-400" />
+              Preleva da: {locationLabel(primaryLocation)}
+            </span>
+          )}
+          {noteUfficio && <span className="text-xs text-mikai-600 italic truncate max-w-[180px] hidden lg:inline" title={noteUfficio}>"{noteUfficio}"</span>}
+        </>
+      )
+
+    case 'spedito':
+      return (
+        <>
+          {collo && collo.numeri.length > 0 && (
+            <span className={`inline-flex items-center gap-1 ${BADGE_BASE} ${COLOR_BADGE.emerald}`}>
+              <Icon icon={MATERIALE_ICONS.package} size={10} />
+              Collo {collo.numeri.join(', ')}
+            </span>
+          )}
+          {eventTracking && <span className="text-xs text-gray-500 font-mono hidden md:inline" title={`Tracking: ${eventTracking}`}>#{eventTracking.slice(-8)}</span>}
+          {eventSpedizioneData && <span className="text-xs text-gray-400 hidden md:inline">Spedito {formatDateShort(eventSpedizioneData)}</span>}
+        </>
+      )
+
+    case 'rifiutato':
+      return (
+        <>
+          {row.motivo_rifiuto && <span className="text-xs text-red-600 italic truncate max-w-[280px]" title={row.motivo_rifiuto}>"{row.motivo_rifiuto}"</span>}
+          {approvatore && <span className="text-xs text-gray-400 hidden md:inline">— {approvatore}</span>}
+          {row.data_approvazione && <span className="text-xs text-gray-400 hidden lg:inline">{formatDateShort(row.data_approvazione)}</span>}
+        </>
+      )
+
+    default:
+      return null
+  }
+}
+
+// Mobile-only meta (simpler, below the compact row)
+function MobileMeta({ stato, row, collo, primaryLocation, richiedente, approvatore }) {
+  switch (stato) {
+    case 'richiesto':
+      return richiedente ? <span>da {richiedente}</span> : null
+    case 'approvato':
+      return primaryLocation ? <span>📍 {locationLabel(primaryLocation)}</span> : null
+    case 'in_preparazione':
+      if (collo && collo.numeri.length > 0) return <span>Collo {collo.numeri.join(', ')}</span>
+      return <span className="text-yellow-600">Non in packing list</span>
+    case 'spedito':
+      if (collo && collo.numeri.length > 0) return <span>Collo {collo.numeri.join(', ')} · Spedito</span>
+      return <span>Spedito</span>
+    case 'rifiutato':
+      return row.motivo_rifiuto ? <span className="text-red-600 truncate">"{row.motivo_rifiuto}"</span> : null
+    default:
+      return null
+  }
+}
+
 export const MaterialListRow = memo(function MaterialListRow({
-  row, availability, stockLocations = [], eventZoneId,
+  row, availability, stockLocations = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
   canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation, onRevert,
   tipoLabels, tipoColors, tipoIcons,
 }) {
@@ -46,6 +169,7 @@ export const MaterialListRow = memo(function MaterialListRow({
   const isConfirmed = row.stato === 'approvato'
   const isRejected = row.stato === 'rifiutato'
   const isInPrep = row.stato === 'in_preparazione'
+  const isShipped = row.stato === 'spedito'
   const product = row.product
   const [localQty, setLocalQty] = useState(row.quantita || 1)
   useEffect(() => { setLocalQty(row.quantita || 1) }, [row.quantita])
@@ -70,6 +194,8 @@ export const MaterialListRow = memo(function MaterialListRow({
   const richiedente = row.richiesto ? `${row.richiesto.nome || ''} ${row.richiesto.cognome || ''}`.trim() : null
   const approvatore = row.approvatore ? `${row.approvatore.nome || ''} ${row.approvatore.cognome || ''}`.trim() : null
   const isPartial = isConfirmed && row.quantita_approvata != null && row.quantita_approvata < (row.quantita || 1)
+
+  const primaryLocation = useMemo(() => pickPrimaryLocation(stockLocations, eventZoneId), [stockLocations, eventZoneId])
 
   const commitQty = (val) => {
     const qty = Math.max(1, parseInt(val) || 1)
@@ -98,16 +224,18 @@ export const MaterialListRow = memo(function MaterialListRow({
             <span className={`text-xs ${COLOR_TEXT_600[tipoColor] || 'text-gray-500'}`}>{tipoLabel}</span>
             {product?.brand?.nome && <span className="text-xs text-gray-400 hidden md:inline">· {product.brand.nome}</span>}
             {product?.codice && <span className="text-xs text-gray-400 font-mono hidden lg:inline">{product.codice}</span>}
-            {hasAvailability && (
-              isInsufficient
-                ? <span className="text-xs font-medium text-red-600 flex items-center gap-0.5"><Icon icon={FEEDBACK_ICONS.warning} size={10} />{inMagazzino}/{qtyRequested}</span>
-                : <span className="text-xs text-green-600 hidden md:flex items-center gap-0.5"><Icon icon={ACTION_ICONS.check} size={10} />{inMagazzino}</span>
-            )}
-            {/* Meta — inline on desktop */}
-            {richiedente && <span className="text-xs text-gray-400 hidden lg:inline">{richiedente}</span>}
-            {approvatore && (isConfirmed || isInPrep) && approvatore !== richiedente && (
-              <span className="text-xs text-green-600 hidden lg:flex items-center gap-0.5"><Icon icon={ACTION_ICONS.check} size={10} />{approvatore}</span>
-            )}
+            {/* Stato-adaptive meta */}
+            <CompactMeta
+              stato={row.stato}
+              row={row}
+              availability={avail}
+              collo={collo}
+              primaryLocation={primaryLocation}
+              richiedente={richiedente}
+              approvatore={approvatore}
+              eventSpedizioneData={eventSpedizioneData}
+              eventTracking={eventTracking}
+            />
           </div>
 
           {/* Quantity */}
@@ -161,8 +289,14 @@ export const MaterialListRow = memo(function MaterialListRow({
         {/* Mobile-only meta row */}
         <div className="flex items-center gap-x-3 gap-y-0.5 flex-wrap mt-1 ml-9 text-xs text-gray-500 md:hidden">
           <StatusBadge stato={isPartial ? 'parziale' : row.stato} labels={{ ...STATO_MATERIALE_LISTA, parziale: 'Parziale' }} colors={{ ...STATO_MATERIALE_LISTA_COLORE, parziale: 'yellow' }} />
-          {richiedente && <span>{richiedente}</span>}
-          {product?.brand?.nome && <span className="text-gray-400">· {product.brand.nome}</span>}
+          <MobileMeta
+            stato={row.stato}
+            row={row}
+            collo={collo}
+            primaryLocation={primaryLocation}
+            richiedente={richiedente}
+            approvatore={approvatore}
+          />
         </div>
       </div>
 
@@ -170,8 +304,9 @@ export const MaterialListRow = memo(function MaterialListRow({
       {expanded && (
         <MaterialRowDetails
           row={row} availability={avail} stockLocations={stockLocations} eventZoneId={eventZoneId}
+          collo={collo} eventSpedizioneData={eventSpedizioneData} eventTracking={eventTracking}
           canEdit={canEdit} canApprove={canApprove} isPending={isPending} isConfirmed={isConfirmed}
-          isRejected={isRejected} isInPrep={isInPrep} isInsufficient={isInsufficient}
+          isRejected={isRejected} isInPrep={isInPrep} isShipped={isShipped} isInsufficient={isInsufficient}
           rowEditable={rowEditable} onUpdate={onUpdate} onConfirm={onConfirm} onRevert={onRevert}
           showConfirmForm={showConfirmForm} setShowConfirmForm={setShowConfirmForm}
           confirmQty={confirmQty} setConfirmQty={setConfirmQty}
@@ -185,8 +320,8 @@ export const MaterialListRow = memo(function MaterialListRow({
 
 // ── Expanded details ──
 function MaterialRowDetails({
-  row, availability, stockLocations, eventZoneId,
-  canEdit, canApprove, isPending, isConfirmed, isRejected, isInPrep,
+  row, availability, stockLocations, eventZoneId, collo, eventSpedizioneData, eventTracking,
+  canEdit, canApprove, isPending, isConfirmed, isRejected, isInPrep, isShipped,
   isInsufficient, rowEditable, onUpdate, onConfirm, onRevert,
   showConfirmForm, setShowConfirmForm, confirmQty, setConfirmQty, confirmNote, setConfirmNote,
   richiedente, approvatore,
@@ -198,38 +333,48 @@ function MaterialRowDetails({
   const totaleEsemplari = availability?.totale ?? null
   const hasAvailability = availability != null
 
+  // Visibility per stato
+  const showAvailabilityBlock = hasAvailability && (isPending || isConfirmed)
+  const showStockLocations = stockLocations.length > 0 && (isPending || isConfirmed || isInPrep)
+  const showColloPanel = (isInPrep || isShipped)
+  const showRichiedenteAudit = isShipped || isRejected || isPending
+  const showApprovatoreAudit = approvatore && (isConfirmed || isInPrep || isShipped || isRejected)
+  const showNoteCommerciale = row.note_commerciale && (isPending || isConfirmed || isRejected)
+  const showNoteUfficio = row.note_ufficio && !isPending
+  const showDateUtilizzo = (row.data_inizio_utilizzo || row.data_fine_utilizzo) && (isPending || isConfirmed)
+
   return (
     <div className="px-3 pb-3 space-y-2 border-t border-gray-100 pt-2">
-      {/* Full meta on expand */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-        {richiedente && (
-          <span className="flex items-center gap-1">
-            <Icon icon={NAV_ICONS.profilo} size={12} className="text-gray-400" />
-            {richiedente}
-          </span>
-        )}
-        {(row.data_inizio_utilizzo || row.data_fine_utilizzo) && (
-          <span className="flex items-center gap-1">
-            <Icon icon={NAV_ICONS.eventi} size={12} className="text-gray-400" />
-            {row.data_inizio_utilizzo && row.data_fine_utilizzo
-              ? formatDateRange(row.data_inizio_utilizzo, row.data_fine_utilizzo)
-              : formatDateShort(row.data_inizio_utilizzo || row.data_fine_utilizzo)
-            }
-          </span>
-        )}
-        {approvatore && (isConfirmed || isInPrep) && (
-          <span className="flex items-center gap-1 text-green-600">
-            <Icon icon={ACTION_ICONS.check} size={12} />
-            {approvatore}
-            {row.data_approvazione && <span className="text-gray-400 ml-0.5">{formatDateShort(row.data_approvazione)}</span>}
-          </span>
-        )}
-        {row.note_commerciale && (
-          <span className="text-gray-400 truncate max-w-[250px]" title={row.note_commerciale}>{row.note_commerciale}</span>
-        )}
-      </div>
+      {/* Meta audit on expand — adaptive */}
+      {(showRichiedenteAudit || showApprovatoreAudit || showDateUtilizzo) && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+          {showRichiedenteAudit && richiedente && (
+            <span className="flex items-center gap-1">
+              <Icon icon={NAV_ICONS.profilo} size={12} className="text-gray-400" />
+              Richiesto da {richiedente}
+            </span>
+          )}
+          {showDateUtilizzo && (
+            <span className="flex items-center gap-1">
+              <Icon icon={NAV_ICONS.eventi} size={12} className="text-gray-400" />
+              {row.data_inizio_utilizzo && row.data_fine_utilizzo
+                ? formatDateRange(row.data_inizio_utilizzo, row.data_fine_utilizzo)
+                : formatDateShort(row.data_inizio_utilizzo || row.data_fine_utilizzo)
+              }
+            </span>
+          )}
+          {showApprovatoreAudit && (
+            <span className="flex items-center gap-1 text-green-600">
+              <Icon icon={ACTION_ICONS.check} size={12} />
+              {isRejected ? 'Rifiutato' : 'Approvato'} da {approvatore}
+              {row.data_approvazione && <span className="text-gray-400 ml-0.5">{formatDateShort(row.data_approvazione)}</span>}
+            </span>
+          )}
+        </div>
+      )}
 
-      {hasAvailability && (
+      {/* Availability — only when requesting/approving */}
+      {showAvailabilityBlock && (
         <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-1.5 ${isInsufficient ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
           <Icon icon={isInsufficient ? FEEDBACK_ICONS.warning : ACTION_ICONS.check} size={14} className="flex-shrink-0" />
           <span>
@@ -242,37 +387,75 @@ function MaterialRowDetails({
         </div>
       )}
 
-      {stockLocations.length > 0 && (isPending || isConfirmed) && (
-        <div className="flex flex-wrap gap-1">
-          {stockLocations.map(loc => {
-            const isInZone = eventZoneId && loc.agent?.zone_id === eventZoneId
-            const label = loc.magazzino ? loc.magazzino.nome : `${loc.agent?.cognome || ''} ${loc.agent?.nome || ''}`.trim()
-            return (
-              <span key={loc.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isInZone ? 'bg-green-100 text-green-700 ring-1 ring-green-300' : 'bg-gray-100 text-gray-600'}`}>
-                <Icon icon={loc.magazzino ? POSIZIONE_ICONS.in_magazzino : POSIZIONE_ICONS.magazzino_agente} size={10} />
-                {label}: {loc.quantita}
-                {isInZone && <span className="text-[10px]">(zona)</span>}
-              </span>
-            )
-          })}
+      {/* Stock locations — available in richiesto/approvato/in_preparazione */}
+      {showStockLocations && (
+        <div>
+          {isInPrep && <p className="text-xs font-medium text-gray-500 mb-1">Preleva da una di queste posizioni:</p>}
+          <div className="flex flex-wrap gap-1">
+            {stockLocations.map(loc => {
+              const isInZone = eventZoneId && loc.agent?.zone_id === eventZoneId
+              const label = locationLabel(loc)
+              return (
+                <span key={loc.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${isInZone ? 'bg-green-100 text-green-700 ring-1 ring-green-300' : 'bg-gray-100 text-gray-600'}`}>
+                  <Icon icon={loc.magazzino ? POSIZIONE_ICONS.in_magazzino : POSIZIONE_ICONS.magazzino_agente} size={10} />
+                  {label}: {loc.quantita}
+                  {isInZone && <span className="text-[10px]">(zona)</span>}
+                </span>
+              )
+            })}
+          </div>
         </div>
       )}
 
-      {/* Notes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {rowEditable ? (
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-0.5">Le tue note</label>
-            <input type="text" defaultValue={row.note_commerciale || ''} onBlur={(e) => onUpdate(row.id, { note_commerciale: e.target.value })} onClick={(e) => e.stopPropagation()} className={INPUT_STYLE} placeholder="Es. richiesto specificamente..." />
+      {/* Collo & Shipping panel — for in_preparazione and spedito */}
+      {showColloPanel && (
+        <div className={`rounded-lg px-3 py-2 text-xs space-y-1 ${isShipped ? 'bg-emerald-50 border border-emerald-200' : 'bg-mikai-50 border border-mikai-200'}`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Icon icon={MATERIALE_ICONS.package} size={14} className={isShipped ? 'text-emerald-600' : 'text-mikai-600'} />
+            {collo && collo.numeri.length > 0 ? (
+              <>
+                <span className={`font-medium ${isShipped ? 'text-emerald-700' : 'text-mikai-700'}`}>
+                  {collo.numeri.length > 1 ? 'Colli' : 'Collo'} {collo.numeri.join(', ')}
+                </span>
+                {collo.imballato && <span className="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">Imballato</span>}
+              </>
+            ) : (
+              <span className="text-yellow-700 flex items-center gap-1">
+                <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+                Non ancora assegnato a un collo (vai nella Packing list)
+              </span>
+            )}
           </div>
-        ) : row.note_commerciale ? (
-          <div><p className="text-xs font-medium text-gray-500">Note commerciale</p><p className="text-sm text-gray-700">{row.note_commerciale}</p></div>
-        ) : null}
-        {row.note_ufficio && (
-          <div><p className="text-xs font-medium text-gray-500">Note ufficio</p><p className="text-sm text-gray-700">{row.note_ufficio}</p></div>
-        )}
-      </div>
+          {isShipped && eventTracking && (
+            <div className="flex items-center gap-2 text-emerald-700">
+              <Icon icon={MATERIALE_ICONS.truck} size={12} />
+              Tracking: <span className="font-mono">{eventTracking}</span>
+            </div>
+          )}
+          {isShipped && eventSpedizioneData && (
+            <div className="text-emerald-600">Spedito il {formatDateShort(eventSpedizioneData)}</div>
+          )}
+        </div>
+      )}
 
+      {/* Notes — adaptive */}
+      {(rowEditable || showNoteCommerciale || showNoteUfficio) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {rowEditable ? (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-0.5">Le tue note</label>
+              <input type="text" defaultValue={row.note_commerciale || ''} onBlur={(e) => onUpdate(row.id, { note_commerciale: e.target.value })} onClick={(e) => e.stopPropagation()} className={INPUT_STYLE} placeholder="Es. richiesto specificamente..." />
+            </div>
+          ) : showNoteCommerciale ? (
+            <div><p className="text-xs font-medium text-gray-500">Note commerciale</p><p className="text-sm text-gray-700">{row.note_commerciale}</p></div>
+          ) : null}
+          {showNoteUfficio && (
+            <div><p className="text-xs font-medium text-gray-500">Note ufficio</p><p className="text-sm text-gray-700">{row.note_ufficio}</p></div>
+          )}
+        </div>
+      )}
+
+      {/* Rejection reason */}
       {isRejected && row.motivo_rifiuto && (
         <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2" role="alert">
           <Icon icon={FEEDBACK_ICONS.error} size={14} className="text-red-500 flex-shrink-0 mt-0.5" />

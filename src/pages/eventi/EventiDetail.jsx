@@ -39,6 +39,8 @@ const EventDocumentiTab = lazy(() => import('../../components/eventi/EventDocume
 const EventComplianceTab = lazy(() => import('../../components/eventi/EventComplianceTab').then(m => ({ default: m.EventComplianceTab })))
 const EventPackingList = lazy(() => import('../../components/eventi/EventPackingList').then(m => ({ default: m.EventPackingList })))
 const ComingSoon = lazy(() => import('../../components/ui/ComingSoon').then(m => ({ default: m.ComingSoon })))
+import { EventStatusFlow } from '../../components/eventi/EventStatusFlow'
+import { EventApprovalBar } from '../../components/eventi/EventApprovalBar'
 
 function getVisibleTabs(event, profile, permissions) {
   const ruolo = profile?.ruolo
@@ -368,6 +370,38 @@ export function EventiDetail() {
           </Button>
         )}
       </div>
+
+      {/* Status flow — sempre visibile, su tutte le tab */}
+      {!showPackingList && (
+        <div className="px-4 md:px-6 pb-2 space-y-2">
+          <EventApprovalBar event={event} onUpdate={refreshEvent} />
+          <EventStatusFlow
+            event={event}
+            onUpdate={refreshEvent}
+            canAdvance={(() => {
+              if (!['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(event.stato)) return false
+              if (event.stato === 'in_preparazione') {
+                const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
+                const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
+                const shipped = event.modalita === 'contributo' || !!event.spedizione_data
+                return mandatoryIncomplete.length === 0 && (!hasMat || shipped)
+              }
+              return true
+            })()}
+            blockerText={(() => {
+              if (event.stato !== 'in_preparazione') return null
+              const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
+              const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
+              const shipped = event.modalita === 'contributo' || !!event.spedizione_data
+              if (mandatoryIncomplete.length > 0 && hasMat && !shipped) return 'Completa le attività e registra la spedizione'
+              if (mandatoryIncomplete.length > 0) return 'Completa le attività obbligatorie'
+              if (hasMat && !shipped) return 'Registra la spedizione del materiale'
+              return null
+            })()}
+            hasContent={eventActivities.length > 0 || eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0 || staff.length > 0 || participants.length > 0}
+          />
+        </div>
+      )}
 
       {showPackingList ? (
         <div className="px-4 md:px-6 py-3 md:py-5">
