@@ -11,7 +11,7 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
-import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE, ISCRIZIONE_CHIP_COLORS, BADGE_BASE, COLOR_BADGE, CONFERMATO_CHIP, CONFERMATO_BADGE } from '../../lib/constants'
+import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE, ISCRIZIONE_CHIP_COLORS, BADGE_BASE, COLOR_BADGE, CONFERMATO_CHIP, CONFERMATO_BADGE, TAVOLO_COLORI } from '../../lib/constants'
 import { ACTION_ICONS, NAV_ICONS, LOGISTICA_PERSONE_ICONS, TAVOLI_ICONS } from '../../lib/icons'
 import { ContactPicker } from '../contatti/ContactPicker'
 import { BulkImportModal } from '../contatti/BulkImportModal'
@@ -122,6 +122,20 @@ function getPersonTavolo(person, tavoli) {
     }
   }
   return null
+}
+
+// ─── Tavolo badge: shows number + color dot + optional name ────
+function TavoloBadge({ tavolo, compact }) {
+  if (!tavolo) return <span className="text-gray-400">—</span>
+  const colore = TAVOLO_COLORI[tavolo.colore]
+  return (
+    <span className="inline-flex items-center gap-1 font-medium"
+      title={`Tavolo ${tavolo.numero}${colore ? ` (${colore.label})` : ''}${tavolo.nome ? ` — ${tavolo.nome}` : ''}`}>
+      {colore && <span className={`w-2.5 h-2.5 rounded-full ${colore.dot} shrink-0`} aria-hidden="true" />}
+      <span>T{tavolo.numero}</span>
+      {!compact && colore && <span className="text-xs text-gray-500">{colore.label}</span>}
+    </span>
+  )
 }
 
 // ─── Main Component ────────────────────────────────────────────
@@ -332,7 +346,11 @@ export function EventLogisticaTab({ event, users = [] }) {
           if (getPersonTavolo(p, [t])) { assigned.add(personKey(p)); return true }
           return false
         })
-        if (inTavolo.length > 0) groups.push({ label: `Tavolo ${t.numero}${t.nome ? ` — ${t.nome}` : ''}`, people: inTavolo })
+        if (inTavolo.length > 0) {
+          const colore = TAVOLO_COLORI[t.colore]
+          const coloreText = colore ? ` (${colore.label})` : ''
+          groups.push({ label: `Tavolo ${t.numero}${coloreText}${t.nome ? ` — ${t.nome}` : ''}`, people: inTavolo, tavolo: t })
+        }
       }
       const unassigned = filteredPeople.filter(p => !assigned.has(personKey(p)))
       if (unassigned.length > 0) groups.push({ label: 'Non assegnati', people: unassigned })
@@ -417,7 +435,7 @@ export function EventLogisticaTab({ event, users = [] }) {
         { label: 'Tipo', key: 'tipo', width: 15, format: (_, row) => row.type === 'staff' ? 'Staff' : 'Partecipante' },
         { label: 'Ruolo', key: 'ruolo', width: 18, format: (v, row) => row.type === 'staff' ? (RUOLO_EVENTO[v] || '') : (TIPO_PARTECIPANTE[v] || '') },
         { label: 'Stato', key: 'stato', width: 15, format: (_, row) => row.type === 'staff' ? (row.confermato ? 'Confermato' : 'Da confermare') : (STATO_ISCRIZIONE[row.statoIscrizione] || '') },
-        ...(hasTavoli ? [{ label: 'Tavolo', key: 'tavolo', width: 10, format: (_, row) => { const t = getPersonTavolo(row, tavoli); return t ? `T${t.numero}` : '' } }] : []),
+        ...(hasTavoli ? [{ label: 'Tavolo', key: 'tavolo', width: 14, format: (_, row) => { const t = getPersonTavolo(row, tavoli); if (!t) return ''; const c = TAVOLO_COLORI[t.colore]; return `T${t.numero}${c ? ` (${c.label})` : ''}` } }] : []),
         { label: 'Hotel', key: 'hotel', width: 25, format: (_, row) => getHotel(row)?.nome_hotel || '' },
         { label: 'Indirizzo Hotel', key: 'indirizzo', width: 30, format: (_, row) => getHotel(row)?.indirizzo_hotel || '' },
         { label: 'Check-in', key: 'checkin', width: 12, format: (_, row) => { const h = getHotel(row); return h?.check_in ? formatDateShort(h.check_in) : '' } },
@@ -684,8 +702,12 @@ export function EventLogisticaTab({ event, users = [] }) {
       {viewMode === 'lista' && groupedPeople.map((group, gi) => (
         <div key={gi}>
           {group.label && (
-            <div className={GROUP_HEADING_STYLE + ' mb-2'}>
-              {group.label} <span className="text-gray-400 font-normal">({group.people.length})</span>
+            <div className={GROUP_HEADING_STYLE + ' mb-2 flex items-center gap-2'}>
+              {group.tavolo?.colore && TAVOLO_COLORI[group.tavolo.colore] && (
+                <span className={`w-3 h-3 rounded-full ${TAVOLO_COLORI[group.tavolo.colore].dot}`} aria-hidden="true" />
+              )}
+              <span>{group.label}</span>
+              <span className="text-gray-400 font-normal">({group.people.length})</span>
             </div>
           )}
 
@@ -795,7 +817,7 @@ export function EventLogisticaTab({ event, users = [] }) {
                         </td>
                         {hasTavoli && (
                           <td className="py-2 px-2">
-                            {currentTavolo ? <span className="font-medium">T{currentTavolo.numero}</span> : <span className="text-gray-400">—</span>}
+                            <TavoloBadge tavolo={currentTavolo} compact />
                           </td>
                         )}
                         <td className="py-2 px-2">

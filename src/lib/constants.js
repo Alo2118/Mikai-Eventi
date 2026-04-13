@@ -760,3 +760,14 @@ export const CONFERMATO_CHIP = { true: 'bg-green-100 text-green-700 hover:bg-gre
 // Base pill/badge class (no color, add COLOR_BADGE[color] for full style)
 export const BADGE_BASE = 'px-2 py-0.5 rounded-full text-xs font-medium'
 
+// Tavolo colori — visual identification for corso tables
+export const TAVOLO_COLORI = {
+  yellow: { label: 'Giallo', dot: 'bg-yellow-400', badge: 'bg-yellow-100 text-yellow-800 border-yellow-300', ring: 'ring-yellow-400' },
+  green: { label: 'Verde', dot: 'bg-green-500', badge: 'bg-green-100 text-green-800 border-green-300', ring: 'ring-green-500' },
+  black: { label: 'Nero', dot: 'bg-gray-800', badge: 'bg-gray-800 text-white border-gray-900', ring: 'ring-gray-800' },
+  blue: { label: 'Azzurro', dot: 'bg-sky-400', badge: 'bg-sky-100 text-sky-800 border-sky-300', ring: 'ring-sky-400' },
+  red: { label: 'Rosso', dot: 'bg-red-500', badge: 'bg-red-100 text-red-800 border-red-300', ring: 'ring-red-500' },
+}
+
+export const TAVOLO_COLORI_LIST = ['yellow', 'green', 'black', 'blue', 'red']
+

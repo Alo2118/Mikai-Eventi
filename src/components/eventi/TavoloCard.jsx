@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ACTION_ICONS } from '../../lib/icons'
 import { useTavoliStore } from '../../hooks/useTavoli'
-import { SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { SELECT_STYLE, CARD_STYLE, TAVOLO_COLORI, TAVOLO_COLORI_LIST } from '../../lib/constants'
 
 function AssignmentSection({ title, items, renderItem, options, optionLabel, optionValue, onAdd, onRemove, canEdit }) {
   const [selected, setSelected] = useState('')
@@ -83,15 +83,19 @@ export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableP
   return (
     <div className={CARD_STYLE + ' space-y-4'}>
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <span className="font-bold text-gray-900 whitespace-nowrap">Tavolo {tavolo.numero}</span>
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="font-bold text-gray-900 whitespace-nowrap flex items-center gap-2">
+          {tavolo.colore && <span className={`w-4 h-4 rounded-full ${TAVOLO_COLORI[tavolo.colore]?.dot || 'bg-gray-200'}`} aria-hidden="true" />}
+          Tavolo {tavolo.numero}
+          {tavolo.colore && <span className="text-sm text-gray-500 font-normal">({TAVOLO_COLORI[tavolo.colore]?.label})</span>}
+        </span>
         {canEdit ? (
           <input
             value={nome}
             onChange={e => setNome(e.target.value)}
             onBlur={handleNomeBlur}
             placeholder="Nome opzionale"
-            className="flex-1 px-3 py-1.5 text-base border border-gray-200 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 outline-none text-gray-700"
+            className="flex-1 min-w-[120px] px-3 py-1.5 text-base border border-gray-200 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400 outline-none text-gray-700"
           />
         ) : (
           nome && <span className="flex-1 text-gray-600">{nome}</span>
@@ -106,6 +110,30 @@ export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableP
           </button>
         )}
       </div>
+
+      {/* Color picker */}
+      {canEdit && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-gray-500">Colore:</span>
+          <button
+            type="button"
+            onClick={() => updateTavolo(tavolo.id, { colore: null })}
+            className={`min-h-[32px] min-w-[32px] w-8 h-8 rounded-full border-2 bg-white text-gray-400 text-xs transition-all ${!tavolo.colore ? 'ring-2 ring-offset-1 ring-gray-400 border-gray-400' : 'border-gray-200 hover:border-gray-400'}`}
+            aria-label="Nessun colore"
+            title="Nessun colore"
+          >—</button>
+          {TAVOLO_COLORI_LIST.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => updateTavolo(tavolo.id, { colore: c })}
+              className={`min-h-[32px] min-w-[32px] w-8 h-8 rounded-full transition-all ${TAVOLO_COLORI[c].dot} ${tavolo.colore === c ? `ring-2 ring-offset-1 ${TAVOLO_COLORI[c].ring}` : 'hover:scale-110'}`}
+              aria-label={TAVOLO_COLORI[c].label}
+              title={TAVOLO_COLORI[c].label}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Materiale */}
       <AssignmentSection
