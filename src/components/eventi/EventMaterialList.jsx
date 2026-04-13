@@ -221,10 +221,6 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     loadData,
   })
 
-  if (loading) return <LoadingSkeleton lines={5} />
-  const speditoCount = rows.filter(r => r.stato === 'spedito').length
-  const allPrepared = rows.length > 0 && pendingCount === 0 && confirmedCount === 0
-
   // Map event_material_id → collo info (numero + imballato) aggregating quantities across multi-collo splits
   const colloByMaterialId = useMemo(() => {
     const map = {}
@@ -237,7 +233,6 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
       map[p.event_material_id].totalCount++
       if (p.imballato) map[p.event_material_id].imballatiCount++
     }
-    // Convert Sets to sorted arrays for easier display
     const result = {}
     for (const [id, info] of Object.entries(map)) {
       const numeri = [...info.numeri].sort((a, b) => a - b)
@@ -245,6 +240,10 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     }
     return result
   }, [packingItems])
+
+  if (loading) return <LoadingSkeleton lines={5} />
+  const speditoCount = rows.filter(r => r.stato === 'spedito').length
+  const allPrepared = rows.length > 0 && pendingCount === 0 && confirmedCount === 0
 
   // Packing list derived data for readyToShip
   const packingColliNumbers = [...new Set(packingItems.map(i => i.collo_numero).filter(n => n != null))]
