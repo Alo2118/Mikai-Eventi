@@ -6,6 +6,8 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { useToastStore } from '../../components/ui/Toast'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { NotificationPreferences } from '../../components/notifiche/NotificationPreferences'
@@ -20,11 +22,23 @@ export function NotifichePage() {
   const loading = useNotificationsStore(s => s.loading)
   const fetchNotifications = useNotificationsStore(s => s.fetchNotifications)
   const markAllAsRead = useNotificationsStore(s => s.markAllAsRead)
+  const deleteReadNotifications = useNotificationsStore(s => s.deleteReadNotifications)
+  const addToast = useToastStore(s => s.add)
 
   const [filterTipo, setFilterTipo] = useState('')
   const [filterStato, setFilterStato] = useState('')
   const [page, setPage] = useState(0)
   const [showPreferences, setShowPreferences] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const readCount = notifications.filter(n => n.letta).length
+
+  async function handleDeleteRead() {
+    setShowDeleteConfirm(false)
+    const { error } = await deleteReadNotifications()
+    if (error) addToast('Errore nella pulizia', 'error')
+    else addToast('Notifiche lette rimosse', 'success')
+  }
 
   useEffect(() => { fetchNotifications(PAGE_SIZE, 0) }, [])
 
@@ -57,6 +71,11 @@ export function NotifichePage() {
                 Segna tutte come lette
               </Button>
             )}
+            {readCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(true)}>
+                Cancella lette
+              </Button>
+            )}
             <Button
               variant={showPreferences ? 'primary' : 'ghost'}
               size="sm"
@@ -68,6 +87,16 @@ export function NotifichePage() {
             </Button>
           </div>
         }
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Cancella notifiche lette"
+        message="Tutte le notifiche già lette verranno eliminate definitivamente. Continuare?"
+        confirmLabel="Cancella"
+        danger
+        onConfirm={handleDeleteRead}
+        onCancel={() => setShowDeleteConfirm(false)}
       />
 
       <div className="px-4 md:px-6 pb-8">

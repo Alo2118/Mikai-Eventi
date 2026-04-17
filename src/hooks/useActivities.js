@@ -25,7 +25,7 @@ export const useActivitiesStore = create((set, get) => ({
     set({ eventLoading: true, eventError: null })
     const { data, error } = await supabase
       .from('event_activities')
-      .select('id, event_id, descrizione, stato, deadline, obbligatoria, dipende_da, categoria, permesso_responsabile, assegnato_a, tipo_verifica, verifica_automatica, completata_il, completata_da, note, assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome)')
+      .select('id, event_id, descrizione, stato, deadline, obbligatoria, post_evento, dipende_da, categoria, permesso_responsabile, assegnato_a, tipo_verifica, verifica_automatica, completata_il, completata_da, note, assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome)')
       .eq('event_id', eventId)
       .order('deadline', { ascending: true, nullsFirst: false })
     // Resolve self-referential dependencies in-memory (PostgREST can't self-join)
@@ -121,7 +121,7 @@ export const useActivitiesStore = create((set, get) => ({
     if (!eventIds?.length) return {}
     const { data } = await supabase
       .from('event_activities')
-      .select('event_id, stato, obbligatoria, deadline')
+      .select('event_id, stato, obbligatoria, post_evento, deadline')
       .in('event_id', eventIds)
       .neq('stato', 'disattivata')
 
@@ -136,7 +136,8 @@ export const useActivitiesStore = create((set, get) => ({
     const semaphores = {}
     for (const eid of eventIds) {
       const activities = grouped[eid] || []
-      const mandatory = activities.filter(a => a.obbligatoria)
+      // Semaphore only considers pre-evento mandatory activities
+      const mandatory = activities.filter(a => a.obbligatoria && !a.post_evento)
       if (mandatory.length === 0) { semaphores[eid] = 'yellow'; continue }
       const overdue = mandatory.some(a =>
         (a.stato === 'da_fare' || a.stato === 'in_corso') &&
@@ -150,10 +151,11 @@ export const useActivitiesStore = create((set, get) => ({
 
   instantiateTemplate: async (eventId, tipoEvento, modalita, dataInizio) => {
     // Clear existing activities before re-creating from template
-    await supabase
+    const { error: delError } = await supabase
       .from('event_activities')
       .delete()
       .eq('event_id', eventId)
+    if (delError) return { data: null, error: delError.message }
 
     const { data: templates } = await supabase
       .from('event_templates')
@@ -184,6 +186,7 @@ export const useActivitiesStore = create((set, get) => ({
       stato: 'da_fare',
       deadline: calculateDeadline(eventDate, item.giorni_prima_evento),
       obbligatoria: item.obbligatorio,
+      post_evento: item.post_evento || false,
       tipo_verifica: item.tipo_verifica || 'manuale',
       verifica_automatica: item.verifica_automatica,
     }))
@@ -289,22 +292,14 @@ export const useActivitiesStore = create((set, get) => ({
 
     const { data: event } = await supabase
       .from('events')
-      .select('titolo, data_inizio, data_fine, indirizzo_spedizione')
+      .select('titolo, data_inizio, data_fine, indirizzo_spedizione, spedizione_data, modalita')
       .eq('id', eventId)
       .single()
 
     const { data: materials } = await supabase
       .from('event_materials')
-      .select('id, material_id, stato')
+      .select('id, stato')
       .eq('event_id', eventId)
-
-    const matIds = (materials || []).filter(m => m.material_id).map(m => m.material_id)
-    const { data: movements } = matIds.length > 0
-      ? await supabase
-          .from('material_movements')
-          .select('id, material_id, tipo')
-          .in('material_id', matIds)
-      : { data: [] }
 
     const checks = {
       lista_materiale_compilata: () => (materials || []).length > 0,
@@ -320,12 +315,8 @@ export const useActivitiesStore = create((set, get) => ({
         (materials || []).every(m => !['richiesto', 'approvato'].includes(m.stato)),
       materiale_tutto_spedito: () => {
         if (!materials?.length) return false
-        const reqMaterialIds = new Set(materials.filter(m => m.material_id).map(m => m.material_id))
-        if (reqMaterialIds.size === 0) return false
-        const shipped = new Set(
-          (movements || []).filter(m => m.tipo === 'uscita').map(m => m.material_id)
-        )
-        return [...reqMaterialIds].every(id => shipped.has(id))
+        if (event?.modalita === 'contributo') return true
+        return !!event?.spedizione_data
       },
     }
 
@@ -354,13 +345,14 @@ export const useActivitiesStore = create((set, get) => ({
     if (!eventIds?.length) return {}
     const { data, error } = await supabase
       .from('event_activities')
-      .select('event_id, stato, obbligatoria, deadline')
+      .select('event_id, stato, obbligatoria, post_evento, deadline')
       .in('event_id', eventIds)
       .neq('stato', 'disattivata')
     if (error || !data) return {}
     const today = todayISO()
     const map = {}
     for (const a of data) {
+      if (a.post_evento) continue // exclude post-evento from readiness cards
       if (!map[a.event_id]) map[a.event_id] = { total: 0, completate: 0, inRitardo: 0 }
       map[a.event_id].total++
       if (a.stato === 'completata') map[a.event_id].completate++
@@ -397,6 +389,27 @@ export const useActivitiesStore = create((set, get) => ({
       .delete()
       .eq('id', id)
     return { error }
+  },
+
+  // Preview items that would be created from the template for a given event
+  fetchTemplatePreview: async (tipoEvento, modalita) => {
+    const { data: templates, error: tplError } = await supabase
+      .from('event_templates')
+      .select('id')
+      .eq('tipo_evento', tipoEvento)
+      .eq('modalita', modalita)
+      .limit(1)
+    if (tplError) return { data: null, error: tplError.message }
+    if (!templates?.length) return { data: null, error: `Nessun template per ${tipoEvento} ${modalita}. Crealo in Amministrazione → Template.` }
+
+    const { data: items, error } = await supabase
+      .from('template_items')
+      .select('*')
+      .eq('template_id', templates[0].id)
+      .eq('tipo', 'checklist')
+      .order('ordine')
+    if (error) return { data: null, error: error.message }
+    return { data: items || [], error: null }
   },
 
   fetchTemplateItems: async (templateId) => {

@@ -76,6 +76,9 @@ export const useNotificationsStore = create((set, get) => ({
   },
 
   markAllAsRead: async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Sessione scaduta' }
+
     const prev = get().notifications
     const prevCount = get().unreadCount
 
@@ -88,6 +91,7 @@ export const useNotificationsStore = create((set, get) => ({
     const { error } = await supabase
       .from('notifications')
       .update({ letta: true })
+      .eq('user_id', user.id)
       .eq('letta', false)
 
     if (error) {
@@ -97,8 +101,34 @@ export const useNotificationsStore = create((set, get) => ({
     return { error: null }
   },
 
+  deleteReadNotifications: async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Sessione scaduta' }
+
+    const prev = get().notifications
+    const prevUnread = get().unreadCount
+
+    // Optimistic update: remove all read notifications from local state
+    set((s) => ({
+      notifications: s.notifications.filter((n) => !n.letta),
+    }))
+
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('letta', true)
+
+    if (error) {
+      set({ notifications: prev, unreadCount: prevUnread })
+      return { error: error.message }
+    }
+    return { error: null }
+  },
+
   deleteNotification: async (id) => {
     const prev = get().notifications
+    const prevUnread = get().unreadCount
     const notification = prev.find((n) => n.id === id)
     const wasUnread = notification && !notification.letta
 
@@ -113,7 +143,7 @@ export const useNotificationsStore = create((set, get) => ({
       .eq('id', id)
 
     if (error) {
-      set({ notifications: prev, unreadCount: wasUnread ? get().unreadCount + 1 : get().unreadCount })
+      set({ notifications: prev, unreadCount: prevUnread })
       return { error: error.message }
     }
     return { error: null }

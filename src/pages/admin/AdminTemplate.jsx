@@ -132,6 +132,7 @@ export function AdminTemplate() {
     permesso_responsabile: '',
     giorni_prima_evento: -7,
     obbligatorio: true,
+    post_evento: false,
     tipo_verifica: 'manuale',
     verifica_automatica: '',
     dipende_da: '',
@@ -203,6 +204,7 @@ export function AdminTemplate() {
       permesso_responsabile: item.permesso_responsabile || '',
       giorni_prima_evento: item.giorni_prima_evento || -7,
       obbligatorio: item.obbligatorio ?? true,
+      post_evento: item.post_evento ?? false,
       tipo_verifica: item.tipo_verifica || 'manuale',
       verifica_automatica: item.verifica_automatica || '',
       dipende_da: item.dipende_da || '',
@@ -212,6 +214,7 @@ export function AdminTemplate() {
       permesso_responsabile: '',
       giorni_prima_evento: -7,
       obbligatorio: true,
+      post_evento: false,
       tipo_verifica: 'manuale',
       verifica_automatica: '',
       dipende_da: '',
@@ -227,6 +230,7 @@ export function AdminTemplate() {
       descrizione: form.descrizione.trim(),
       dipende_da: form.dipende_da || null,
       permesso_responsabile: form.permesso_responsabile || null,
+      post_evento: form.post_evento,
       verifica_automatica: form.tipo_verifica === 'automatica' ? form.verifica_automatica : null,
     }
 
@@ -499,8 +503,9 @@ export function AdminTemplate() {
                               <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-gray-500">
                                 <span>{CATEGORIA_ATTIVITA[item.categoria]}</span>
                                 <span>·</span>
-                                <span>{item.giorni_prima_evento}gg</span>
+                                <span>{item.giorni_prima_evento > 0 ? `+${item.giorni_prima_evento}gg` : `${item.giorni_prima_evento}gg`}</span>
                                 {item.obbligatorio && <span className="text-red-600 font-medium">Obbligatoria</span>}
+                                {item.post_evento && <span className="text-orange-600 font-medium">Post-evento</span>}
                                 {item.tipo_verifica === 'automatica' && (
                                   <span className="text-mikai-600 font-medium">Auto</span>
                                 )}
@@ -687,14 +692,13 @@ export function AdminTemplate() {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Giorni prima dell'evento">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField label="Giorni rispetto all'evento" hint="Negativo = prima, positivo = dopo">
               <input
                 type="number"
                 className={INPUT_STYLE}
                 value={form.giorni_prima_evento}
-                onChange={e => setForm(f => ({ ...f, giorni_prima_evento: parseInt(e.target.value) || -7 }))}
-                max={0}
+                onChange={e => setForm(f => ({ ...f, giorni_prima_evento: parseInt(e.target.value) || 0 }))}
               />
             </FormField>
 
@@ -706,6 +710,17 @@ export function AdminTemplate() {
               >
                 <option value="si">Sì</option>
                 <option value="no">No</option>
+              </select>
+            </FormField>
+
+            <FormField label="Post-evento" hint="Non blocca l'avanzamento a pronto">
+              <select
+                className={SELECT_STYLE}
+                value={form.post_evento ? 'si' : 'no'}
+                onChange={e => setForm(f => ({ ...f, post_evento: e.target.value === 'si' }))}
+              >
+                <option value="no">No</option>
+                <option value="si">Sì</option>
               </select>
             </FormField>
           </div>

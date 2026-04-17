@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react'
 import {
-  formatDayISO, formatDayNumber, formatDate, getMonthDays, isSameMonthAs, isTodayDate, getWeekdayLabels
+  formatDayISO, formatDayNumber, formatDate, getMonthDays, isSameMonthAs, isTodayDate, getWeekdayLabels, todayISO
 } from '../../lib/date-utils'
 import { CalendarEventPill } from './CalendarEventPill'
 import { CalendarDayModal } from './CalendarDayModal'
@@ -8,9 +8,12 @@ import { CalendarDayModal } from './CalendarDayModal'
 const dayNames = getWeekdayLabels()
 const MAX_VISIBLE_EVENTS = 3
 
+const CLOSED_STATES = ['concluso', 'cancellato', 'rifiutato']
+
 function getAttentionReason(event, semaphores) {
   if (event.stato === 'proposto') return 'approval'
   if (semaphores[event.id] === 'red') return 'overdue'
+  if (event.data_inizio < todayISO() && !CLOSED_STATES.includes(event.stato)) return 'past_open'
   return null
 }
 

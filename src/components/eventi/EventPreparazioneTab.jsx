@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useActivitiesStore } from '../../hooks/useActivities'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -20,7 +20,6 @@ import { PreparazioneKanbanView, PreparazioneListView } from './PreparazioneActi
 import { usePreparazioneDocHandlers } from './usePreparazioneDocHandlers'
 import { todayISO, calculateDeadline } from '../../lib/date-utils'
 import { CATEGORIA_ATTIVITA, PERMESSO_SHORT_LABELS } from '../../lib/constants'
-import { supabase } from '../../lib/supabase'
 
 
 export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
@@ -36,6 +35,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const runAutoVerifications = useActivitiesStore(s => s.runAutoVerifications)
   const addCustomActivity = useActivitiesStore(s => s.addCustomActivity)
   const updateActivity = useActivitiesStore(s => s.updateActivity)
+  const fetchTemplatePreview = useActivitiesStore(s => s.fetchTemplatePreview)
 
   const fetchEventDocuments = useDocumentsStore(s => s.fetchEventDocuments)
 
@@ -52,7 +52,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     window.innerWidth < 768 ? 'lista' : 'kanban'
   )
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newActivity, setNewActivity] = useState({ descrizione: '', categoria: 'organizzazione', deadline: '', obbligatoria: true, tipo_verifica: 'manuale' })
+  const [newActivity, setNewActivity] = useState({ descrizione: '', categoria: 'organizzazione', deadline: '', obbligatoria: true, post_evento: false, tipo_verifica: 'manuale' })
   const [adding, setAdding] = useState(false)
   const [editingActivity, setEditingActivity] = useState(null)
   const [savingEdit, setSavingEdit] = useState(false)
@@ -81,16 +81,24 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     fetchEventDocuments(event.id)
   }, [event.id])
 
-  if (loading) return <LoadingSkeleton lines={5} />
-
-  const visible = eventActivities.filter(a => a.stato !== 'disattivata')
   const today = todayISO()
-  const total = visible.length
-  const completed = visible.filter(a => a.stato === 'completata').length
-  const overdue = visible.filter(
-    a => ['da_fare', 'in_corso'].includes(a.stato) && a.deadline && a.deadline < today
-  ).length
-  // pct moved to ActivityProgressSection
+  const visible = useMemo(
+    () => eventActivities.filter(a => a.stato !== 'disattivata'),
+    [eventActivities]
+  )
+  const { total, completed, overdue, mandatoryIncomplete } = useMemo(() => {
+    let comp = 0
+    let over = 0
+    let mand = 0
+    for (const a of visible) {
+      if (a.stato === 'completata') comp++
+      if (['da_fare', 'in_corso'].includes(a.stato) && a.deadline && a.deadline < today) over++
+      if (a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata') mand++
+    }
+    return { total: visible.length, completed: comp, overdue: over, mandatoryIncomplete: mand }
+  }, [visible, today])
+
+  if (loading) return <LoadingSkeleton lines={5} />
 
   async function handleStart(activityId) {
     const { error } = await startActivity(activityId)
@@ -165,6 +173,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
       descrizione: newActivity.descrizione.trim(),
       categoria: newActivity.categoria,
       obbligatoria: newActivity.obbligatoria,
+      post_evento: newActivity.post_evento,
       tipo_verifica: newActivity.tipo_verifica,
       stato: 'da_fare',
     }
@@ -175,7 +184,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
       addToast('Impossibile aggiungere l\'attività. Riprova.', 'error')
     } else {
       addToast('Attività aggiunta.', 'success')
-      setNewActivity({ descrizione: '', categoria: 'organizzazione', deadline: '', obbligatoria: true, tipo_verifica: 'manuale' })
+      setNewActivity({ descrizione: '', categoria: 'organizzazione', deadline: '', obbligatoria: true, post_evento: false, tipo_verifica: 'manuale' })
       setShowAddForm(false)
     }
   }
@@ -183,29 +192,10 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   // B. Load template preview data
   async function handlePreviewTemplate() {
     setLoadingPreview(true)
-    // Fetch template items to show preview before applying
-    const { data: templates } = await supabase
-      .from('event_templates')
-      .select('id')
-      .eq('tipo_evento', event.tipo_evento)
-      .eq('modalita', event.modalita)
-      .limit(1)
-    if (!templates?.length) {
-      addToast(`Nessun template per ${event.tipo_evento} ${event.modalita}. Crealo in Amministrazione → Template.`, 'warning')
-      setLoadingPreview(false)
-      return
-    }
-    const { data: items } = await supabase
-      .from('template_items')
-      .select('*')
-      .eq('template_id', templates[0].id)
-      .eq('tipo', 'checklist')
-      .order('ordine')
-    if (!items?.length) {
-      addToast('Template vuoto.', 'warning')
-      setLoadingPreview(false)
-      return
-    }
+    const { data: items, error } = await fetchTemplatePreview(event.tipo_evento, event.modalita)
+    setLoadingPreview(false)
+    if (error) return addToast(error, 'warning')
+    if (!items?.length) return addToast('Template vuoto.', 'warning')
     // Compute deadlines for preview
     const eventDate = new Date(event.data_inizio)
     const previewItems = items.map(item => ({
@@ -213,13 +203,13 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
       categoria: item.categoria,
       permesso_responsabile: item.permesso_responsabile,
       obbligatorio: item.obbligatorio,
+      post_evento: item.post_evento,
       giorni_prima_evento: item.giorni_prima_evento,
       tipo_verifica: item.tipo_verifica || 'manuale',
       deadline: calculateDeadline(eventDate, item.giorni_prima_evento),
     }))
     setTemplatePreviewItems(previewItems)
     setShowTemplatePreview(true)
-    setLoadingPreview(false)
   }
 
   async function handleConfirmTemplate() {
@@ -292,12 +282,15 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const canEdit = ['confermato', 'in_preparazione'].includes(event.stato)
 
   // Group by category (for list view)
-  const grouped = {}
-  for (const act of visible) {
-    const cat = act.categoria || 'organizzazione'
-    if (!grouped[cat]) grouped[cat] = []
-    grouped[cat].push(act)
-  }
+  const grouped = useMemo(() => {
+    const g = {}
+    for (const act of visible) {
+      const cat = act.categoria || 'organizzazione'
+      if (!g[cat]) g[cat] = []
+      g[cat].push(act)
+    }
+    return g
+  }, [visible])
 
   const cardPropsContext = {
     canEdit, onEditActivity: setEditingActivity,
@@ -316,7 +309,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const statusColor = overdue > 0 ? 'text-red-600' : completed === total ? 'text-green-600' : 'text-yellow-600'
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header: packing list + progress + view toggle */}
       <div className="space-y-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -367,13 +360,13 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
         />
       )}
 
-      {/* Gate — mandatory activity blocker only (advance is in StatusFlow) */}
-      {visible.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata').length > 0 && (
-        <div className="bg-mikai-50 border border-mikai-200 rounded-xl px-3 py-1.5">
+      {/* Gate — mandatory pre-evento activity blocker only (advance is in StatusFlow) */}
+      {mandatoryIncomplete > 0 && (
+        <div className="bg-mikai-50 border border-mikai-200 rounded-xl px-3 py-2">
           <div className="flex items-center gap-2 min-h-[32px]">
-            <Icon icon={FEEDBACK_ICONS.warning} size={14} className="text-yellow-500 shrink-0" />
-            <span className="text-xs font-medium text-mikai-700">
-              {visible.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata').length} attività obbligatorie da completare prima di avanzare
+            <Icon icon={FEEDBACK_ICONS.warning} size={16} className="text-yellow-500 shrink-0" />
+            <span className="text-sm font-medium text-mikai-700">
+              {mandatoryIncomplete} attività obbligatorie da completare prima di avanzare
             </span>
           </div>
         </div>
@@ -488,6 +481,9 @@ function TemplatePreviewModal({ open, items, onClose, onConfirm }) {
                 {item.obbligatorio && (
                   <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Obbligatoria</span>
                 )}
+                {item.post_evento && (
+                  <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Post-evento</span>
+                )}
                 {item.tipo_verifica === 'documento' && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-blue-600 bg-blue-50">
                     <Icon icon={DOCUMENTO_ICONS.attachment} size={12} />
@@ -499,7 +495,9 @@ function TemplatePreviewModal({ open, items, onClose, onConfirm }) {
             <div className="text-right shrink-0">
               {item.giorni_prima_evento != null ? (
                 <span className="text-xs text-gray-500">
-                  {item.giorni_prima_evento === 0 ? 'Giorno evento' : `${Math.abs(item.giorni_prima_evento)}gg prima`}
+                  {item.giorni_prima_evento === 0 ? 'Giorno evento'
+                    : item.giorni_prima_evento > 0 ? `${item.giorni_prima_evento}gg dopo`
+                    : `${Math.abs(item.giorni_prima_evento)}gg prima`}
                 </span>
               ) : (
                 <span className="text-xs text-gray-400">Nessuna scadenza</span>

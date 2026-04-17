@@ -248,7 +248,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   // Packing list derived data for readyToShip
   const packingColliNumbers = [...new Set(packingItems.map(i => i.collo_numero).filter(n => n != null))]
   const allPacked = packingItems.length > 0 && packingItems.every(i => i.imballato)
-  const readyToShip = allPrepared && allPacked && packingColliNumbers.length > 0 && speditoCount === 0
+  const readyToShip = allPrepared && allPacked && packingColliNumbers.length > 0 && !event.spedizione_data
 
   // Group rows by status for workflow
   const groups = [

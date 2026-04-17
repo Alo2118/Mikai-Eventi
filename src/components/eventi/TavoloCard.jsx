@@ -118,7 +118,7 @@ export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableP
           <button
             type="button"
             onClick={() => updateTavolo(tavolo.id, { colore: null })}
-            className={`min-h-[32px] min-w-[32px] w-8 h-8 rounded-full border-2 bg-white text-gray-400 text-xs transition-all ${!tavolo.colore ? 'ring-2 ring-offset-1 ring-gray-400 border-gray-400' : 'border-gray-200 hover:border-gray-400'}`}
+            className={`min-h-[44px] min-w-[44px] md:min-h-[32px] md:min-w-[32px] w-11 h-11 md:w-8 md:h-8 rounded-full border-2 bg-white text-gray-400 text-sm md:text-xs transition-all ${!tavolo.colore ? 'ring-2 ring-offset-1 ring-gray-400 border-gray-400' : 'border-gray-200 hover:border-gray-400'}`}
             aria-label="Nessun colore"
             title="Nessun colore"
           >—</button>
@@ -127,7 +127,7 @@ export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableP
               key={c}
               type="button"
               onClick={() => updateTavolo(tavolo.id, { colore: c })}
-              className={`min-h-[32px] min-w-[32px] w-8 h-8 rounded-full transition-all ${TAVOLO_COLORI[c].dot} ${tavolo.colore === c ? `ring-2 ring-offset-1 ${TAVOLO_COLORI[c].ring}` : 'hover:scale-110'}`}
+              className={`min-h-[44px] min-w-[44px] md:min-h-[32px] md:min-w-[32px] w-11 h-11 md:w-8 md:h-8 rounded-full transition-all ${TAVOLO_COLORI[c].dot} ${tavolo.colore === c ? `ring-2 ring-offset-1 ${TAVOLO_COLORI[c].ring}` : 'hover:scale-110'}`}
               aria-label={TAVOLO_COLORI[c].label}
               title={TAVOLO_COLORI[c].label}
             />

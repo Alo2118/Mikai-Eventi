@@ -8,8 +8,8 @@ import { Modal } from '../ui/Modal'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS } from '../../lib/icons'
-import { formatDate, formatTime, toLocalDateTime } from '../../lib/date-utils'
-import { INPUT_STYLE, SELECT_STYLE, GROUP_HEADING_STYLE, CONFERMATO_BADGE } from '../../lib/constants'
+import { formatDate, formatTime, toLocalDateTime, toISO } from '../../lib/date-utils'
+import { INPUT_STYLE, SELECT_STYLE, TEXTAREA_STYLE, GROUP_HEADING_STYLE, CONFERMATO_BADGE, CARD_HOVER_STYLE } from '../../lib/constants'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 
@@ -62,7 +62,7 @@ function ProgrammaModal({ open, form, setField, types, saving, onSave, onClose, 
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-          <textarea className={INPUT_STYLE + ' min-h-[60px]'} value={form.note} onChange={e => setField('note', e.target.value)} rows={2} />
+          <textarea className={TEXTAREA_STYLE + ' min-h-[60px]'} value={form.note} onChange={e => setField('note', e.target.value)} rows={2} />
         </div>
         {editing && (
           <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
@@ -142,7 +142,7 @@ export function EventProgrammaTab({ event }) {
     setSaving(true)
     const payload = {
       tipo_id: form.tipo_id,
-      data_ora: form.data_ora || null,
+      data_ora: toISO(form.data_ora),
       durata_minuti: form.durata_minuti ? parseInt(form.durata_minuti) : null,
       luogo: form.luogo || null,
       fornitore: form.fornitore || null,
@@ -203,7 +203,7 @@ export function EventProgrammaTab({ event }) {
   }, [subActivities])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold text-lg">Programma</h3>
         <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export function EventProgrammaTab({ event }) {
             const details = [sa.luogo, sa.fornitore].filter(Boolean)
             return (
               <button key={sa.id} type="button" onClick={() => openEdit(sa)}
-                className="w-full bg-white rounded-xl border border-gray-200 px-3 py-2 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors">
+                className={CARD_HOVER_STYLE + ' w-full flex items-center gap-3 text-left min-h-[48px] px-3 py-2'}>
                 <div className="shrink-0 w-14 text-center">
                   {sa.data_ora ? (
                     <span className="text-sm font-semibold text-mikai-600">{formatTime(sa.data_ora)}</span>

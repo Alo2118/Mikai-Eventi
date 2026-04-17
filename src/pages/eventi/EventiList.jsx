@@ -213,7 +213,11 @@ export function EventiList() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   }, [])
 
-  const futureEvents = useMemo(() => filteredEvents.filter(e => e.data_inizio >= today), [filteredEvents, today])
+  // Include future events + past events still open (not concluso/cancellato/rifiutato)
+  const CLOSED_STATES = ['concluso', 'cancellato', 'rifiutato']
+  const futureEvents = useMemo(() => filteredEvents.filter(e =>
+    e.data_inizio >= today || !CLOSED_STATES.includes(e.stato)
+  ), [filteredEvents, today])
 
   // Period counts for labels
   const threeMonthCount = useMemo(() => {
@@ -239,20 +243,30 @@ export function EventiList() {
   // "Richiede attenzione" events
   const attentionEvents = useMemo(() => {
     const result = []
+    const seen = new Set()
     // Events needing approval
     for (const e of filteredEvents) {
       if (e.stato === 'proposto') {
         result.push({ ...e, _attentionReason: 'approval' })
+        seen.add(e.id)
       }
     }
     // Events with red semaphore (overdue activities)
     for (const e of filteredEvents) {
-      if (semaphores[e.id] === 'red' && e.stato !== 'proposto') {
+      if (semaphores[e.id] === 'red' && !seen.has(e.id)) {
         result.push({ ...e, _attentionReason: 'overdue' })
+        seen.add(e.id)
+      }
+    }
+    // Past events still open (not concluso/cancellato/rifiutato)
+    for (const e of filteredEvents) {
+      if (e.data_inizio < today && !CLOSED_STATES.includes(e.stato) && !seen.has(e.id)) {
+        result.push({ ...e, _attentionReason: 'past_open' })
+        seen.add(e.id)
       }
     }
     return result
-  }, [filteredEvents, semaphores])
+  }, [filteredEvents, semaphores, today])
 
   const visibleAttentionEvents = useMemo(() => {
     if (attentionExpanded) return attentionEvents
@@ -294,7 +308,7 @@ export function EventiList() {
                     onClick={() => { handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: filteredEvents, filename: 'eventi', sheetName: 'Eventi' }); setShowOverflow(false) }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
                   >
-                    <Icon icon={NAV_ICONS.materiale} size={16} />
+                    <Icon icon={ACTION_ICONS.upload} size={16} />
                     Esporta Excel
                   </button>
                   <Link
@@ -381,7 +395,9 @@ export function EventiList() {
         {loading ? (
           <LoadingSkeleton lines={5} />
         ) : error ? (
-          <EmptyState title="Errore nel caricamento" description={error} />
+          <div role="alert">
+            <EmptyState title="Errore nel caricamento" description={error} />
+          </div>
         ) : filteredEvents.length === 0 ? (
           <EmptyState
             title="Nessun evento trovato"
@@ -414,7 +430,9 @@ export function EventiList() {
                     <div
                       key={`attention-${event.id}-${event._attentionReason}`}
                       className={`relative rounded-xl overflow-hidden ring-2 ${
-                        event._attentionReason === 'overdue' ? 'ring-red-300' : 'ring-yellow-300'
+                        event._attentionReason === 'overdue' ? 'ring-red-300'
+                        : event._attentionReason === 'past_open' ? 'ring-orange-300'
+                        : 'ring-yellow-300'
                       }`}
                     >
                       <EventCard event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} involvement={involvementMap[event.id] || null} currentUserId={user?.id} tipoLabels={tipoLabels} tipoIcons={tipoIcons} />

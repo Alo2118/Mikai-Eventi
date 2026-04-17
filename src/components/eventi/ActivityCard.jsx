@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Icon } from '../ui/Icon'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -59,7 +59,7 @@ function ResponsabileBadge({ permesso }) {
   )
 }
 
-export function ActivityCard({
+export const ActivityCard = memo(function ActivityCard({
   activity,
   onStart,
   onComplete,
@@ -146,6 +146,9 @@ export function ActivityCard({
               <div className="flex items-center gap-1 shrink-0 mt-0.5">
                 {activity.obbligatoria && (
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" title="Obbligatoria" />
+                )}
+                {activity.post_evento && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0" title="Post-evento" />
                 )}
                 {activity.tipo_verifica === 'automatica' && (
                   <Icon icon={ATTIVITA_STATO_ICONS.auto_verificata} size={14} className="text-mikai-500 shrink-0" title="Verifica automatica" />
@@ -260,10 +263,13 @@ export function ActivityCard({
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium text-gray-900 leading-snug">{activity.descrizione}</p>
             {activity.obbligatoria && (
-              <span className="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-lg shrink-0">OBB</span>
+              <span className="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-lg shrink-0">Obbl.</span>
+            )}
+            {activity.post_evento && (
+              <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-lg shrink-0">Post</span>
             )}
             {activity.tipo_verifica === 'automatica' && (
-              <span className="text-xs font-bold text-mikai-600 bg-mikai-50 px-1.5 py-0.5 rounded-lg shrink-0">AUTO</span>
+              <span className="text-xs font-bold text-mikai-600 bg-mikai-50 px-1.5 py-0.5 rounded-lg shrink-0">Auto</span>
             )}
           </div>
         </div>
@@ -388,4 +394,4 @@ export function ActivityCard({
     </div>
     </div>
   )
-}
+})

@@ -75,12 +75,12 @@ function getVisibleTabs(event, profile, permissions) {
 
 const READINESS_DETAIL_STATES = new Set(['confermato', 'in_preparazione', 'pronto', 'in_corso'])
 
-function computeDetailReadiness({ eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants }) {
+function computeDetailReadiness({ event, eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants }) {
   const today = todayISO()
   const areas = []
 
-  // Attivita
-  const vis = eventActivities.filter(a => a.stato !== 'disattivata')
+  // Attivita (only pre-evento for readiness)
+  const vis = eventActivities.filter(a => a.stato !== 'disattivata' && !a.post_evento)
   const attComp = vis.filter(a => a.stato === 'completata').length
   const attOverdue = vis.filter(a => a.obbligatoria && a.deadline && a.deadline < today && a.stato !== 'completata').length
   if (vis.length === 0) areas.push({ icon: CATEGORIA_ICONS.organizzazione, label: 'Attivita', color: 'gray', text: 'Nessuna', tab: 'preparazione' })
@@ -91,9 +91,11 @@ function computeDetailReadiness({ eventActivities, eventMaterials, preventivi, h
   // Materiale
   const matRif = eventMaterials.filter(m => m.stato === 'rifiutato').length
   const matReq = eventMaterials.filter(m => m.stato === 'richiesto').length
+  const needsShipping = event?.modalita !== 'contributo' && !event?.spedizione_data
   if (eventMaterials.length === 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'gray', text: 'Nessuno', tab: 'materiale' })
   else if (matRif > 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'red', text: `${matRif} rifiutati`, tab: 'materiale' })
   else if (matReq > 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'yellow', text: `${matReq} da confermare`, tab: 'materiale' })
+  else if (needsShipping) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'yellow', text: 'Da spedire', tab: 'materiale' })
   else areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'green', text: 'Confermato', tab: 'materiale' })
 
   // Persone & Logistica (count unique person+direction, not raw records)
@@ -278,7 +280,7 @@ export function EventiDetail() {
 
   const tabStatuses = computeTabStatus()
   const readinessAreas = READINESS_DETAIL_STATES.has(event.stato)
-    ? computeDetailReadiness({ eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants })
+    ? computeDetailReadiness({ event, eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants })
     : null
 
   // Build readiness detail map: tab id → { text, color }
@@ -381,7 +383,7 @@ export function EventiDetail() {
             canAdvance={(() => {
               if (!['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(event.stato)) return false
               if (event.stato === 'in_preparazione') {
-                const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
+                const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata')
                 const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
                 const shipped = event.modalita === 'contributo' || !!event.spedizione_data
                 return mandatoryIncomplete.length === 0 && (!hasMat || shipped)
@@ -390,7 +392,7 @@ export function EventiDetail() {
             })()}
             blockerText={(() => {
               if (event.stato !== 'in_preparazione') return null
-              const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata')
+              const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata')
               const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
               const shipped = event.modalita === 'contributo' || !!event.spedizione_data
               if (mandatoryIncomplete.length > 0 && hasMat && !shipped) return 'Completa le attività e registra la spedizione'

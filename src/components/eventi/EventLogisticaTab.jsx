@@ -11,7 +11,7 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
-import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE, ISCRIZIONE_CHIP_COLORS, BADGE_BASE, COLOR_BADGE, CONFERMATO_CHIP, CONFERMATO_BADGE, TAVOLO_COLORI } from '../../lib/constants'
+import { STATO_PRENOTAZIONE, STATO_ISCRIZIONE, STATO_ISCRIZIONE_COLORE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI, RUOLO_EVENTO, TIPO_PARTECIPANTE, TIPO_CONTATTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE, CARD_STYLE, ISCRIZIONE_CHIP_COLORS, BADGE_BASE, COLOR_BADGE, CONFERMATO_CHIP, CONFERMATO_BADGE, TAVOLO_COLORI } from '../../lib/constants'
 import { ACTION_ICONS, NAV_ICONS, LOGISTICA_PERSONE_ICONS, TAVOLI_ICONS } from '../../lib/icons'
 import { ContactPicker } from '../contatti/ContactPicker'
 import { BulkImportModal } from '../contatti/BulkImportModal'
@@ -97,7 +97,7 @@ function StaffPicker({ users, value, onChange }) {
           {filtered.map(u => (
             <button key={u.id} type="button"
               onClick={() => { onChange(u.id); setQuery(''); setOpen(false) }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 min-h-[44px]"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 min-h-[48px]"
             >
               <span className="font-medium">{u.cognome} {u.nome}</span>
               <span className="text-gray-400 ml-1">({u.ruolo})</span>
@@ -230,6 +230,7 @@ export function EventLogisticaTab({ event, users = [] }) {
     ...participants.map(p => ({
       type: 'participant', id: p.contact_id, participantId: p.id,
       nome: p.contact?.nome, cognome: p.contact?.cognome,
+      tipo_contatto: p.contact?.tipo_contatto,
       ruolo: p.tipo, statoIscrizione: p.stato_iscrizione, note: p.note,
       zona: p.contact?.zona?.nome || p.contact?.citta || null,
       esigenze_alimentari: p.contact?.esigenze_alimentari,
@@ -433,6 +434,7 @@ export function EventLogisticaTab({ event, users = [] }) {
         { label: 'Cognome', key: 'cognome', width: 20 },
         { label: 'Nome', key: 'nome', width: 20 },
         { label: 'Tipo', key: 'tipo', width: 15, format: (_, row) => row.type === 'staff' ? 'Staff' : 'Partecipante' },
+        { label: 'Tipo contatto', key: 'tipo_contatto', width: 15, format: v => TIPO_CONTATTO[v] || '' },
         { label: 'Ruolo', key: 'ruolo', width: 18, format: (v, row) => row.type === 'staff' ? (RUOLO_EVENTO[v] || '') : (TIPO_PARTECIPANTE[v] || '') },
         { label: 'Stato', key: 'stato', width: 15, format: (_, row) => row.type === 'staff' ? (row.confermato ? 'Confermato' : 'Da confermare') : (STATO_ISCRIZIONE[row.statoIscrizione] || '') },
         ...(hasTavoli ? [{ label: 'Tavolo', key: 'tavolo', width: 14, format: (_, row) => { const t = getPersonTavolo(row, tavoli); if (!t) return ''; const c = TAVOLO_COLORI[t.colore]; return `T${t.numero}${c ? ` (${c.label})` : ''}` } }] : []),
@@ -460,6 +462,20 @@ export function EventLogisticaTab({ event, users = [] }) {
       ? await updateStaff(person.staffId, { note })
       : await updateParticipant(person.participantId, { note })
     if (error) addToast('Errore nel salvataggio nota', 'error')
+  }
+
+  // ── Role save ──
+  const handleRoleSave = async (person, newRuolo) => {
+    if (person.type === 'staff') {
+      const { error } = await updateStaff(person.staffId, { ruolo_evento: newRuolo })
+      if (error) return addToast('Errore nel salvataggio ruolo', 'error')
+      await fetchEventStaff(event.id)
+    } else {
+      const { error } = await updateParticipant(person.participantId, { tipo: newRuolo })
+      if (error) return addToast('Errore nel salvataggio ruolo', 'error')
+      await fetchEventParticipants(event.id)
+    }
+    addToast('Ruolo aggiornato', 'success')
   }
 
   // ── Esigenze save (updates contact or user, then refreshes) ──
@@ -1044,6 +1060,7 @@ export function EventLogisticaTab({ event, users = [] }) {
       {singleEdit?.type === 'dettagli' && (
         <PersonDetailModal person={singleEdit.person}
           onSaveNote={handleNoteSave} onSaveEsigenze={handleEsigenzeSave}
+          onSaveRole={handleRoleSave}
           onClose={() => setSingleEdit(null)} />
       )}
 

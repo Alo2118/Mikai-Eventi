@@ -126,10 +126,12 @@ export function EventiCalendar() {
 
   // Stats
   const today = todayISO()
+  const CLOSED_STATES = ['concluso', 'cancellato', 'rifiutato']
   const stats = useMemo(() => {
-    const upcoming = filteredEvents.filter(e => e.data_inizio >= today && !['concluso', 'cancellato', 'rifiutato'].includes(e.stato))
+    const upcoming = filteredEvents.filter(e => e.data_inizio >= today && !CLOSED_STATES.includes(e.stato))
     const proposti = filteredEvents.filter(e => e.stato === 'proposto')
     const overdue = filteredEvents.filter(e => semaphores[e.id] === 'red')
+    const pastOpen = filteredEvents.filter(e => e.data_inizio < today && !CLOSED_STATES.includes(e.stato) && e.stato !== 'proposto' && semaphores[e.id] !== 'red')
     const interni = filteredEvents.filter(e => e.modalita === 'interno')
     const esterni = filteredEvents.filter(e => e.modalita === 'esterno')
     return {
@@ -137,9 +139,10 @@ export function EventiCalendar() {
       upcoming: upcoming.length,
       proposti: proposti.length,
       overdue: overdue.length,
+      pastOpen: pastOpen.length,
       interni: interni.length,
       esterni: esterni.length,
-      needsAttention: proposti.length + overdue.length,
+      needsAttention: proposti.length + overdue.length + pastOpen.length,
     }
   }, [filteredEvents, today, semaphores])
 
@@ -233,6 +236,12 @@ export function EventiCalendar() {
               <span className="flex items-center gap-1 text-red-600">
                 <span className="font-bold">{stats.overdue}</span>
                 <span>in ritardo</span>
+              </span>
+            )}
+            {stats.pastOpen > 0 && (
+              <span className="flex items-center gap-1 text-orange-600">
+                <span className="font-bold">{stats.pastOpen}</span>
+                <span>da chiudere</span>
               </span>
             )}
           </div>

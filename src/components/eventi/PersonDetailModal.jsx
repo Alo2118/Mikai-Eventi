@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
-import { INPUT_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, TEXTAREA_STYLE, SELECT_STYLE, RUOLO_EVENTO, TIPO_PARTECIPANTE } from '../../lib/constants'
 
-export function PersonDetailModal({ person, onSaveNote, onSaveEsigenze, onClose }) {
+export function PersonDetailModal({ person, onSaveNote, onSaveEsigenze, onSaveRole, onClose }) {
   const [note, setNote] = useState(person.note || '')
+  const [ruolo, setRuolo] = useState(person.ruolo || '')
   const [alimentari, setAlimentari] = useState(person.esigenze_alimentari || '')
   const [accessibilita, setAccessibilita] = useState(person.esigenze_accessibilita || '')
   const [loading, setLoading] = useState(false)
+
+  const ruoloOptions = person.type === 'staff' ? RUOLO_EVENTO : TIPO_PARTECIPANTE
 
   const handleSave = async () => {
     setLoading(true)
@@ -15,6 +18,9 @@ export function PersonDetailModal({ person, onSaveNote, onSaveEsigenze, onClose 
     const newAlim = alimentari.trim() || null
     const newAcc = accessibilita.trim() || null
 
+    if (ruolo !== (person.ruolo || '') && onSaveRole) {
+      await onSaveRole(person, ruolo)
+    }
     if (newNote !== (person.note || null)) {
       await onSaveNote(person, newNote)
     }
@@ -28,6 +34,14 @@ export function PersonDetailModal({ person, onSaveNote, onSaveEsigenze, onClose 
   return (
     <Modal open={true} onClose={onClose} size="md" title="Dettagli persona" subtitle={`${person.cognome} ${person.nome}`}>
       <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
+          <select className={SELECT_STYLE} value={ruolo} onChange={e => setRuolo(e.target.value)}>
+            {Object.entries(ruoloOptions).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
           <textarea className={TEXTAREA_STYLE} value={note} onChange={e => setNote(e.target.value)} placeholder="Note sulla persona per questo evento..." rows={3} />

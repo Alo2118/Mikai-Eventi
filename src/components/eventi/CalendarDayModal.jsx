@@ -1,11 +1,14 @@
 import { Modal } from '../ui/Modal'
 import { CalendarEventPill } from './CalendarEventPill'
 import { EmptyState } from '../ui/EmptyState'
-import { formatDate } from '../../lib/date-utils'
+import { formatDate, todayISO } from '../../lib/date-utils'
+
+const CLOSED_STATES = ['concluso', 'cancellato', 'rifiutato']
 
 function getAttentionReason(event, semaphores) {
   if (event.stato === 'proposto') return 'approval'
   if (semaphores[event.id] === 'red') return 'overdue'
+  if (event.data_inizio < todayISO() && !CLOSED_STATES.includes(event.stato)) return 'past_open'
   return null
 }
 

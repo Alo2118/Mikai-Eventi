@@ -13,6 +13,13 @@ const MODALITA_BORDER = {
 const ATTENTION_DOT = {
   approval: 'bg-yellow-400',
   overdue: 'bg-red-500',
+  past_open: 'bg-orange-400',
+}
+
+const ATTENTION_TEXT = {
+  approval: { color: 'text-yellow-700', label: 'Da approvare' },
+  overdue: { color: 'text-red-600', label: 'In ritardo' },
+  past_open: { color: 'text-orange-600', label: 'Da chiudere' },
 }
 
 export function CalendarEventPill({ event, compact = false, showStatus = false, attention = null, indicators = null }) {
@@ -81,9 +88,9 @@ export function CalendarEventPill({ event, compact = false, showStatus = false, 
       )}
       {/* Attention indicator */}
       {attention && (
-        <div className={`flex items-center gap-1 text-xs font-semibold flex-shrink-0 ${attention === 'overdue' ? 'text-red-600' : 'text-yellow-700'}`}>
+        <div className={`flex items-center gap-1 text-xs font-semibold flex-shrink-0 ${ATTENTION_TEXT[attention]?.color || 'text-yellow-700'}`}>
           <Icon icon={FEEDBACK_ICONS.warning} size={14} />
-          <span className="hidden sm:inline">{attention === 'overdue' ? 'In ritardo' : 'Da approvare'}</span>
+          <span className="hidden sm:inline">{ATTENTION_TEXT[attention]?.label || ''}</span>
         </div>
       )}
     </Link>

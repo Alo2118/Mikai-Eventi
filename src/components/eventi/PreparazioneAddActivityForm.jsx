@@ -57,6 +57,15 @@ export function PreparazioneAddActivityForm({
             />
             <span className="text-sm font-medium text-gray-700">Obbligatoria</span>
           </label>
+          <label className="flex items-center gap-2 min-h-[48px] cursor-pointer">
+            <input
+              type="checkbox"
+              className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+              checked={newActivity.post_evento}
+              onChange={e => setNewActivity(prev => ({ ...prev, post_evento: e.target.checked }))}
+            />
+            <span className="text-sm font-medium text-gray-700">Post-evento</span>
+          </label>
           {showDocumentoToggle && (
             <label className="flex items-center gap-2 min-h-[48px] cursor-pointer">
               <input

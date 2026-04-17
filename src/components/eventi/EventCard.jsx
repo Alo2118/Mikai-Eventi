@@ -18,7 +18,9 @@ function computeAreas(r, event) {
   return [
     { icon: MATERIALE_ICONS.package, label: 'Materiale', tab: 'materiale',
       ...(m.total === 0 ? { color: 'gray' } : m.rifiutato > 0 ? { text: `${m.rifiutato} rifiutati`, color: 'red' }
-        : m.richiesto > 0 ? { text: `${m.richiesto} da confermare`, color: 'yellow' } : { color: 'green' }) },
+        : m.richiesto > 0 ? { text: `${m.richiesto} da confermare`, color: 'yellow' }
+        : event?.modalita !== 'contributo' && !shipped ? { text: 'Da spedire', color: 'yellow' }
+        : { color: 'green' }) },
     { icon: CATEGORIA_ICONS.organizzazione, label: 'Attività', tab: 'preparazione',
       ...(a.total === 0 ? { color: 'gray' } : a.inRitardo > 0 ? { text: `${a.inRitardo} in ritardo`, color: 'red' }
         : a.completate < a.total ? { text: `${a.total - a.completate} da fare`, color: 'yellow' } : { color: 'green' }) },
@@ -134,7 +136,7 @@ export const EventCard = memo(function EventCard({ event, semaphore, readiness, 
               {problemAreas.map(a => (
                 <button key={a.tab} type="button"
                   onClick={e => { e.preventDefault(); e.stopPropagation(); navigate(`/eventi/${event.id}?tab=${a.tab}`) }}
-                  className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-white/60 transition-colors text-left min-h-[36px]">
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-white/60 transition-colors text-left min-h-[48px] md:min-h-[36px]">
                   <Icon icon={a.icon} size={13} className={COLOR_TEXT_600[a.color] || 'text-gray-400'} />
                   <span className="flex-1 text-xs text-gray-700">{a.label}</span>
                   <span className={`text-xs font-medium ${COLOR_TEXT_600[a.color] || 'text-gray-400'}`}>{a.text}</span>

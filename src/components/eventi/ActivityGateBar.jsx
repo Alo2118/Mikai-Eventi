@@ -51,7 +51,7 @@ export function ActivityGateBar({ event, activities, onUpdate, materialShipped, 
   if (!next) return null
 
   const mandatoryIncomplete = activities.filter(
-    a => a.obbligatoria && a.stato !== 'completata' && a.stato !== 'disattivata'
+    a => a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata'
   )
 
   // Gate for in_preparazione → pronto
@@ -60,10 +60,18 @@ export function ActivityGateBar({ event, activities, onUpdate, materialShipped, 
   const hasContent = activities.length > 0 || hasMaterials || hasLogistics
   const canAdvance = event.stato !== 'in_preparazione' || (activitiesReady && shipmentReady)
 
+  // Post-evento activities incomplete (warning for in_corso → concluso)
+  const postEventoIncomplete = activities.filter(
+    a => a.obbligatoria && a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata'
+  )
+
   // Determine confirm dialog message
   function getConfirmMessage() {
     if (unreturnedMaterials.length > 0) {
       return `Attenzione: ${unreturnedMaterials.length} materiali non sono ancora rientrati. Vuoi concludere comunque?`
+    }
+    if (event.stato === 'in_corso' && postEventoIncomplete.length > 0) {
+      return `Attenzione: ${postEventoIncomplete.length} attività post-evento non sono ancora completate. Vuoi concludere comunque?`
     }
     if (event.stato === 'in_preparazione' && !hasContent) {
       return 'Questo evento non ha attività, materiale o persone assegnate. Vuoi procedere alla fase successiva senza nessuna preparazione?'
@@ -133,7 +141,7 @@ export function ActivityGateBar({ event, activities, onUpdate, materialShipped, 
         title={next.label}
         message={getConfirmMessage()}
         confirmLabel="Conferma"
-        danger={unreturnedMaterials.length > 0 || (event.stato === 'in_preparazione' && !hasContent)}
+        danger={unreturnedMaterials.length > 0 || postEventoIncomplete.length > 0 || (event.stato === 'in_preparazione' && !hasContent)}
         onConfirm={handleConfirm}
         onCancel={() => { setShowConfirm(false); setUnreturnedMaterials([]) }}
       />
