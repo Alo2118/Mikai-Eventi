@@ -98,6 +98,17 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     return { total: visible.length, completed: comp, overdue: over, mandatoryIncomplete: mand }
   }, [visible, today])
 
+  // Group by category (for list view) — must be computed before any early return
+  const grouped = useMemo(() => {
+    const g = {}
+    for (const act of visible) {
+      const cat = act.categoria || 'organizzazione'
+      if (!g[cat]) g[cat] = []
+      g[cat].push(act)
+    }
+    return g
+  }, [visible])
+
   if (loading) return <LoadingSkeleton lines={5} />
 
   async function handleStart(activityId) {
@@ -280,17 +291,6 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   }
 
   const canEdit = ['confermato', 'in_preparazione'].includes(event.stato)
-
-  // Group by category (for list view)
-  const grouped = useMemo(() => {
-    const g = {}
-    for (const act of visible) {
-      const cat = act.categoria || 'organizzazione'
-      if (!g[cat]) g[cat] = []
-      g[cat].push(act)
-    }
-    return g
-  }, [visible])
 
   const cardPropsContext = {
     canEdit, onEditActivity: setEditingActivity,
