@@ -256,9 +256,9 @@ function addLogisticsSection(doc, hotels, trasporti, event, y) {
       const parts = [MEZZO_TRASPORTO[t.mezzo] || '']
       if (t.codice) parts.push(t.codice)
       const route = [t.luogo_partenza, t.luogo_arrivo].filter(Boolean)
-      if (route.length > 0) parts.push(route.join(' → '))
+      if (route.length > 0) parts.push(route.join(' - '))
       if (t.orario) parts.push(formatTime(t.orario))
-      if (t.orario_arrivo) parts.push('→ ' + formatTime(t.orario_arrivo))
+      if (t.orario_arrivo) parts.push('-> ' + formatTime(t.orario_arrivo))
       return parts.filter(Boolean).join(' ')
     }
     const formatLegs = (legs) => {
