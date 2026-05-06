@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
-import { useActivitiesStore } from '../../hooks/useActivities'
+import { useProgramTemplatesStore } from '../../hooks/useProgramTemplates'
 import { useCostsStore } from '../../hooks/useCosts'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -87,7 +87,7 @@ export function EventProgrammaTab({ event }) {
   const updateSubActivity = useSubActivitiesStore(s => s.updateSubActivity)
   const removeSubActivity = useSubActivitiesStore(s => s.removeSubActivity)
 
-  const instantiateProgramTemplate = useActivitiesStore(s => s.instantiateProgramTemplate)
+  const instantiateProgramTemplate = useProgramTemplatesStore(s => s.instantiateProgramTemplate)
   const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
   const addToast = useToastStore(s => s.add)
 

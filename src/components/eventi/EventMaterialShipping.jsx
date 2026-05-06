@@ -57,7 +57,7 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
   const step3Done = isShipped
 
   return (
-    <section className="pt-6 border-t border-gray-200 space-y-4">
+    <section className="space-y-4">
       <h3 className="font-semibold text-lg flex items-center gap-2">
         <Icon icon={MATERIALE_ICONS.truck} size={20} className="text-gray-400" />
         Spedizione

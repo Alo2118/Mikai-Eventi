@@ -9,7 +9,7 @@ import { Icon } from '../../components/ui/Icon'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { ExportButton } from '../../components/ui/ExportButton'
 import { useExportHandler } from '../../hooks/useExportHandler'
-import { AUDIT_ENTITA, AUDIT_AZIONE, AUDIT_AZIONE_COLORE, SELECT_STYLE, INPUT_STYLE } from '../../lib/constants'
+import { AUDIT_ENTITA, AUDIT_AZIONE, AUDIT_AZIONE_COLORE, SELECT_STYLE, INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
 import { COMPLIANCE_ICONS } from '../../lib/icons'
 import { formatDateTime } from '../../lib/date-utils'
 
@@ -88,7 +88,7 @@ export function AuditTrailPage() {
       ) : (
         <div className="space-y-2">
           {logs.map(log => (
-            <div key={log.id} className="bg-white rounded-xl border border-gray-200 px-4 py-3">
+            <div key={log.id} className={CARD_STYLE}>
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                 <span className="text-xs text-gray-400 md:w-40 flex-shrink-0">
                   {formatDateTime(log.created_at)}

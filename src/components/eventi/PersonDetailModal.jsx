@@ -33,7 +33,7 @@ export function PersonDetailModal({ person, onSaveNote, onSaveEsigenze, onSaveRo
 
   return (
     <Modal open={true} onClose={onClose} size="md" title="Dettagli persona" subtitle={`${person.cognome} ${person.nome}`}>
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
           <select className={SELECT_STYLE} value={ruolo} onChange={e => setRuolo(e.target.value)}>

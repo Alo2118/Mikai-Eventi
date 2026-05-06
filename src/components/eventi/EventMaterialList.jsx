@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
-import { useActivitiesStore } from '../../hooks/useActivities'
+import { useActivityTemplatesStore } from '../../hooks/useActivityTemplates'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
@@ -59,7 +59,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const reportConsumption = useMaterialsStore(s => s.reportConsumption)
   const registerEventShipping = useMaterialsStore(s => s.registerEventShipping)
 
-  const instantiateMaterialTemplate = useActivitiesStore(s => s.instantiateMaterialTemplate)
+  const instantiateMaterialTemplate = useActivityTemplatesStore(s => s.instantiateMaterialTemplate)
 
   const user = useAuthStore(s => s.user)
   const hasPermission = useAuthStore(s => s.hasPermission)

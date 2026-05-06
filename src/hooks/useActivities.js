@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { nowISO, todayISO, toISO } from '../lib/date-utils'
-import { calculateDeadline } from '../lib/date-utils'
+import { nowISO, todayISO, calculateDeadline } from '../lib/date-utils'
 
 export const useActivitiesStore = create((set, get) => ({
   // State — separate keys to avoid collisions between views
@@ -9,7 +8,7 @@ export const useActivitiesStore = create((set, get) => ({
   myActivities: [],        // activities assigned to current user (banner + "le mie attività")
   dashboardActivities: [], // cross-event activities by permission (dashboard operativa)
   unclaimedActivities: [], // unassigned activities in user's permission domain
-  // Fix 6: scoped loading/error per fetch type
+  // Scoped loading/error per fetch type
   eventLoading: false,
   myLoading: false,
   dashboardLoading: false,
@@ -116,7 +115,6 @@ export const useActivitiesStore = create((set, get) => ({
     return { data, error }
   },
 
-  // Batch fetchEventSemaphores — single query instead of N+1
   fetchEventSemaphores: async (eventIds) => {
     if (!eventIds?.length) return {}
     const { data } = await supabase
@@ -125,7 +123,6 @@ export const useActivitiesStore = create((set, get) => ({
       .in('event_id', eventIds)
       .neq('stato', 'disattivata')
 
-    // Group by event_id
     const grouped = {}
     for (const row of (data || [])) {
       if (!grouped[row.event_id]) grouped[row.event_id] = []
@@ -136,7 +133,6 @@ export const useActivitiesStore = create((set, get) => ({
     const semaphores = {}
     for (const eid of eventIds) {
       const activities = grouped[eid] || []
-      // Semaphore only considers pre-evento mandatory activities
       const mandatory = activities.filter(a => a.obbligatoria && !a.post_evento)
       if (mandatory.length === 0) { semaphores[eid] = 'yellow'; continue }
       const overdue = mandatory.some(a =>
@@ -149,8 +145,27 @@ export const useActivitiesStore = create((set, get) => ({
     return semaphores
   },
 
+  fetchBatchActivityStatus: async (eventIds) => {
+    if (!eventIds?.length) return {}
+    const { data, error } = await supabase
+      .from('event_activities')
+      .select('event_id, stato, obbligatoria, post_evento, deadline')
+      .in('event_id', eventIds)
+      .neq('stato', 'disattivata')
+    if (error || !data) return {}
+    const today = todayISO()
+    const map = {}
+    for (const a of data) {
+      if (a.post_evento) continue
+      if (!map[a.event_id]) map[a.event_id] = { total: 0, completate: 0, inRitardo: 0 }
+      map[a.event_id].total++
+      if (a.stato === 'completata') map[a.event_id].completate++
+      if (a.obbligatoria && a.deadline && a.deadline < today && a.stato !== 'completata') map[a.event_id].inRitardo++
+    }
+    return map
+  },
+
   instantiateTemplate: async (eventId, tipoEvento, modalita, dataInizio) => {
-    // Clear existing activities before re-creating from template
     const { error: delError } = await supabase
       .from('event_activities')
       .delete()
@@ -202,7 +217,6 @@ export const useActivitiesStore = create((set, get) => ({
       for (const act of inserted) {
         if (act.template_item_id) templateIdMap[act.template_item_id] = act.id
       }
-      // Wire dependencies in parallel
       const depUpdates = items
         .filter(item => item.dipende_da && templateIdMap[item.dipende_da] && templateIdMap[item.id])
         .map(item => supabase
@@ -212,7 +226,7 @@ export const useActivitiesStore = create((set, get) => ({
         )
       if (depUpdates.length > 0) {
         const results = await Promise.all(depUpdates)
-        results.forEach((r, i) => {
+        results.forEach(r => {
           if (r.error) console.warn('Errore nel collegamento dipendenza:', r.error.message)
         })
       }
@@ -222,7 +236,6 @@ export const useActivitiesStore = create((set, get) => ({
     return { data: inserted, error: null }
   },
 
-  // Fix 5: updateActivity refreshes local state
   updateActivity: async (id, updates) => {
     const { data, error } = await supabase
       .from('event_activities')
@@ -240,21 +253,15 @@ export const useActivitiesStore = create((set, get) => ({
     return { data, error }
   },
 
-  assignActivity: async (id, userId) => {
-    return get().updateActivity(id, { assegnato_a: userId })
-  },
+  assignActivity: async (id, userId) => get().updateActivity(id, { assegnato_a: userId }),
 
-  completeActivity: async (id, userId) => {
-    return get().updateActivity(id, {
-      stato: 'completata',
-      completata_il: nowISO(),
-      completata_da: userId,
-    })
-  },
+  completeActivity: async (id, userId) => get().updateActivity(id, {
+    stato: 'completata',
+    completata_il: nowISO(),
+    completata_da: userId,
+  }),
 
-  startActivity: async (id) => {
-    return get().updateActivity(id, { stato: 'in_corso' })
-  },
+  startActivity: async (id) => get().updateActivity(id, { stato: 'in_corso' }),
 
   revertActivity: async (id, currentStato) => {
     const prevStato = currentStato === 'completata' ? 'in_corso' : 'da_fare'
@@ -266,9 +273,7 @@ export const useActivitiesStore = create((set, get) => ({
     return get().updateActivity(id, updates)
   },
 
-  disableActivity: async (id) => {
-    return get().updateActivity(id, { stato: 'disattivata' })
-  },
+  disableActivity: async (id) => get().updateActivity(id, { stato: 'disattivata' }),
 
   addCustomActivity: async (eventId, activity) => {
     const { data, error } = await supabase
@@ -338,312 +343,5 @@ export const useActivitiesStore = create((set, get) => ({
 
     if (verified > 0) await get().fetchEventActivities(eventId)
     return { verified }
-  },
-
-  // Batch activity status for readiness cards (returns counts, not just semaphore color)
-  fetchBatchActivityStatus: async (eventIds) => {
-    if (!eventIds?.length) return {}
-    const { data, error } = await supabase
-      .from('event_activities')
-      .select('event_id, stato, obbligatoria, post_evento, deadline')
-      .in('event_id', eventIds)
-      .neq('stato', 'disattivata')
-    if (error || !data) return {}
-    const today = todayISO()
-    const map = {}
-    for (const a of data) {
-      if (a.post_evento) continue // exclude post-evento from readiness cards
-      if (!map[a.event_id]) map[a.event_id] = { total: 0, completate: 0, inRitardo: 0 }
-      map[a.event_id].total++
-      if (a.stato === 'completata') map[a.event_id].completate++
-      if (a.obbligatoria && a.deadline && a.deadline < today && a.stato !== 'completata') map[a.event_id].inRitardo++
-    }
-    return map
-  },
-
-  // Template admin actions
-  fetchTemplates: async () => {
-    const { data, error } = await supabase
-      .from('event_templates')
-      .select(`
-        *,
-        items:template_items(*)
-      `)
-      .order('tipo_evento')
-    return { data: data || [], error }
-  },
-
-  createTemplate: async (tipoEvento, modalita) => {
-    const nome = `${tipoEvento} ${modalita}`
-    const { data, error } = await supabase
-      .from('event_templates')
-      .insert({ tipo_evento: tipoEvento, modalita, nome_template: nome })
-      .select()
-      .single()
-    return { data, error }
-  },
-
-  deleteTemplate: async (id) => {
-    const { error } = await supabase
-      .from('event_templates')
-      .delete()
-      .eq('id', id)
-    return { error }
-  },
-
-  // Preview items that would be created from the template for a given event
-  fetchTemplatePreview: async (tipoEvento, modalita) => {
-    const { data: templates, error: tplError } = await supabase
-      .from('event_templates')
-      .select('id')
-      .eq('tipo_evento', tipoEvento)
-      .eq('modalita', modalita)
-      .limit(1)
-    if (tplError) return { data: null, error: tplError.message }
-    if (!templates?.length) return { data: null, error: `Nessun template per ${tipoEvento} ${modalita}. Crealo in Amministrazione → Template.` }
-
-    const { data: items, error } = await supabase
-      .from('template_items')
-      .select('*')
-      .eq('template_id', templates[0].id)
-      .eq('tipo', 'checklist')
-      .order('ordine')
-    if (error) return { data: null, error: error.message }
-    return { data: items || [], error: null }
-  },
-
-  fetchTemplateItems: async (templateId) => {
-    const { data, error } = await supabase
-      .from('template_items')
-      .select('*')
-      .eq('template_id', templateId)
-      .eq('tipo', 'checklist')
-      .order('ordine')
-    return { data: data || [], error }
-  },
-
-  createTemplateItem: async (templateId, item) => {
-    const { data, error } = await supabase
-      .from('template_items')
-      .insert({
-        template_id: templateId,
-        tipo: 'checklist',
-        ...item,
-      })
-      .select()
-      .single()
-    return { data, error }
-  },
-
-  updateTemplateItem: async (id, updates) => {
-    const { data, error } = await supabase
-      .from('template_items')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    return { data, error }
-  },
-
-  deleteTemplateItem: async (id) => {
-    const { data: deps } = await supabase
-      .from('template_items')
-      .select('id')
-      .eq('dipende_da', id)
-    if (deps?.length > 0) {
-      return { data: null, error: { message: 'Altre attività dipendono da questa. Rimuovi prima le dipendenze.' } }
-    }
-    const { error } = await supabase
-      .from('template_items')
-      .delete()
-      .eq('id', id)
-    return { data: null, error }
-  },
-
-  // ── Program template items ──
-
-  fetchProgramTemplateItems: async (templateId) => {
-    const { data, error } = await supabase
-      .from('template_items')
-      .select('*, tipo_ref:sub_activity_types(id, nome)')
-      .eq('template_id', templateId)
-      .eq('tipo', 'sub_activity')
-      .order('ordine')
-    return { data: data || [], error }
-  },
-
-  createProgramTemplateItem: async (templateId, item) => {
-    const { data, error } = await supabase
-      .from('template_items')
-      .insert({
-        template_id: templateId,
-        tipo: 'sub_activity',
-        descrizione: item.descrizione || '',
-        ...item,
-      })
-      .select('*, tipo_ref:sub_activity_types(id, nome)')
-      .single()
-    return { data, error }
-  },
-
-  updateProgramTemplateItem: async (id, updates) => {
-    const { data, error } = await supabase
-      .from('template_items')
-      .update(updates)
-      .eq('id', id)
-      .select('*, tipo_ref:sub_activity_types(id, nome)')
-      .single()
-    return { data, error }
-  },
-
-  deleteProgramTemplateItem: async (id) => {
-    const { error } = await supabase
-      .from('template_items')
-      .delete()
-      .eq('id', id)
-    return { data: null, error }
-  },
-
-  instantiateProgramTemplate: async (eventId, tipoEvento, modalita, dataInizio) => {
-    // Guard: prevent duplicate instantiation
-    const { count } = await supabase
-      .from('event_sub_activities')
-      .select('id', { count: 'exact', head: true })
-      .eq('event_id', eventId)
-    if (count > 0) return { data: null, error: 'Programma già presente per questo evento' }
-
-    // Find template (exact match first, then fallback to tipo_evento only)
-    const { data: templates } = await supabase
-      .from('event_templates')
-      .select('id')
-      .eq('tipo_evento', tipoEvento)
-      .eq('modalita', modalita)
-      .limit(1)
-    if (!templates?.length) return { data: null, error: `Nessun template per ${tipoEvento} ${modalita}. Crealo in Amministrazione → Template.` }
-
-    // Fetch program items
-    const { data: items } = await supabase
-      .from('template_items')
-      .select('*')
-      .eq('template_id', templates[0].id)
-      .eq('tipo', 'sub_activity')
-      .order('ordine')
-    if (!items?.length) return { data: null, error: 'Nessuna voce di programma nel template' }
-
-    // Build sub-activities from template
-    const subActivities = items.map(item => {
-      let data_ora = null
-      if (dataInizio && item.orario) {
-        const dayOffset = (item.giorno || 1) - 1
-        const timeStr = item.orario.length <= 5 ? item.orario + ':00' : item.orario
-        const baseDate = new Date(dataInizio + 'T' + timeStr)
-        baseDate.setDate(baseDate.getDate() + dayOffset)
-        data_ora = toISO(baseDate)
-      }
-      return {
-        event_id: eventId,
-        tipo_id: item.tipo_sotto_attivita_id,
-        data_ora,
-        durata_minuti: item.durata_minuti || null,
-        luogo: item.luogo || null,
-        fornitore: item.fornitore || null,
-        note: item.note || null,
-        confermata: false,
-      }
-    })
-
-    const { data, error } = await supabase
-      .from('event_sub_activities')
-      .insert(subActivities)
-      .select('*, tipo_ref:sub_activity_types(id, nome)')
-    if (error) return { data: null, error: error.message }
-    return { data, error: null }
-  },
-
-  // ── Template materials ──
-
-  searchProducts: async (term) => {
-    let query = supabase
-      .from('products')
-      .select('id, nome, codice, tipo, foto_url, brand:brands(id, nome)')
-      .eq('attivo', true)
-      .order('nome')
-      .limit(20)
-    if (term) query = query.ilike('nome', `%${term}%`)
-    const { data, error } = await query
-    return { data: data || [], error }
-  },
-
-  fetchTemplateMaterials: async (templateId) => {
-    const { data, error } = await supabase
-      .from('template_materials')
-      .select('*, product:products(id, nome, codice, tipo, foto_url, brand:brands(id, nome))')
-      .eq('template_id', templateId)
-      .order('ordine')
-    return { data: data || [], error }
-  },
-
-  createTemplateMaterial: async (templateId, item) => {
-    const { data, error } = await supabase
-      .from('template_materials')
-      .insert({ template_id: templateId, ...item })
-      .select('*, product:products(id, nome, codice, tipo, foto_url, brand:brands(id, nome))')
-      .single()
-    return { data, error }
-  },
-
-  updateTemplateMaterial: async (id, updates) => {
-    const { data, error } = await supabase
-      .from('template_materials')
-      .update(updates)
-      .eq('id', id)
-      .select('*, product:products(id, nome, codice, tipo, foto_url, brand:brands(id, nome))')
-      .single()
-    return { data, error }
-  },
-
-  deleteTemplateMaterial: async (id) => {
-    const { error } = await supabase.from('template_materials').delete().eq('id', id)
-    return { error }
-  },
-
-  instantiateMaterialTemplate: async (eventId, tipoEvento, modalita, userId) => {
-    // Guard: prevent duplicate
-    const { count } = await supabase
-      .from('event_materials')
-      .select('id', { count: 'exact', head: true })
-      .eq('event_id', eventId)
-    if (count > 0) return { data: null, error: 'Materiale già presente per questo evento' }
-
-    const { data: templates } = await supabase
-      .from('event_templates')
-      .select('id')
-      .eq('tipo_evento', tipoEvento)
-      .eq('modalita', modalita)
-      .limit(1)
-    if (!templates?.length) return { data: null, error: `Nessun template per ${tipoEvento} ${modalita}. Crealo in Amministrazione → Template.` }
-
-    const { data: items } = await supabase
-      .from('template_materials')
-      .select('*')
-      .eq('template_id', templates[0].id)
-      .order('ordine')
-    if (!items?.length) return { data: null, error: 'Nessun materiale nel template' }
-
-    const rows = items.map(item => ({
-      event_id: eventId,
-      product_id: item.product_id,
-      quantita: item.quantita,
-      note_commerciale: item.note || null,
-      stato: 'richiesto',
-      richiesto_da: userId,
-    }))
-
-    const { data, error } = await supabase
-      .from('event_materials')
-      .insert(rows)
-      .select()
-    if (error) return { data: null, error: error.message }
-    return { data, error: null }
   },
 }))

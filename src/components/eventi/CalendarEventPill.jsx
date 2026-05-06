@@ -38,8 +38,8 @@ export function CalendarEventPill({ event, compact = false, showStatus = false, 
       <Link
         to={`/eventi/${event.id}`}
         className={`relative flex items-center gap-1 px-2 py-1 rounded-r-lg text-xs font-medium border-l-[3px] ${borderClass} ${pillClass} hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-mikai-400 focus:ring-offset-1`}
-        title={`${event.titolo} — ${STATO_EVENTO[event.stato]} — ${MODALITA_EVENTO_SHORT[event.modalita] || ''}`}
-        aria-label={`${event.titolo}, ${tipoLabels[event.tipo_evento] || ''}, ${STATO_EVENTO[event.stato]}`}
+        title={`${event.titolo} — ${STATO_EVENTO[event.stato]} — ${MODALITA_EVENTO_SHORT[event.modalita] || ''}${attention ? ' — ' + (ATTENTION_TEXT[attention]?.label || '') : ''}`}
+        aria-label={`${event.titolo}, ${tipoLabels[event.tipo_evento] || ''}, ${STATO_EVENTO[event.stato]}${attention ? ', ' + (ATTENTION_TEXT[attention]?.label || '') : ''}`}
         onClick={e => e.stopPropagation()}
       >
         {TipoIcon && <Icon icon={TipoIcon} size={12} className="flex-shrink-0" />}
@@ -47,7 +47,11 @@ export function CalendarEventPill({ event, compact = false, showStatus = false, 
         {indicators?.hasMaterials && <Icon icon={MATERIALE_ICONS.package} size={10} className="flex-shrink-0 opacity-50" />}
         {indicators?.hasPeople && <Icon icon={ADMIN_ICONS.utenti} size={10} className="flex-shrink-0 opacity-50" />}
         {attention && (
-          <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${ATTENTION_DOT[attention]} ring-1 ring-white animate-pulse`} />
+          <span
+            className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${ATTENTION_DOT[attention]} ring-1 ring-white animate-pulse`}
+            role="img"
+            aria-label={ATTENTION_TEXT[attention]?.label || 'Richiede attenzione'}
+          />
         )}
       </Link>
     )

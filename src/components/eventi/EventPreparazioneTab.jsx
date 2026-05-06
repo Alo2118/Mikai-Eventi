@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useActivitiesStore } from '../../hooks/useActivities'
+import { useActivityTemplatesStore } from '../../hooks/useActivityTemplates'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useStaffStore } from '../../hooks/useStaff'
@@ -35,7 +36,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const runAutoVerifications = useActivitiesStore(s => s.runAutoVerifications)
   const addCustomActivity = useActivitiesStore(s => s.addCustomActivity)
   const updateActivity = useActivitiesStore(s => s.updateActivity)
-  const fetchTemplatePreview = useActivitiesStore(s => s.fetchTemplatePreview)
+  const fetchTemplatePreview = useActivityTemplatesStore(s => s.fetchTemplatePreview)
 
   const fetchEventDocuments = useDocumentsStore(s => s.fetchEventDocuments)
 
@@ -334,7 +335,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
                   viewMode === v ? 'bg-mikai-400 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {v === 'kanban' ? 'Kanban' : 'Lista'}
+                {v === 'kanban' ? 'Per colonne' : 'Per lista'}
               </button>
             ))}
           </div>
