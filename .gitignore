@@ -8,5 +8,6 @@ dist/
 .vite/
 coverage/
 .worktrees/
-.claude/settings.local.json
+.claude/
+image.png
 ${APPDATA}*/
