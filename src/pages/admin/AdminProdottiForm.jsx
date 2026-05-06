@@ -2,10 +2,10 @@ import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { ACTION_ICONS, ADMIN_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { INPUT_STYLE, SELECT_STYLE, TEXTAREA_STYLE, CARD_STYLE } from '../../lib/constants'
-import { toDriveImageUrl } from '../../lib/format-utils'
 import { AdminProdottiKit } from '../../components/admin/AdminProdottiKit'
 import { AdminProdottiSpecimens } from '../../components/admin/AdminProdottiSpecimens'
 import { AdminProdottiStock } from '../../components/admin/AdminProdottiStock'
+import { ProductImageUpload } from '../../components/materiale/ProductImageUpload'
 
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
@@ -147,32 +147,12 @@ export function AdminProdottiForm({
           <textarea id="prod-descrizione" className={TEXTAREA_STYLE} value={editing.descrizione || ''} onChange={e => setEditing({ ...editing, descrizione: e.target.value })} />
         </div>
         <div>
-          <label htmlFor="prod-foto" className="block text-sm font-medium text-gray-700 mb-1">Link immagine (Google Drive o URL diretto)</label>
-          <input
-            id="prod-foto"
-            className={INPUT_STYLE}
+          <label className="block text-sm font-medium text-gray-700 mb-1">Immagine prodotto</label>
+          <ProductImageUpload
             value={editing.foto_url || ''}
-            onChange={e => setEditing({ ...editing, foto_url: e.target.value })}
-            placeholder="https://drive.google.com/file/d/..."
+            onChange={(url) => setEditing({ ...editing, foto_url: url })}
+            productId={editing.id}
           />
-          <p className="text-xs text-gray-500 mt-1">Incolla il link di condivisione di Google Drive</p>
-          {editing.foto_url && (
-            <div className="mt-2 flex items-start gap-3">
-              <img
-                src={toDriveImageUrl(editing.foto_url)}
-                alt="Anteprima"
-                className="w-32 h-32 object-cover rounded-lg border border-gray-200"
-                onError={(e) => { e.target.style.display = 'none' }}
-              />
-              <button
-                type="button"
-                onClick={() => setEditing({ ...editing, foto_url: '' })}
-                className="text-sm text-red-500 hover:text-red-700 min-h-[48px] px-3 rounded-lg"
-              >
-                Rimuovi immagine
-              </button>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-3">
           <input type="checkbox" className={CHECK} checked={editing.attivo !== false} onChange={e => setEditing({ ...editing, attivo: e.target.checked })} id="attivo" />

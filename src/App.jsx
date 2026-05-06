@@ -13,6 +13,7 @@ const EventiWizard = lazy(() => import('./pages/eventi/EventiWizard').then(m => 
 const EventiCalendar = lazy(() => import('./pages/eventi/EventiCalendar').then(m => ({ default: m.EventiCalendar })))
 const MaterialeList = lazy(() => import('./pages/materiale/MaterialeList').then(m => ({ default: m.MaterialeList })))
 const MaterialeDetail = lazy(() => import('./pages/materiale/MaterialeDetail').then(m => ({ default: m.MaterialeDetail })))
+const MaterialeAgenti = lazy(() => import('./pages/materiale/MaterialeAgenti').then(m => ({ default: m.MaterialeAgenti })))
 const AdminBrand = lazy(() => import('./pages/admin/AdminBrand').then(m => ({ default: m.AdminBrand })))
 const AdminDistretti = lazy(() => import('./pages/admin/AdminDistretti').then(m => ({ default: m.AdminDistretti })))
 const AdminProdotti = lazy(() => import('./pages/admin/AdminProdotti').then(m => ({ default: m.AdminProdotti })))
@@ -82,6 +83,7 @@ function App() {
           <Route path="/notifiche" element={<NotifichePage />} />
           <Route path="/altro" element={<AltroPage />} />
           <Route path="/materiale" element={<MaterialeList />} />
+          <Route path="/materiale/agenti" element={<MaterialeAgenti />} />
           <Route path="/materiale/:id" element={<MaterialeDetail />} />
           <Route path="/report/materiale" element={<ReportMaterialePage />} />
           <Route path="/admin/brand" element={<AdminBrand />} />

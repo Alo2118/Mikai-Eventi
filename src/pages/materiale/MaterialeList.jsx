@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCatalogStore } from '../../hooks/useCatalog'
+import { useAuthStore } from '../../hooks/useAuth'
 import { useExportHandler } from '../../hooks/useExportHandler'
 import { MaterialCard } from '../../components/materiale/MaterialCard'
 import { MaterialFilters } from '../../components/materiale/MaterialFilters'
@@ -15,9 +16,11 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { Icon } from '../../components/ui/Icon'
 import { TIPO_MATERIALE, POSIZIONE_MATERIALE, SUMMARY_BAR_STYLE, POSIZIONE_ORDER, POSIZIONE_BG, GROUP_HEADING_STYLE, SELECT_STYLE } from '../../lib/constants'
 import { useProductTypes } from '../../hooks/useProductTypes'
-import { POSIZIONE_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { POSIZIONE_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS, ACTION_ICONS, NAV_ICONS } from '../../lib/icons'
 import { StockProductCard } from '../../components/materiale/StockProductCard'
 import { ProductGroupCard } from '../../components/materiale/ProductGroupCard'
+import { MagazzinoOggi } from '../../components/materiale/MagazzinoOggi'
+import { MagazzinoAlerts } from '../../components/materiale/MagazzinoAlerts'
 
 const EXPORT_COLUMNS_MATERIALI = [
   { key: 'nome', label: 'Nome', width: 30 },
@@ -49,9 +52,11 @@ export function MaterialeList() {
   const fetchBrands = useCatalogStore(s => s.fetchBrands)
   const { exporting, handleExport } = useExportHandler()
   const { labels: tipoLabels, productTypes } = useProductTypes()
+  const hasPermission = useAuthStore(s => s.hasPermission)
+  const canSeeMagazzinoOggi = hasPermission('gestione_magazzino')
   // viewMode: 'product' (default) | 'list' | 'grouped'
   const [viewMode, setViewMode] = useState('product')
-  const [mainTab, setMainTab] = useState('esemplari') // 'esemplari' | 'stock'
+  const [mainTab, setMainTab] = useState(canSeeMagazzinoOggi ? 'oggi' : 'esemplari') // 'oggi' | 'esemplari' | 'stock'
   const [stockSearch, setStockSearch] = useState('')
   const [stockBrand, setStockBrand] = useState('')
   const [stockTipo, setStockTipo] = useState('')
@@ -199,19 +204,39 @@ export function MaterialeList() {
       </div>
       <PageHeader
         title="Materiale & Gadget"
-        subtitle={mainTab === 'esemplari'
-          ? (totalCount > 0 ? `${materials.length} di ${totalCount} elementi` : `${materials.length} elementi`)
+        subtitle={
+          mainTab === 'oggi' ? 'La tua giornata in magazzino'
+          : mainTab === 'esemplari' ? (totalCount > 0 ? `${materials.length} di ${totalCount} elementi` : `${materials.length} elementi`)
           : `${stockProducts.length} prodotti`
         }
-        actions={mainTab === 'esemplari'
-          ? <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_MATERIALI, rows: materials, filename: 'materiale', sheetName: 'Materiale' })} loading={exporting} />
-          : null
+        actions={
+          <div className="flex items-center gap-2">
+            {canSeeMagazzinoOggi && <MagazzinoAlerts />}
+            {mainTab === 'esemplari' && (
+              <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_MATERIALI, rows: materials, filename: 'materiale', sheetName: 'Materiale' })} loading={exporting} />
+            )}
+          </div>
         }
       />
 
-      {/* Segmented control: Esemplari / Stock */}
+      {/* Segmented control: Oggi / Esemplari / Stock */}
       <div className="px-4 md:px-6 mb-4">
         <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1">
+          {canSeeMagazzinoOggi && (
+            <button
+              onClick={() => setMainTab('oggi')}
+              className={`px-5 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-all ${
+                mainTab === 'oggi'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Icon icon={NAV_ICONS.dashboard} size={16} />
+                Oggi
+              </span>
+            </button>
+          )}
           <button
             onClick={() => setMainTab('esemplari')}
             className={`px-5 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-all ${
@@ -245,6 +270,11 @@ export function MaterialeList() {
           </button>
         </div>
       </div>
+
+      {/* ── OGGI TAB (default per chi ha gestione_magazzino) ── */}
+      {mainTab === 'oggi' && canSeeMagazzinoOggi && (
+        <MagazzinoOggi onSwitchToStock={() => setMainTab('stock')} />
+      )}
 
       {/* ── ESEMPLARI TAB ── */}
       {mainTab === 'esemplari' && (

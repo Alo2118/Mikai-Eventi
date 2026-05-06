@@ -515,5 +515,257 @@ export const useMaterialsStore = create((set, get) => {
     return { data: data || [], error: error?.message || null }
   },
 
+  // ── Magazzino Oggi (dashboard Ivan) ──
+
+  // Materiali presso agenti, con ultimo movimento e dati per "fuori da X giorni"
+  fetchMaterialsByAgent: async () => {
+    const { data: materials, error } = await supabase
+      .from('materials')
+      .select(`
+        id, nome, codice_inventario, tipo, posizione_attuale, presso_utente_id,
+        agente:users!materials_presso_utente_id_fkey(id, nome, cognome, ruolo, zona),
+        product:products(id, nome, codice, foto_url, brand:brands(id, nome))
+      `)
+      .eq('attivo', true)
+      .eq('posizione_attuale', 'magazzino_agente')
+      .not('presso_utente_id', 'is', null)
+    if (error) return { data: [], error: error.message }
+
+    const materialIds = (materials || []).map(m => m.id)
+    if (materialIds.length === 0) return { data: [], error: null }
+
+    // Ultimo movimento di tipo "uscita" per ogni materiale (per data e event_id collegato)
+    const { data: movements } = await supabase
+      .from('material_movements')
+      .select('material_id, event_id, data_movimento, data_rientro_prevista, evento:events!material_movements_event_id_fkey(id, titolo, data_inizio, data_fine, stato)')
+      .in('material_id', materialIds)
+      .eq('tipo', 'uscita')
+      .order('data_movimento', { ascending: false })
+
+    const lastByMaterial = {}
+    for (const m of (movements || [])) {
+      if (!lastByMaterial[m.material_id]) lastByMaterial[m.material_id] = m
+    }
+
+    // Aggregazione per agente
+    const today = new Date()
+    const grouped = {}
+    for (const mat of materials) {
+      const aid = mat.presso_utente_id
+      if (!grouped[aid]) {
+        grouped[aid] = {
+          agente: mat.agente,
+          materials: [],
+        }
+      }
+      const lastMv = lastByMaterial[mat.id]
+      const dataMov = lastMv?.data_movimento ? new Date(lastMv.data_movimento) : null
+      const giorniFuori = dataMov ? Math.floor((today - dataMov) / 86400000) : null
+      grouped[aid].materials.push({
+        ...mat,
+        last_movement: lastMv || null,
+        evento_collegato: lastMv?.evento || null,
+        giorni_fuori: giorniFuori,
+      })
+    }
+
+    // Stats per agente
+    const result = Object.values(grouped).map(g => {
+      const giorniValidi = g.materials.map(m => m.giorni_fuori).filter(d => d != null)
+      const giorniMedi = giorniValidi.length > 0
+        ? Math.round(giorniValidi.reduce((a, b) => a + b, 0) / giorniValidi.length)
+        : null
+      const giorniMax = giorniValidi.length > 0 ? Math.max(...giorniValidi) : null
+      return {
+        ...g,
+        kit_count: g.materials.length,
+        giorni_medi: giorniMedi,
+        giorni_max: giorniMax,
+      }
+    }).sort((a, b) => (b.giorni_max || 0) - (a.giorni_max || 0))
+
+    return { data: result, error: null }
+  },
+
+  // Eventi conclusi con uscite aperte (nessun rientro registrato)
+  fetchEventsPendingReturn: async () => {
+    const { data: movements, error } = await supabase
+      .from('material_movements')
+      .select(`
+        id, material_id, event_id, data_movimento, data_rientro_prevista,
+        material:materials!material_movements_material_id_fkey(id, nome, codice_inventario, posizione_attuale,
+          product:products(id, nome, foto_url, brand:brands(id, nome))),
+        evento:events!material_movements_event_id_fkey(id, titolo, data_inizio, data_fine, stato)
+      `)
+      .eq('tipo', 'uscita')
+      .not('event_id', 'is', null)
+    if (error) return { data: [], error: error.message }
+
+    // Filtra: evento concluso e materiale non rientrato
+    const today = new Date()
+    const pending = (movements || []).filter(m =>
+      m.evento?.stato === 'concluso' &&
+      m.material?.posizione_attuale !== 'in_magazzino'
+    )
+
+    // Aggrega per evento
+    const grouped = {}
+    for (const m of pending) {
+      const eid = m.event_id
+      if (!grouped[eid]) {
+        grouped[eid] = { evento: m.evento, materials: [] }
+      }
+      grouped[eid].materials.push(m)
+    }
+    const result = Object.values(grouped).map(g => {
+      const dataFine = g.evento?.data_fine ? new Date(g.evento.data_fine) : null
+      const giorniDaConclusione = dataFine ? Math.floor((today - dataFine) / 86400000) : null
+      return { ...g, count: g.materials.length, giorni_da_conclusione: giorniDaConclusione }
+    }).sort((a, b) => (b.giorni_da_conclusione || 0) - (a.giorni_da_conclusione || 0))
+
+    return { data: result, error: null }
+  },
+
+  // Eventi confermati con materiale ancora richiesto/approvato — preparazione imminente
+  fetchPreparazioniImminenti: async (giorniAvanti = 7) => {
+    const today = todayISO()
+    const limite = new Date()
+    limite.setDate(limite.getDate() + giorniAvanti)
+    const limiteISO = limite.toISOString().slice(0, 10)
+
+    const { data: events, error } = await supabase
+      .from('events')
+      .select(`
+        id, titolo, data_inizio, data_fine, stato, modalita,
+        materials:event_materials(id, stato, quantita, product:products(id, nome, foto_url, brand:brands(id, nome)))
+      `)
+      .gte('data_inizio', today)
+      .lte('data_inizio', limiteISO)
+      .in('stato', ['confermato', 'in_preparazione', 'pronto'])
+      .order('data_inizio', { ascending: true })
+    if (error) return { data: [], error: error.message }
+
+    // Filtra: solo eventi con almeno un materiale non ancora preparato (richiesto o approvato)
+    const result = (events || [])
+      .map(ev => {
+        const daPreparare = (ev.materials || []).filter(m => ['richiesto', 'approvato'].includes(m.stato))
+        const totale = (ev.materials || []).filter(m => m.stato !== 'rifiutato').length
+        const giorniMancanti = Math.floor((new Date(ev.data_inizio) - new Date()) / 86400000)
+        return { ...ev, da_preparare: daPreparare, totale, giorni_mancanti: giorniMancanti }
+      })
+      .filter(ev => ev.da_preparare.length > 0)
+
+    return { data: result, error: null }
+  },
+
+  // ── Bulk Return ──
+
+  // Carica i material_movements 'uscita' di un evento per cui il materiale non è ancora rientrato
+  fetchPendingReturnsForEvent: async (eventId) => {
+    const { data: movements, error } = await supabase
+      .from('material_movements')
+      .select(`
+        id, material_id, event_id, modalita, data_movimento, data_rientro_prevista,
+        material:materials!material_movements_material_id_fkey(
+          id, nome, codice_inventario, posizione_attuale, presso_utente_id,
+          product:products(id, nome, codice, foto_url, brand:brands(id, nome))
+        )
+      `)
+      .eq('event_id', eventId)
+      .eq('tipo', 'uscita')
+      .order('data_movimento', { ascending: false })
+    if (error) return { data: [], error: error.message }
+
+    const pending = (movements || []).filter(m =>
+      m.material && m.material.posizione_attuale !== 'in_magazzino'
+    )
+    // Dedup per material_id (può esserci più di un'uscita per stesso materiale)
+    const seen = new Set()
+    const result = []
+    for (const m of pending) {
+      if (seen.has(m.material_id)) continue
+      seen.add(m.material_id)
+      result.push(m)
+    }
+    return { data: result, error: null }
+  },
+
+  // Registra in batch i rientri per N materiali di un evento
+  // rows: [{ material_id, stato_rientro, quantita_rientrata?, note_danni?, foto_danno_url?, modalita?, destinazione? ('magazzino'|'agente'), agente_id? }]
+  registerBulkReturn: async (eventId, rows, responsabileId) => {
+    if (!rows?.length) return { error: 'Nessuna riga da registrare', insertedCount: 0 }
+    if (!responsabileId) return { error: 'Responsabile mancante', insertedCount: 0 }
+
+    const dataMovimento = nowISO()
+    const movements = rows.map(r => ({
+      material_id: r.material_id,
+      event_id: eventId,
+      tipo: 'rientro',
+      modalita: r.modalita || 'mano',
+      da_posizione: 'presso_evento',
+      a_posizione: r.destinazione === 'agente' ? 'magazzino_agente' : 'in_magazzino',
+      data_movimento: dataMovimento,
+      responsabile_id: responsabileId,
+      stato_rientro: r.stato_rientro || 'integro',
+      quantita_rientrata: r.quantita_rientrata ?? null,
+      note_danni: r.note_danni || null,
+      foto_danno_url: r.foto_danno_url || null,
+    }))
+
+    const { data: inserted, error: mvError } = await supabase
+      .from('material_movements')
+      .insert(movements)
+      .select('id, material_id')
+    if (mvError) return { error: mvError.message, insertedCount: 0 }
+
+    // Aggiorna posizione di ogni materiale (in_magazzino o magazzino_agente)
+    const updates = rows.map(r => {
+      const newPos = r.destinazione === 'agente' ? 'magazzino_agente' : 'in_magazzino'
+      const patch = { posizione_attuale: newPos }
+      if (r.destinazione === 'agente' && r.agente_id) patch.presso_utente_id = r.agente_id
+      else patch.presso_utente_id = null
+      return supabase.from('materials').update(patch).eq('id', r.material_id)
+    })
+
+    const results = await Promise.all(updates)
+    const updateError = results.find(res => res.error)
+    if (updateError?.error) {
+      return { error: `Movimenti inseriti ma errore aggiornamento posizione: ${updateError.error.message}`, insertedCount: inserted.length }
+    }
+
+    return { error: null, insertedCount: inserted.length }
+  },
+
+  // Manda una notifica all'agente per sollecitare il rientro dei kit
+  solicitaRientroAgente: async (agenteId, kitCount, giorniMax) => {
+    if (!agenteId) return { error: 'Agente mancante' }
+    const giornoBucket = todayISO()
+    const gruppo = `sollecito_rientro_${agenteId}_${giornoBucket}`
+
+    // Dedup giornaliero
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('gruppo', gruppo)
+    if (count && count > 0) return { error: 'Sollecito già inviato oggi a questo agente' }
+
+    const messaggio = giorniMax >= 60
+      ? `Hai ${kitCount} ${kitCount === 1 ? 'kit' : 'kit'} fuori da oltre ${giorniMax} giorni. Riportali quando puoi al magazzino.`
+      : `Hai ${kitCount} ${kitCount === 1 ? 'kit' : 'kit'} fuori. Verifica se puoi riportarli al magazzino.`
+
+    const { error } = await supabase.from('notifications').insert({
+      tipo: 'sollecito_rientro',
+      titolo: 'Riporta il materiale demo',
+      messaggio,
+      link: '/materiale',
+      link_label: 'Vedi i tuoi kit',
+      entity_type: 'user',
+      entity_id: agenteId,
+      gruppo,
+      user_id: agenteId,
+    })
+    return { error: error?.message || null }
+  },
+
   }
 })

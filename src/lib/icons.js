@@ -197,6 +197,12 @@ import {
   // Misc UI
   EllipsisVertical,
   Loader2,
+
+  // Magazzino flussi operativi
+  Archive,
+  Send,
+  ImageOff,
+  CalendarClock,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════
@@ -320,6 +326,28 @@ export const MATERIALE_ICONS = {
   viewList: List,
   viewGrid: LayoutGrid,
   viewProduct: Layers,
+}
+
+// ═══════════════════════════════════════════
+// Magazzino — operazioni e flussi
+// ═══════════════════════════════════════════
+export const MAGAZZINO_ICONS = {
+  // Operazioni
+  picking: PackageOpen,
+  imballa: Package,
+  imballato: PackageCheck,
+  spedisci: Send,
+  rientro: RotateCcw,
+  rientrato: Archive,
+  trasferimento: ArrowRightLeft,
+  scaffale: Warehouse,
+  scatola: Package,
+  stampa: Printer,
+  upload: Upload,
+  noPhoto: ImageOff,
+  // Allerte
+  scaduto: AlertTriangle,
+  imminente: CalendarClock,
 }
 
 // ═══════════════════════════════════════════

@@ -12,6 +12,8 @@ import { EmptyState } from '../ui/EmptyState'
 import { usePackingListStore } from '../../hooks/usePackingList'
 import { CatalogBrowser } from '../materiale/CatalogBrowser'
 import { MovementHistory } from '../materiale/MovementHistory'
+import { PickingPrintView } from '../materiale/PickingPrintView'
+import { MAGAZZINO_ICONS } from '../../lib/icons'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
 import { EventMaterialShipping } from './EventMaterialShipping'
@@ -34,6 +36,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCatalog, setShowCatalog] = useState(false)
+  const [showPicking, setShowPicking] = useState(false)
   const [collapsedSections, setCollapsedSections] = useState(new Set())
   const [rejectTarget, setRejectTarget] = useState(null)
   const [movements, setMovements] = useState([])
@@ -306,6 +309,12 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
           {canEdit && rows.length === 0 && (
             <Button variant="secondary" size="sm" onClick={handleApplyTemplate} loading={applyingTemplate}>Template</Button>
           )}
+          {rows.some(r => ['approvato', 'in_preparazione'].includes(r.stato)) && (
+            <Button variant="secondary" size="sm" onClick={() => setShowPicking(true)}>
+              <Icon icon={MAGAZZINO_ICONS.stampa} size={16} className="mr-1" />
+              Stampa picking
+            </Button>
+          )}
           {canEdit && !showCatalog && (
             <Button size="sm" onClick={() => setShowCatalog(true)}>
               <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
@@ -503,6 +512,17 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
           </h3>
           <MovementHistory movements={movements} />
         </section>
+      )}
+
+      {/* Picking print view (fullscreen overlay) */}
+      {showPicking && (
+        <div className="fixed inset-0 bg-white z-50 overflow-auto">
+          <PickingPrintView
+            event={event}
+            rows={rows}
+            onClose={() => setShowPicking(false)}
+          />
+        </div>
       )}
     </div>
   )

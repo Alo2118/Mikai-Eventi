@@ -22,7 +22,7 @@ import { useEventTypes } from '../../hooks/useEventTypes'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
-import { DOCUMENTO_ICONS, CATEGORIA_ICONS, MATERIALE_ICONS, NAV_ICONS as DETAIL_NAV_ICONS, COSTI_ICONS, FEEDBACK_ICONS, ACTION_ICONS as DETAIL_ACTION_ICONS } from '../../lib/icons'
+import { DOCUMENTO_ICONS, CATEGORIA_ICONS, MATERIALE_ICONS, NAV_ICONS as DETAIL_NAV_ICONS, COSTI_ICONS, FEEDBACK_ICONS, ACTION_ICONS as DETAIL_ACTION_ICONS, MAGAZZINO_ICONS } from '../../lib/icons'
 import { useToastStore } from '../../components/ui/Toast'
 import { generateEventDossier } from '../../lib/generate-dossier'
 
@@ -41,6 +41,7 @@ const EventPackingList = lazy(() => import('../../components/eventi/EventPacking
 const ComingSoon = lazy(() => import('../../components/ui/ComingSoon').then(m => ({ default: m.ComingSoon })))
 import { EventStatusFlow } from '../../components/eventi/EventStatusFlow'
 import { EventApprovalBar } from '../../components/eventi/EventApprovalBar'
+import { BulkReturnModal } from '../../components/materiale/BulkReturnModal'
 
 function getVisibleTabs(event, profile, permissions) {
   const ruolo = profile?.ruolo
@@ -135,6 +136,7 @@ export function EventiDetail() {
   const fetchEvent = useEventsStore(s => s.fetchEvent)
   const profile = useAuthStore(s => s.profile)
   const permissions = useAuthStore(s => s.permissions)
+  const hasPermission = useAuthStore(s => s.hasPermission)
   const users = useAdminStore(s => s.users)
   const fetchUsers = useAdminStore(s => s.fetchUsers)
   const staff = useStaffStore(s => s.staff)
@@ -160,6 +162,7 @@ export function EventiDetail() {
   const initialTab = (tabFromUrl && VALID_TABS.includes(tabFromUrl)) ? tabFromUrl : 'info'
   const [activeTab, setActiveTab] = useState(initialTab)
   const [showPackingList, setShowPackingList] = useState(false)
+  const [showReturnModal, setShowReturnModal] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
   const [showTabBanner, setShowTabBanner] = useState(false)
@@ -365,12 +368,20 @@ export function EventiDetail() {
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
         </div>
-        {DOSSIER_STATES.includes(event.stato) && (
-          <Button variant="secondary" onClick={handleGenerateDossier} loading={generating} className="shrink-0">
-            <Icon icon={DOCUMENTO_ICONS.dossier} size={16} className="mr-1.5" />
-            Riepilogo
-          </Button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {event.stato === 'concluso' && hasPermission('gestione_magazzino') && eventMaterials.some(m => m.stato !== 'rifiutato') && (
+            <Button variant="secondary" onClick={() => setShowReturnModal(true)} className="shrink-0">
+              <Icon icon={MAGAZZINO_ICONS.rientro} size={16} className="mr-1.5" />
+              Registra rientro
+            </Button>
+          )}
+          {DOSSIER_STATES.includes(event.stato) && (
+            <Button variant="secondary" onClick={handleGenerateDossier} loading={generating} className="shrink-0">
+              <Icon icon={DOCUMENTO_ICONS.dossier} size={16} className="mr-1.5" />
+              Riepilogo
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Status flow — sempre visibile, su tutte le tab */}
@@ -467,6 +478,14 @@ export function EventiDetail() {
           </div>
         </>
       )}
+
+      <BulkReturnModal
+        open={showReturnModal}
+        eventId={event.id}
+        eventTitolo={event.titolo}
+        onClose={() => setShowReturnModal(false)}
+        onDone={() => { setShowReturnModal(false); refreshEvent() }}
+      />
     </div>
   )
 }
