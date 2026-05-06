@@ -89,7 +89,8 @@ export function AgenteKitCard({ agente, kit_count, giorni_medi, giorni_max, mate
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="w-full text-left text-sm font-medium text-mikai-600 hover:text-mikai-700 min-h-[40px] flex items-center gap-1"
+        className="w-full text-left text-sm font-medium text-mikai-600 hover:text-mikai-700 min-h-[48px] flex items-center gap-1"
+        aria-expanded={expanded}
       >
         <Icon icon={expanded ? ACTION_ICONS.chevronUp : ACTION_ICONS.chevronDown} size={16} />
         {expanded ? 'Nascondi dettaglio' : `Mostra ${kit_count} ${kit_count === 1 ? 'kit' : 'kit'}`}
@@ -109,7 +110,7 @@ export function AgenteKitCard({ agente, kit_count, giorni_medi, giorni_max, mate
         {agente?.id && (
           <Link
             to={`/admin/utenti/${agente.id}`}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 min-h-[40px] inline-flex items-center px-2"
+            className="text-sm font-medium text-gray-500 hover:text-gray-700 min-h-[48px] inline-flex items-center px-2"
           >
             Profilo agente
           </Link>

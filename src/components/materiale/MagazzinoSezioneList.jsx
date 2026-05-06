@@ -1,6 +1,6 @@
 import { Icon } from '../ui/Icon'
 import { GROUP_HEADING_STYLE, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
-import { FEEDBACK_ICONS } from '../../lib/icons'
+import { FEEDBACK_ICONS, ACTION_ICONS } from '../../lib/icons'
 
 /**
  * Sezione generica della dashboard Magazzino Oggi.
@@ -39,9 +39,10 @@ export function MagazzinoSezioneList({
           <button
             type="button"
             onClick={onAction}
-            className="ml-auto text-sm font-medium text-mikai-600 hover:text-mikai-700 min-h-[48px] md:min-h-0 px-2"
+            className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-mikai-600 hover:text-mikai-700 min-h-[48px] md:min-h-0 px-2"
           >
-            {actionLabel}
+            <span>{actionLabel}</span>
+            <Icon icon={ACTION_ICONS.forward} size={14} />
           </button>
         )}
       </div>

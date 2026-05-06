@@ -84,7 +84,7 @@ export function PickingPrintView({ event, rows, onClose }) {
             <table>
               <thead>
                 <tr>
-                  <th className="check">✓</th>
+                  <th className="check" aria-label="Casella per spunta manuale" />
                   <th className="qty">Q.tà</th>
                   <th>Prodotto</th>
                   <th>Note</th>

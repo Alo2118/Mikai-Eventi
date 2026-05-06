@@ -96,13 +96,18 @@ export function ProductImageUpload({ value, onChange, productId, disabled = fals
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           disabled={disabled || uploading}
+          title={disabled ? 'Salva prima il prodotto per poter caricare la foto' : undefined}
           className={`w-full min-h-[120px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 text-sm transition-colors ${
             dragOver ? 'border-mikai-400 bg-mikai-50 text-mikai-700' : 'border-gray-300 text-gray-500 hover:border-mikai-300 hover:bg-gray-50'
           } ${disabled || uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         >
           <Icon icon={MAGAZZINO_ICONS.upload} size={28} />
-          <span className="font-medium">{uploading ? 'Caricamento...' : 'Trascina o clicca per caricare'}</span>
-          <span className="text-xs">JPG, PNG o WEBP — max 5 MB</span>
+          <span className="font-medium">
+            {uploading ? 'Caricamento...' : disabled ? 'Upload non disponibile' : 'Trascina o clicca per caricare'}
+          </span>
+          <span className="text-xs">
+            {disabled ? 'Salva prima il prodotto, poi torna qui' : 'JPG, PNG o WEBP — max 5 MB'}
+          </span>
         </button>
       )}
       <input

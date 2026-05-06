@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCatalogStore } from '../../hooks/useCatalog'
@@ -62,6 +62,9 @@ export function MagazzinoAlerts() {
   const [rientri, setRientri] = useState([])
   const [agenti, setAgenti] = useState([])
   const [expanded, setExpanded] = useState({ rientri: true, prep: true, kit: true, soglia: true })
+  const triggerRef = useRef(null)
+  const panelRef = useRef(null)
+  const closeBtnRef = useRef(null)
 
   const reload = async () => {
     setLoading(true)
@@ -85,6 +88,47 @@ export function MagazzinoAlerts() {
   useEffect(() => {
     reload()
   }, [])
+
+  // Focus management + ESC key + focus trap
+  useEffect(() => {
+    if (!open) return
+    // Salva l'elemento attivo prima di aprire
+    const previouslyFocused = document.activeElement
+    // Focus sul bottone chiudi all'apertura
+    setTimeout(() => closeBtnRef.current?.focus(), 50)
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setOpen(false)
+        return
+      }
+      if (e.key !== 'Tab') return
+      // Focus trap: ciclare tra elementi focusable nel pannello
+      const panel = panelRef.current
+      if (!panel) return
+      const focusables = panel.querySelectorAll(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"]), input, select, textarea'
+      )
+      if (focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      // Ridai focus al trigger al close
+      if (previouslyFocused?.focus) previouslyFocused.focus()
+    }
+  }, [open])
 
   const sottoSoglia = useMemo(
     () => stockProducts.filter(p => p.soglia_minima != null && p.quantita_disponibile <= p.soglia_minima),
@@ -123,10 +167,13 @@ export function MagazzinoAlerts() {
     <>
       {/* Trigger button */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         className="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 min-h-[48px] text-sm font-medium"
         aria-label="Apri pannello allerte magazzino"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
         <Icon icon={FEEDBACK_ICONS.warning} size={18} className={
           buttonSeverity === 'red' ? 'text-red-500' : buttonSeverity === 'yellow' ? 'text-yellow-500' : 'text-gray-400'
@@ -152,15 +199,19 @@ export function MagazzinoAlerts() {
 
       {/* Sliding panel */}
       <aside
+        ref={panelRef}
         className={`fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-50 shadow-xl transform transition-transform duration-200 ease-out flex flex-col ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"
-        aria-label="Allerte magazzino"
+        aria-modal="true"
+        aria-labelledby="alert-panel-title"
+        aria-hidden={!open}
       >
         <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <h2 className="font-semibold text-lg text-gray-900">Allerte magazzino</h2>
+          <h2 id="alert-panel-title" className="font-semibold text-lg text-gray-900">Allerte magazzino</h2>
           <button
+            ref={closeBtnRef}
             onClick={() => setOpen(false)}
             className="text-gray-400 hover:text-gray-600 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-lg"
             aria-label="Chiudi pannello"
@@ -171,7 +222,7 @@ export function MagazzinoAlerts() {
 
         <div className="flex-1 overflow-y-auto px-2 py-3 space-y-2">
           {loading && totalAll === 0 ? (
-            <div className="text-center py-8 text-gray-500">Caricamento...</div>
+            <div role="status" aria-live="polite" className="text-center py-8 text-gray-500">Caricamento...</div>
           ) : totalAll === 0 ? (
             <div className="text-center py-12 px-4">
               <Icon icon={FEEDBACK_ICONS.success} size={36} className="text-green-500 mx-auto mb-3" />

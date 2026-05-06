@@ -25,6 +25,7 @@ function PreparazioneCard({ evento }) {
   const giorniLabel = giorni === 0 ? 'oggi' : giorni === 1 ? 'domani' : `tra ${giorni} giorni`
   const severity = giorni <= 0 ? 'red' : giorni <= 2 ? 'yellow' : 'gray'
   const dotColor = severity === 'red' ? 'bg-red-500' : severity === 'yellow' ? 'bg-yellow-400' : 'bg-gray-300'
+  const severityLabel = severity === 'red' ? 'Urgente · ' : ''
 
   return (
     <div className={CARD_HOVER_STYLE + ' flex items-center gap-3 flex-wrap'}>
@@ -32,6 +33,7 @@ function PreparazioneCard({ evento }) {
       <div className="min-w-0 flex-1">
         <div className="font-medium text-gray-900 truncate">{evento.titolo}</div>
         <div className="text-sm text-gray-500">
+          {severityLabel && <span className="text-red-600 font-semibold">{severityLabel}</span>}
           {formatDateShort(evento.data_inizio)} · {giorniLabel} · {evento.da_preparare.length} pezzi da preparare
           {evento.totale > evento.da_preparare.length && (
             <span className="text-gray-400"> ({evento.totale - evento.da_preparare.length} già preparati)</span>
@@ -57,6 +59,7 @@ function RientroCard({ evento, count, giorniDaConclusione, onRegistraRientro }) 
       : `concluso ${giorniDaConclusione} ${giorniDaConclusione === 1 ? 'giorno' : 'giorni'} fa`
   const severity = giorniDaConclusione >= 10 ? 'red' : giorniDaConclusione >= 5 ? 'yellow' : 'gray'
   const dotColor = severity === 'red' ? 'bg-red-500' : severity === 'yellow' ? 'bg-yellow-400' : 'bg-gray-300'
+  const severityLabel = severity === 'red' ? 'Scaduto · ' : severity === 'yellow' ? 'Urgente · ' : ''
 
   return (
     <div className={CARD_HOVER_STYLE + ' flex items-center gap-3 flex-wrap'}>
@@ -64,6 +67,7 @@ function RientroCard({ evento, count, giorniDaConclusione, onRegistraRientro }) 
       <div className="min-w-0 flex-1">
         <div className="font-medium text-gray-900 truncate">{evento.titolo}</div>
         <div className="text-sm text-gray-500">
+          {severityLabel && <span className={severity === 'red' ? 'text-red-600 font-semibold' : 'text-yellow-700 font-semibold'}>{severityLabel}</span>}
           {giorniLabel} · {count} {count === 1 ? 'pezzo da rientrare' : 'pezzi da rientrare'}
         </div>
       </div>
@@ -220,7 +224,7 @@ export function MagazzinoOggi({ onSwitchToStock }) {
 
   if (loading) {
     return (
-      <div className="px-4 md:px-6 space-y-4">
+      <div role="status" aria-live="polite" aria-label="Caricamento dashboard magazzino" className="px-4 md:px-6 space-y-4">
         <LoadingSkeleton lines={6} />
       </div>
     )
@@ -267,7 +271,7 @@ export function MagazzinoOggi({ onSwitchToStock }) {
         severity={agenti.some(a => (a.giorni_max || 0) >= 60) ? 'red' : agentiCritici.length > 0 ? 'yellow' : 'gray'}
         emptyTitle="Nessun materiale presso agenti"
         emptyDescription="Quando consegnerai kit a un agente sul campo, qui vedrai chi ha cosa e da quanto tempo."
-        actionLabel={agenti.length > 0 ? 'Vedi tutti →' : null}
+        actionLabel={agenti.length > 0 ? 'Vedi tutti' : null}
         onAction={agenti.length > 0 ? () => navigate('/materiale/agenti') : null}
       >
         {agenti.slice(0, 5).map(a => (
@@ -282,7 +286,7 @@ export function MagazzinoOggi({ onSwitchToStock }) {
         severity={sottoSoglia.length === 0 ? 'green' : 'yellow'}
         emptyTitle="Tutte le scorte sopra la soglia minima"
         emptyDescription="Imposta la soglia minima sui prodotti per essere avvisato quando le scorte calano."
-        actionLabel={sottoSoglia.length > 0 && onSwitchToStock ? 'Vai a Stock →' : null}
+        actionLabel={sottoSoglia.length > 0 && onSwitchToStock ? 'Vai a Stock' : null}
         onAction={onSwitchToStock}
       >
         {sottoSoglia.slice(0, 6).map(p => <SottoSogliaCard key={p.id} product={p} />)}

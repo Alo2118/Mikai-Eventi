@@ -112,7 +112,8 @@ function RowEntry({ row, onChange, onPhotoChange, onPhotoRemove, eventId }) {
                   <button
                     type="button"
                     onClick={onPhotoRemove}
-                    className="text-sm text-red-500 hover:text-red-700 min-h-[36px] px-2"
+                    className="text-sm text-red-500 hover:text-red-700 min-h-[48px] px-2"
+                    aria-label="Rimuovi foto allegata"
                   >
                     Rimuovi
                   </button>

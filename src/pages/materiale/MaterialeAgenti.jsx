@@ -64,7 +64,10 @@ export function MaterialeAgenti() {
       <div>
         <PageHeader title="Kit presso agenti" />
         <div className="px-4 md:px-6">
-          <EmptyState title="Accesso negato" description="Serve il permesso 'gestione_magazzino' per vedere questa pagina." />
+          <EmptyState
+            title="Pagina riservata al magazzino"
+            description="Questa vista è destinata a chi gestisce il magazzino. Se ti serve l'accesso, scrivi all'ufficio o all'amministratore."
+          />
         </div>
       </div>
     )
