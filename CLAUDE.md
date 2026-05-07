@@ -233,26 +233,99 @@ Components=PascalCase, Hooks=`use*`, Stores=`use*Store`, Utils=kebab-case, Const
 
 ## Skills & Agents
 
-### Mandatory skill triggers
-- **brainstorming** → before any new feature/page/behavior change
-- **writing-plans** → after approved spec
-- **executing-plans** → when you have a plan to execute
-- **systematic-debugging** → any bug/unexpected behavior (investigate before fixing)
-- **verification-before-completion** → before claiming done (`npm run build` minimum)
-- **simplify** → after writing a logical chunk of code
+The project ships custom skills in `.claude/skills/` and custom agents in `.claude/agents/`. Both are versioned in the repo so anyone cloning gets the same workflow.
+
+### Skills (invoke via `/<name>`)
+
+| Skill | Trigger | What it does |
+|-------|---------|--------------|
+| `/feature <description>` | New feature, page, or significant behavior change | Brainstorm → plan → execute → verify, all in one flow |
+| `/fix <bug>` | Any bug, unexpected behavior, or error | Systematic root-cause analysis (Supabase / Zustand / React / DB traps) before any code change |
+| `/audit <area>` | Deep quality check on a module/page/feature | Dispatches the 3 expert agents in parallel (bug-hunter, ux-reviewer, arch-reviewer) |
+| `/review <target>` | Code review (PR or recent changes) | Convention checks + 3 parallel experts |
+| `/verify [scope]` | Before claiming "done" | Build + grep checks (no lucide imports, no inline dates, etc.) + sibling consistency |
+| `/simplify` | After writing a logical chunk of code | Reuse, quality, efficiency check; fixes issues found |
+| `/migrate <intent>` | DB schema change | Drafts migration, never edits existing ones, enum + policy split rules |
+| `/deploy` | Push to production | Pre-flight checks before merging to `main` |
+
+### Custom agents (in `.claude/agents/`)
+
+| Agent | Use it for |
+|-------|-----------|
+| `bug-hunter` | Deep bug analysis, data-loss risks, Supabase query safety, race conditions |
+| `arch-reviewer` | Architecture, performance, file-ownership, convention compliance |
+| `ux-reviewer` | UX consistency, a11y, design-system compliance, sibling comparison |
+
+### Built-in agents (always available)
+
+| Agent | Use it for |
+|-------|-----------|
+| `Explore` | Fast read-only search to locate code (uses excerpts; not for full reviews) |
+| `Plan` | Design implementation strategy before coding |
+| `general-purpose` | Multi-step research that doesn't fit the specialists |
 
 ### Decision flow
+
 ```
-New feature → brainstorming → writing-plans → executing-plans → simplify → verification
-Bug → systematic-debugging → fix → verification
-Code written → simplify → code-reviewer → verification
-Merge → requesting-code-review → finishing-a-development-branch
+New feature  →  /feature  →  /verify
+Bug          →  /fix      →  /verify
+PR ready     →  /review   →  /verify  →  /deploy
+Periodic     →  /audit  (every 2-3 weeks on a hot module)
+After chunk  →  /simplify
 ```
 
+Always `/verify` before claiming done.
+
+### Agent Teams (parallel orchestration)
+
+For investigations or reviews that span multiple concerns, dispatch agents in parallel from a **single message** (multiple `Agent` tool calls). The harness runs them concurrently — 3-4× faster than sequential.
+
+**Standard 3-agent audit team** (already wired into `/audit`):
+- `bug-hunter` — correctness and safety
+- `arch-reviewer` — performance and conventions
+- `ux-reviewer` — UI/UX and accessibility
+
+**When to assemble a custom team manually:**
+- **Pre-merge sweep** on a complex PR: bug-hunter on changed code + arch-reviewer on impact radius + Explore for cross-references
+- **Performance investigation**: arch-reviewer on bundle/queries + Explore for slow paths
+- **Module redesign**: 2× Explore agents on different sub-systems + Plan agent to synthesize
+
+**Rules for parallel agents:**
+1. Each agent gets a self-contained brief — they don't share context
+2. Tasks must be independent (no agent waits on another's output)
+3. Cap at 3 parallel agents per dispatch (above this, returns diminish and context bloat starts)
+4. After agents finish, synthesize their outputs yourself — don't delegate synthesis
+5. Trust but verify — agents describe what they intended; check the actual changes/findings
+
 ### Rules
-- Always brainstorm before building. Always verify before claiming done.
-- Use parallel agents when tasks are independent.
+- Always run `/feature` (which includes brainstorm) before building. Always `/verify` before claiming done.
+- Use parallel agents when tasks are independent — single message, multiple tool calls.
 - **Cross-component consistency:** always compare sibling components in analyses.
+
+---
+
+## Browser tooling for visual review
+
+Claude in this project has no built-in browser. To validate UI work, use these Chrome extensions and share the output as screenshots or copy-pasted reports.
+
+| Extension | Use it for |
+|-----------|-----------|
+| **Lighthouse** (built-in DevTools) | Performance budget, PWA score, basic a11y. Run before/after refactors |
+| **axe DevTools** (Deque) | Deep a11y audit (WCAG 2.1) — finds aria/contrast/landmark issues Lighthouse misses |
+| **React Developer Tools** | Component tree inspection, props debugging, render profiler for slow lists |
+| **Redux DevTools** | (optional) For Zustand we use the `subscribeWithSelector` middleware — DevTools attaches if you enable it |
+| **Web Vitals** (Google) | LCP/INP/CLS overlay while clicking around — useful on `/eventi` and `/materiale` lists |
+| **Wave** (WebAIM) | Quick visual a11y overlay (color contrast, headings hierarchy) |
+
+### Workflow for UI review
+
+1. Run `npm run dev` (`http://localhost:5173/Mikai-Eventi/`)
+2. Open the page in Chrome with DevTools open
+3. Run Lighthouse + axe on the page
+4. Take screenshots of: full page, hover states, mobile viewport (375px), error states
+5. Paste screenshots + audit reports back to Claude — review is targeted and fast
+
+For complete browser automation (clicking, typing, navigation), configure a browser MCP (e.g. Playwright MCP) — without it Claude only sees the DOM via WebFetch (which doesn't render JS) so screenshots remain the bridge.
 
 ---
 

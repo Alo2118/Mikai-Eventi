@@ -8,6 +8,9 @@ dist/
 .vite/
 coverage/
 .worktrees/
-.claude/
+# Claude Code: track skills + agents (shared workflow), ignore everything else
+.claude/*
+!.claude/skills/
+!.claude/agents/
 image.png
 ${APPDATA}*/
