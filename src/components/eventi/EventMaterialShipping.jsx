@@ -28,7 +28,7 @@ function StepStatus({ done, active, label, detail, action }) {
           </p>
         )}
       </div>
-      {action && active && <div className="flex-shrink-0">{action}</div>}
+      {action && (active || done) && <div className="flex-shrink-0">{action}</div>}
     </div>
   )
 }
@@ -46,7 +46,7 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
 
   const packingColliNumbers = [...new Set(packingItems.map(i => i.collo_numero).filter(n => n != null))]
   const packingTotalItems = packingItems.length
-  const packingPackedCount = packingItems.filter(i => i.imballato).length
+  const packingPackedCount = packingItems.filter(i => i.collo_numero != null).length
   const allPacked = packingTotalItems > 0 && packingPackedCount === packingTotalItems
   const hasColli = packingColliNumbers.length > 0
   const isShipped = !!event.spedizione_data
@@ -123,7 +123,7 @@ export function EventMaterialShipping({ event, packingItems, readyToShip, canApp
             }
             action={step1Done && onShowPackingList ? (
               <Button variant="secondary" size="sm" onClick={onShowPackingList}>
-                {packingTotalItems === 0 ? 'Apri packing list' : 'Gestisci packing'}
+                {packingTotalItems === 0 ? 'Apri packing list' : step2Done ? 'Modifica packing' : 'Gestisci packing'}
               </Button>
             ) : null}
           />

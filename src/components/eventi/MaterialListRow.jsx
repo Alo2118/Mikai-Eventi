@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, memo } from 'react'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS, POSIZIONE_ICONS, NAV_ICONS } from '../../lib/icons'
-import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, COLOR_BG_100, COLOR_TEXT_600, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
+import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, INPUT_STYLE, SELECT_STYLE, COLOR_BG_100, COLOR_TEXT_600, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Button } from '../ui/Button'
 import { formatDateRange, formatDateShort } from '../../lib/date-utils'
+import { effectiveRientroRichiesto } from '../../lib/event-flow'
 
 // Compact action button — icon only, no label
-const ACT_BTN = 'min-h-[44px] min-w-[44px] md:min-h-[36px] md:min-w-[36px] rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105'
+const ACT_BTN = 'min-h-[48px] min-w-[48px] md:min-h-[36px] md:min-w-[36px] rounded-lg flex items-center justify-center transition-all flex-shrink-0 hover:scale-105'
 
 const STATE_BORDER = {
   spedito: 'border-emerald-300 bg-emerald-50/30',
@@ -30,21 +31,22 @@ function locationLabel(loc) {
   return loc.magazzino ? loc.magazzino.nome : `${loc.agent?.cognome || ''} ${loc.agent?.nome || ''}`.trim()
 }
 
-// Compact quantity editor for pending rows
+// Compact quantity editor for pending rows — 48px touch on mobile, compact on desktop
 function QuantityEditor({ value, onChange }) {
+  const btnCls = 'min-h-[48px] min-w-[48px] md:w-6 md:h-6 md:min-h-0 md:min-w-0 rounded flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-base md:text-sm'
   return (
     <div className="flex items-center gap-0.5">
-      <button onClick={(e) => { e.stopPropagation(); onChange(Math.max(1, value - 1)) }} className="w-7 h-7 md:w-6 md:h-6 rounded flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm" aria-label="Diminuisci">−</button>
+      <button onClick={(e) => { e.stopPropagation(); onChange(Math.max(1, value - 1)) }} className={btnCls} aria-label="Diminuisci">−</button>
       <input
         type="number" min={1} value={value}
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => onChange(e.target.value)}
         onBlur={(e) => onChange(Math.max(1, parseInt(e.target.value) || 1))}
         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
-        className="w-10 h-7 md:h-6 text-center text-sm font-bold text-gray-900 border border-gray-200 rounded focus:ring-2 focus:ring-mikai-400 outline-none"
+        className="w-12 min-h-[48px] md:w-10 md:h-6 md:min-h-0 text-center text-base md:text-sm font-bold text-gray-900 border border-gray-200 rounded focus:ring-2 focus:ring-mikai-400 outline-none"
         aria-label="Quantità"
       />
-      <button onClick={(e) => { e.stopPropagation(); onChange(value + 1) }} className="w-7 h-7 md:w-6 md:h-6 rounded flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm" aria-label="Aumenta">+</button>
+      <button onClick={(e) => { e.stopPropagation(); onChange(value + 1) }} className={btnCls} aria-label="Aumenta">+</button>
     </div>
   )
 }
@@ -90,10 +92,10 @@ function CompactMeta({ stato, row, availability, collo, primaryLocation, richied
       return (
         <>
           {collo && collo.numeri.length > 0 ? (
-            <span className={`inline-flex items-center gap-1 ${BADGE_BASE} ${COLOR_BADGE.mikai}`} title={`Assegnato ${collo.numeri.length > 1 ? 'ai colli' : 'al collo'} ${collo.numeri.join(', ')}${collo.imballato ? ' — imballato' : ''}`}>
+            <span className={`inline-flex items-center gap-1 ${BADGE_BASE} ${COLOR_BADGE.mikai}`} title={`Assegnato ${collo.numeri.length > 1 ? 'ai colli' : 'al collo'} ${collo.numeri.join(', ')}`}>
               <Icon icon={MATERIALE_ICONS.package} size={10} />
               Collo {collo.numeri.join(', ')}
-              {collo.imballato && <Icon icon={ACTION_ICONS.check} size={10} className="text-emerald-600" />}
+              <Icon icon={ACTION_ICONS.check} size={10} className="text-emerald-600" />
             </span>
           ) : (
             <span className="text-xs text-yellow-600 flex items-center gap-0.5" title="Non ancora nella packing list">
@@ -145,7 +147,9 @@ function MobileMeta({ stato, row, collo, primaryLocation, richiedente, approvato
     case 'richiesto':
       return richiedente ? <span>da {richiedente}</span> : null
     case 'approvato':
-      return primaryLocation ? <span>📍 {locationLabel(primaryLocation)}</span> : null
+      return primaryLocation
+        ? <span className="inline-flex items-center gap-1"><Icon icon={primaryLocation.magazzino ? POSIZIONE_ICONS.in_magazzino : POSIZIONE_ICONS.magazzino_agente} size={12} className="text-gray-400" />{locationLabel(primaryLocation)}</span>
+        : null
     case 'in_preparazione':
       if (collo && collo.numeri.length > 0) return <span>Collo {collo.numeri.join(', ')}</span>
       return <span className="text-yellow-600">Non in packing list</span>
@@ -162,7 +166,7 @@ function MobileMeta({ stato, row, collo, primaryLocation, richiedente, approvato
 export const MaterialListRow = memo(function MaterialListRow({
   row, availability, stockLocations = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
   canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation, onRevert,
-  tipoLabels, tipoColors, tipoIcons,
+  tipoLabels, tipoColors, tipoIcons, shippingEnabled = true,
 }) {
   const [expanded, setExpanded] = useState(false)
   const isPending = row.stato === 'richiesto'
@@ -312,6 +316,7 @@ export const MaterialListRow = memo(function MaterialListRow({
           confirmQty={confirmQty} setConfirmQty={setConfirmQty}
           confirmNote={confirmNote} setConfirmNote={setConfirmNote}
           richiedente={richiedente} approvatore={approvatore}
+          shippingEnabled={shippingEnabled}
         />
       )}
     </div>
@@ -324,7 +329,7 @@ function MaterialRowDetails({
   canEdit, canApprove, isPending, isConfirmed, isRejected, isInPrep, isShipped,
   isInsufficient, rowEditable, onUpdate, onConfirm, onRevert,
   showConfirmForm, setShowConfirmForm, confirmQty, setConfirmQty, confirmNote, setConfirmNote,
-  richiedente, approvatore,
+  richiedente, approvatore, shippingEnabled = true,
 }) {
   const qtyRequested = row.quantita || 1
   const inMagazzino = availability?.inMagazzino ?? null
@@ -336,12 +341,18 @@ function MaterialRowDetails({
   // Visibility per stato
   const showAvailabilityBlock = hasAvailability && (isPending || isConfirmed)
   const showStockLocations = stockLocations.length > 0 && (isPending || isConfirmed || isInPrep)
-  const showColloPanel = (isInPrep || isShipped)
+  const showColloPanel = shippingEnabled && (isInPrep || isShipped)
   const showRichiedenteAudit = isShipped || isRejected || isPending
   const showApprovatoreAudit = approvatore && (isConfirmed || isInPrep || isShipped || isRejected)
   const showNoteCommerciale = row.note_commerciale && (isPending || isConfirmed || isRejected)
   const showNoteUfficio = row.note_ufficio && !isPending
   const showDateUtilizzo = (row.data_inizio_utilizzo || row.data_fine_utilizzo) && (isPending || isConfirmed)
+  const showRientroToggle = canEdit && shippingEnabled && (isPending || isConfirmed || isInPrep)
+  const rientroDefault = !!row.product?.serializzato
+  const rientroEffective = effectiveRientroRichiesto(row)
+  const rientroOverrideValue = row.rientro_richiesto === null || row.rientro_richiesto === undefined
+    ? 'auto'
+    : (row.rientro_richiesto ? 'si' : 'no')
 
   return (
     <div className="px-3 pb-3 space-y-2 border-t border-gray-100 pt-2">
@@ -417,7 +428,7 @@ function MaterialRowDetails({
                 <span className={`font-medium ${isShipped ? 'text-emerald-700' : 'text-mikai-700'}`}>
                   {collo.numeri.length > 1 ? 'Colli' : 'Collo'} {collo.numeri.join(', ')}
                 </span>
-                {collo.imballato && <span className="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">Imballato</span>}
+                <span className="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">Imballato</span>
               </>
             ) : (
               <span className="text-yellow-700 flex items-center gap-1">
@@ -435,6 +446,32 @@ function MaterialRowDetails({
           {isShipped && eventSpedizioneData && (
             <div className="text-emerald-600">Spedito il {formatDateShort(eventSpedizioneData)}</div>
           )}
+        </div>
+      )}
+
+      {/* Rientro override — only when shipping is in scope */}
+      {showRientroToggle && (
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="font-medium text-gray-500">Rientro a fine evento:</span>
+          <select
+            className={SELECT_STYLE + ' max-w-[220px] text-xs py-1 px-2 min-h-0 h-8'}
+            value={rientroOverrideValue}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const v = e.target.value
+              const next = v === 'auto' ? null : (v === 'si')
+              onUpdate(row.id, { rientro_richiesto: next })
+            }}
+            aria-label="Rientro richiesto a fine evento"
+          >
+            <option value="auto">Default catalogo ({rientroDefault ? 'rientra' : 'consumabile'})</option>
+            <option value="si">Forza rientro</option>
+            <option value="no">Consumabile (non rientra)</option>
+          </select>
+          <span className={`inline-flex items-center gap-1 ${BADGE_BASE} ${COLOR_BADGE[rientroEffective ? 'mikai' : 'gray']}`}>
+            <Icon icon={rientroEffective ? MATERIALE_ICONS.rientro : MATERIALE_ICONS.package} size={10} />
+            {rientroEffective ? 'Rientra' : 'Non rientra'}
+          </span>
         </div>
       )}
 

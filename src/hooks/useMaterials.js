@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { nowISO, todayISO } from '../lib/date-utils'
+import { nowISO, todayISO, toISO, addDaysToToday, daysSince } from '../lib/date-utils'
 
 function buildMaterialQuery(filters, from, to) {
   let query = supabase.from('materials').select(`
@@ -193,7 +193,7 @@ export const useMaterialsStore = create((set, get) => {
         event_id: eventId,
         tipo: 'uscita',
         modalita: 'spedizione',
-        data_movimento: shippingData.spedizione_data ? new Date(shippingData.spedizione_data).toISOString() : nowISO(),
+        data_movimento: toISO(shippingData.spedizione_data) || nowISO(),
         responsabile_id: user.id,
         tracking_spedizione: shippingData.spedizione_tracking || null,
         data_rientro_prevista: shippingData.data_rientro_prevista || null,
@@ -224,7 +224,7 @@ export const useMaterialsStore = create((set, get) => {
   fetchEventMaterialList: async (eventId) => {
     const { data, error } = await supabase
       .from('event_materials')
-      .select('*, product:products(id, nome, codice, descrizione, foto_url, tipo, quantita_disponibile, soglia_minima, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome), approvatore:users!event_materials_approvato_da_fkey(nome, cognome)')
+      .select('*, product:products(id, nome, codice, descrizione, foto_url, tipo, serializzato, quantita_disponibile, soglia_minima, brand:brands(id, nome, logo_url)), richiesto:users!event_materials_richiesto_da_fkey(nome, cognome), approvatore:users!event_materials_approvato_da_fkey(nome, cognome)')
       .eq('event_id', eventId)
       .order('data_richiesta', { ascending: true })
     set({ eventMaterials: data || [] })
@@ -548,7 +548,6 @@ export const useMaterialsStore = create((set, get) => {
     }
 
     // Aggregazione per agente
-    const today = new Date()
     const grouped = {}
     for (const mat of materials) {
       const aid = mat.presso_utente_id
@@ -559,8 +558,7 @@ export const useMaterialsStore = create((set, get) => {
         }
       }
       const lastMv = lastByMaterial[mat.id]
-      const dataMov = lastMv?.data_movimento ? new Date(lastMv.data_movimento) : null
-      const giorniFuori = dataMov ? Math.floor((today - dataMov) / 86400000) : null
+      const giorniFuori = daysSince(lastMv?.data_movimento)
       grouped[aid].materials.push({
         ...mat,
         last_movement: lastMv || null,
@@ -587,39 +585,67 @@ export const useMaterialsStore = create((set, get) => {
     return { data: result, error: null }
   },
 
-  // Eventi conclusi con uscite aperte (nessun rientro registrato)
+  // Eventi conclusi con rientri ancora aperti.
+  // Combina due sorgenti:
+  //   - material_movements 'uscita' su asset serializzati con materials.posizione_attuale != 'in_magazzino'
+  //   - event_materials in stato spedito/in_preparazione, senza data_rientro, con effective_rientro_richiesto=true
   fetchEventsPendingReturn: async () => {
-    const { data: movements, error } = await supabase
-      .from('material_movements')
-      .select(`
-        id, material_id, event_id, data_movimento, data_rientro_prevista,
-        material:materials!material_movements_material_id_fkey(id, nome, codice_inventario, posizione_attuale,
-          product:products(id, nome, foto_url, brand:brands(id, nome))),
-        evento:events!material_movements_event_id_fkey(id, titolo, data_inizio, data_fine, stato)
-      `)
-      .eq('tipo', 'uscita')
-      .not('event_id', 'is', null)
-    if (error) return { data: [], error: error.message }
+    const [movRes, emRes] = await Promise.all([
+      supabase
+        .from('material_movements')
+        .select(`
+          id, material_id, event_id, data_movimento, data_rientro_prevista,
+          material:materials!material_movements_material_id_fkey(id, nome, codice_inventario, posizione_attuale,
+            product:products(id, nome, foto_url, brand:brands(id, nome))),
+          evento:events!material_movements_event_id_fkey(id, titolo, data_inizio, data_fine, stato)
+        `)
+        .eq('tipo', 'uscita')
+        .not('event_id', 'is', null),
+      supabase
+        .from('event_materials')
+        .select(`
+          id, material_id, product_id, event_id, stato, rientro_richiesto, data_rientro,
+          product:products(id, nome, foto_url, serializzato, brand:brands(id, nome)),
+          evento:events!event_materials_event_id_fkey(id, titolo, data_inizio, data_fine, stato)
+        `)
+        .in('stato', ['spedito', 'in_preparazione'])
+        .is('data_rientro', null),
+    ])
 
-    // Filtra: evento concluso e materiale non rientrato
-    const today = new Date()
-    const pending = (movements || []).filter(m =>
-      m.evento?.stato === 'concluso' &&
-      m.material?.posizione_attuale !== 'in_magazzino'
-    )
+    if (movRes.error) return { data: [], error: movRes.error.message }
+    if (emRes.error) return { data: [], error: emRes.error.message }
 
-    // Aggrega per evento
     const grouped = {}
-    for (const m of pending) {
+    const seenSpecimenByEvent = new Set() // `${event_id}-${material_id}`
+
+    for (const m of (movRes.data || [])) {
+      if (m.evento?.stato !== 'concluso') continue
+      if (m.material?.posizione_attuale === 'in_magazzino') continue
       const eid = m.event_id
-      if (!grouped[eid]) {
-        grouped[eid] = { evento: m.evento, materials: [] }
-      }
+      if (!grouped[eid]) grouped[eid] = { evento: m.evento, materials: [] }
       grouped[eid].materials.push(m)
+      if (m.material_id) seenSpecimenByEvent.add(`${eid}-${m.material_id}`)
     }
+
+    for (const em of (emRes.data || [])) {
+      if (em.evento?.stato !== 'concluso') continue
+      const needsReturn = em.rientro_richiesto !== null && em.rientro_richiesto !== undefined
+        ? em.rientro_richiesto === true
+        : !!em.product?.serializzato
+      if (!needsReturn) continue
+      if (em.material_id && seenSpecimenByEvent.has(`${em.event_id}-${em.material_id}`)) continue
+      const eid = em.event_id
+      if (!grouped[eid]) grouped[eid] = { evento: em.evento, materials: [] }
+      grouped[eid].materials.push({
+        id: `em-${em.id}`,
+        event_material_id: em.id,
+        material_id: em.material_id || null,
+        material: em.product ? { id: em.product.id, nome: em.product.nome, product: em.product } : null,
+      })
+    }
+
     const result = Object.values(grouped).map(g => {
-      const dataFine = g.evento?.data_fine ? new Date(g.evento.data_fine) : null
-      const giorniDaConclusione = dataFine ? Math.floor((today - dataFine) / 86400000) : null
+      const giorniDaConclusione = daysSince(g.evento?.data_fine)
       return { ...g, count: g.materials.length, giorni_da_conclusione: giorniDaConclusione }
     }).sort((a, b) => (b.giorni_da_conclusione || 0) - (a.giorni_da_conclusione || 0))
 
@@ -629,9 +655,7 @@ export const useMaterialsStore = create((set, get) => {
   // Eventi confermati con materiale ancora richiesto/approvato — preparazione imminente
   fetchPreparazioniImminenti: async (giorniAvanti = 7) => {
     const today = todayISO()
-    const limite = new Date()
-    limite.setDate(limite.getDate() + giorniAvanti)
-    const limiteISO = limite.toISOString().slice(0, 10)
+    const limiteISO = addDaysToToday(giorniAvanti)
 
     const { data: events, error } = await supabase
       .from('events')
@@ -650,7 +674,7 @@ export const useMaterialsStore = create((set, get) => {
       .map(ev => {
         const daPreparare = (ev.materials || []).filter(m => ['richiesto', 'approvato'].includes(m.stato))
         const totale = (ev.materials || []).filter(m => m.stato !== 'rifiutato').length
-        const giorniMancanti = Math.floor((new Date(ev.data_inizio) - new Date()) / 86400000)
+        const giorniMancanti = -daysSince(ev.data_inizio)
         return { ...ev, da_preparare: daPreparare, totale, giorni_mancanti: giorniMancanti }
       })
       .filter(ev => ev.da_preparare.length > 0)
@@ -662,6 +686,7 @@ export const useMaterialsStore = create((set, get) => {
 
   // Carica i material_movements 'uscita' di un evento per cui il materiale non è ancora rientrato
   fetchPendingReturnsForEvent: async (eventId) => {
+    // 1) Pending uscite at the specimen level (legacy/serialized assets)
     const { data: movements, error } = await supabase
       .from('material_movements')
       .select(`
@@ -676,64 +701,130 @@ export const useMaterialsStore = create((set, get) => {
       .order('data_movimento', { ascending: false })
     if (error) return { data: [], error: error.message }
 
-    const pending = (movements || []).filter(m =>
-      m.material && m.material.posizione_attuale !== 'in_magazzino'
-    )
-    // Dedup per material_id (può esserci più di un'uscita per stesso materiale)
-    const seen = new Set()
     const result = []
-    for (const m of pending) {
-      if (seen.has(m.material_id)) continue
-      seen.add(m.material_id)
-      result.push(m)
+    const seenMaterials = new Set()
+    for (const m of (movements || [])) {
+      if (!m.material || m.material.posizione_attuale === 'in_magazzino') continue
+      if (seenMaterials.has(m.material_id)) continue
+      seenMaterials.add(m.material_id)
+      result.push({ ...m, source: 'movement' })
+    }
+
+    // 2) Quantity-based pending returns from event_materials (no specimen tracked).
+    //    Includes items shipped (or in_preparazione for non-shipping events) that
+    //    require return per effective_rientro_richiesto and haven't been returned yet.
+    const { data: emRows } = await supabase
+      .from('event_materials')
+      .select(`
+        id, material_id, product_id, stato, quantita, quantita_approvata,
+        rientro_richiesto, data_rientro,
+        product:products(id, nome, codice, foto_url, serializzato, brand:brands(id, nome))
+      `)
+      .eq('event_id', eventId)
+      .in('stato', ['spedito', 'in_preparazione'])
+      .is('data_rientro', null)
+
+    for (const em of (emRows || [])) {
+      // Skip if a specimen movement already covers this row
+      if (em.material_id && seenMaterials.has(em.material_id)) continue
+      // Apply effective_rientro_richiesto rule
+      const needsReturn = em.rientro_richiesto !== null && em.rientro_richiesto !== undefined
+        ? em.rientro_richiesto === true
+        : !!em.product?.serializzato
+      if (!needsReturn) continue
+      result.push({
+        id: `em-${em.id}`,
+        event_material_id: em.id,
+        material_id: em.material_id || null,
+        modalita: 'spedizione',
+        data_movimento: null,
+        data_rientro_prevista: null,
+        // Synthesize a 'material'-like shape so the modal renders consistently
+        material: {
+          id: em.product?.id || em.product_id,
+          nome: em.product?.nome,
+          codice_inventario: em.product?.codice,
+          quantita_attesa: em.quantita_approvata ?? em.quantita ?? 1,
+          product: em.product,
+        },
+        source: 'event_material',
+      })
     }
     return { data: result, error: null }
   },
 
-  // Registra in batch i rientri per N materiali di un evento
-  // rows: [{ material_id, stato_rientro, quantita_rientrata?, note_danni?, foto_danno_url?, modalita?, destinazione? ('magazzino'|'agente'), agente_id? }]
+  // Registra in batch i rientri per N materiali di un evento.
+  // Two paths per row:
+  //   - row.material_id present → legacy specimen path: insert material_movements 'rientro'
+  //     and update materials.posizione_attuale.
+  //   - row.material_id null + row.event_material_id present → quantity-based path:
+  //     write back to event_materials (data_rientro, stato_rientro, quantità, note, foto).
+  // rows: [{ material_id?, event_material_id?, stato_rientro, quantita_rientrata?, note_danni?, foto_danno_url?, modalita?, destinazione? ('magazzino'|'agente'), agente_id? }]
   registerBulkReturn: async (eventId, rows, responsabileId) => {
     if (!rows?.length) return { error: 'Nessuna riga da registrare', insertedCount: 0 }
     if (!responsabileId) return { error: 'Responsabile mancante', insertedCount: 0 }
 
     const dataMovimento = nowISO()
-    const movements = rows.map(r => ({
-      material_id: r.material_id,
-      event_id: eventId,
-      tipo: 'rientro',
-      modalita: r.modalita || 'mano',
-      da_posizione: 'presso_evento',
-      a_posizione: r.destinazione === 'agente' ? 'magazzino_agente' : 'in_magazzino',
-      data_movimento: dataMovimento,
-      responsabile_id: responsabileId,
-      stato_rientro: r.stato_rientro || 'integro',
-      quantita_rientrata: r.quantita_rientrata ?? null,
-      note_danni: r.note_danni || null,
-      foto_danno_url: r.foto_danno_url || null,
-    }))
+    const specimenRows = rows.filter(r => r.material_id)
+    const eventMatRows = rows.filter(r => !r.material_id && r.event_material_id)
 
-    const { data: inserted, error: mvError } = await supabase
-      .from('material_movements')
-      .insert(movements)
-      .select('id, material_id')
-    if (mvError) return { error: mvError.message, insertedCount: 0 }
+    let insertedCount = 0
 
-    // Aggiorna posizione di ogni materiale (in_magazzino o magazzino_agente)
-    const updates = rows.map(r => {
-      const newPos = r.destinazione === 'agente' ? 'magazzino_agente' : 'in_magazzino'
-      const patch = { posizione_attuale: newPos }
-      if (r.destinazione === 'agente' && r.agente_id) patch.presso_utente_id = r.agente_id
-      else patch.presso_utente_id = null
-      return supabase.from('materials').update(patch).eq('id', r.material_id)
-    })
+    // Path 1 — specimen movements
+    if (specimenRows.length > 0) {
+      const movements = specimenRows.map(r => ({
+        material_id: r.material_id,
+        event_id: eventId,
+        tipo: 'rientro',
+        modalita: r.modalita || 'mano',
+        da_posizione: 'presso_evento',
+        a_posizione: r.destinazione === 'agente' ? 'magazzino_agente' : 'in_magazzino',
+        data_movimento: dataMovimento,
+        responsabile_id: responsabileId,
+        stato_rientro: r.stato_rientro || 'integro',
+        quantita_rientrata: r.quantita_rientrata ?? null,
+        note_danni: r.note_danni || null,
+        foto_danno_url: r.foto_danno_url || null,
+      }))
 
-    const results = await Promise.all(updates)
-    const updateError = results.find(res => res.error)
-    if (updateError?.error) {
-      return { error: `Movimenti inseriti ma errore aggiornamento posizione: ${updateError.error.message}`, insertedCount: inserted.length }
+      const { data: inserted, error: mvError } = await supabase
+        .from('material_movements')
+        .insert(movements)
+        .select('id, material_id')
+      if (mvError) return { error: mvError.message, insertedCount: 0 }
+      insertedCount += inserted.length
+
+      const updates = specimenRows.map(r => {
+        const newPos = r.destinazione === 'agente' ? 'magazzino_agente' : 'in_magazzino'
+        const patch = { posizione_attuale: newPos }
+        if (r.destinazione === 'agente' && r.agente_id) patch.presso_utente_id = r.agente_id
+        else patch.presso_utente_id = null
+        return supabase.from('materials').update(patch).eq('id', r.material_id)
+      })
+      const results = await Promise.all(updates)
+      const updateError = results.find(res => res.error)
+      if (updateError?.error) {
+        return { error: `Movimenti inseriti ma errore aggiornamento posizione: ${updateError.error.message}`, insertedCount }
+      }
     }
 
-    return { error: null, insertedCount: inserted.length }
+    // Path 2 — event_materials quantity-based return (no specimen tracked)
+    for (const r of eventMatRows) {
+      const { error: emError } = await supabase
+        .from('event_materials')
+        .update({
+          data_rientro: dataMovimento,
+          stato_rientro: r.stato_rientro || 'integro',
+          quantita_rientrata: r.quantita_rientrata ?? null,
+          note_rientro: r.note_danni || null,
+          foto_rientro_url: r.foto_danno_url || null,
+        })
+        .eq('id', r.event_material_id)
+      if (emError) return { error: `Errore registrazione rientro item: ${emError.message}`, insertedCount }
+      insertedCount++
+    }
+
+    return { error: null, insertedCount }
   },
 
   // Manda una notifica all'agente per sollecitare il rientro dei kit

@@ -46,6 +46,9 @@ export const useCatalogStore = create((set, get) => ({
     // Legacy single-select fallback
     else if (filters.brandId) query = query.eq('brand_id', filters.brandId)
 
+    // Famiglia filter (server-side, supports multi)
+    if (filters.famiglie?.length > 0) query = query.in('famiglia', filters.famiglie)
+
     if (filters.search) query = query.or(`nome.ilike.%${filters.search}%,codice.ilike.%${filters.search}%`)
 
     const { data, error } = await query
@@ -72,6 +75,18 @@ export const useCatalogStore = create((set, get) => ({
     return { data: products, error: error?.message || null }
   },
 
+  fetchAllFamilies: async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('famiglia')
+      .eq('attivo', true)
+      .not('famiglia', 'is', null)
+    if (error) return { data: [], error: error.message }
+    const families = [...new Set((data || []).map(r => r.famiglia).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'it'))
+    return { data: families, error: null }
+  },
+
   fetchAllBodySections: async () => {
     const { data, error } = await supabase
       .from('body_sections')
@@ -88,6 +103,22 @@ export const useCatalogStore = create((set, get) => ({
       .eq('product_id', productId)
       .order('piece_name')
     return { data: data || [], error: error?.message || null }
+  },
+
+  fetchKitContentsBatch: async (productIds) => {
+    if (!productIds?.length) return { data: {}, error: null }
+    const { data, error } = await supabase
+      .from('kit_contents')
+      .select('*')
+      .in('product_id', productIds)
+      .order('piece_name')
+    if (error) return { data: {}, error: error.message }
+    const map = {}
+    for (const row of (data || [])) {
+      if (!map[row.product_id]) map[row.product_id] = []
+      map[row.product_id].push(row)
+    }
+    return { data: map, error: null }
   },
 
   fetchProductAvailability: async (productId) => {

@@ -161,7 +161,7 @@ export const useEventsStore = create((set, get) => {
   },
 
   rejectEvent: async (id, motivo) => {
-    return get().updateEvent(id, { stato: 'cancellato', motivo_cancellazione: motivo })
+    return get().updateEvent(id, { stato: 'rifiutato', motivo_cancellazione: motivo })
   },
 
   cancelEvent: async (id, motivo) => {
@@ -181,12 +181,30 @@ export const useEventsStore = create((set, get) => {
   },
 
   checkGateConcluded: async (eventId) => {
+    const { data: event } = await supabase
+      .from('events')
+      .select('tipo_evento')
+      .eq('id', eventId)
+      .single()
+    if (event?.tipo_evento) {
+      const { data: et } = await supabase
+        .from('event_types')
+        .select('richiede_spedizione')
+        .eq('codice', event.tipo_evento)
+        .maybeSingle()
+      if (et && et.richiede_spedizione === false) {
+        return { canAdvance: true, unreturned: [] }
+      }
+    }
     const { data } = await supabase
       .from('event_materials')
-      .select('id, stato')
+      .select('id, stato, rientro_richiesto, product:products(serializzato)')
       .eq('event_id', eventId)
       .in('stato', ['approvato', 'in_preparazione'])
-    const unreturned = data || []
+    const unreturned = (data || []).filter(m => {
+      if (m.rientro_richiesto !== null && m.rientro_richiesto !== undefined) return m.rientro_richiesto === true
+      return !!m.product?.serializzato
+    })
     return { canAdvance: unreturned.length === 0, unreturned }
   },
 

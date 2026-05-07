@@ -138,9 +138,27 @@ export function AdminProdottiForm({
           </div>
         </div>
 
-        <div>
-          <label htmlFor="prod-codice" className="block text-sm font-medium text-gray-700 mb-1">Codice</label>
-          <input id="prod-codice" className={INPUT_STYLE} value={editing.codice || ''} onChange={e => setEditing({ ...editing, codice: e.target.value })} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="prod-codice" className="block text-sm font-medium text-gray-700 mb-1">Codice</label>
+            <input id="prod-codice" className={INPUT_STYLE} value={editing.codice || ''} onChange={e => setEditing({ ...editing, codice: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="prod-famiglia" className="block text-sm font-medium text-gray-700 mb-1">Famiglia</label>
+            <input
+              id="prod-famiglia"
+              className={INPUT_STYLE}
+              value={editing.famiglia || ''}
+              onChange={e => setEditing({ ...editing, famiglia: e.target.value })}
+              placeholder="Es. CFix, Sawbones cadaver"
+              list="prod-famiglia-options"
+            />
+            <datalist id="prod-famiglia-options">
+              {[...new Set((filteredProducts || []).map(p => p.famiglia).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b))
+                .map(f => <option key={f} value={f} />)}
+            </datalist>
+          </div>
         </div>
         <div>
           <label htmlFor="prod-descrizione" className="block text-sm font-medium text-gray-700 mb-1">Descrizione</label>

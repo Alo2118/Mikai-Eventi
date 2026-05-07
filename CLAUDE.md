@@ -29,7 +29,7 @@ The system works by **roles, not people** — replacements inherit the role.
 Sales reps, area managers, back-office with **highly variable digital literacy**. UI must work for someone who only uses WhatsApp — no training assumed.
 
 ### Project status
-All phases (1–6C), Optimization, UX Overhaul, and Hardening are **Done**. 45+ DB tables, 60+ migrations, 31 lazy routes. Readiness Engine spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md`.
+All phases (1–6C), Optimization, UX Overhaul, Hardening, **Event Flow Branching (2026-05-07)** are **Done**. 45+ DB tables, 65+ migrations, 31 lazy routes. Readiness Engine spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md`. Event flow branching plan: `/home/nicola/.claude/plans/analizza-il-flusso-esecutivo-merry-valley.md`.
 
 Key business rules:
 - Approval is pragmatic (anyone with `approva_eventi` can approve, including self-approval)
@@ -87,7 +87,9 @@ React 19 + Vite 6 + TailwindCSS v4 + Zustand 5 + Supabase 2 + React Router DOM 7
 - **`date-utils.js`** — All date formatting AND computation. The ONLY file that imports `date-fns`.
 - **`format-utils.js`** — formatFileSize, formatCurrency, formatCurrencyDecimals, formatPercentage.
 - **`export-utils.js`** — Excel export (dynamic exceljs). `useExportHandler.js` hook for 7 list pages.
-- **`generate-dossier.js`** — PDF dossier (dynamic jsPDF).
+- **`generate-dossier.js`** — PDF dossier per evento (dynamic jsPDF).
+- **`generate-shipping-pdf.js`** — PDF spedizioni materiale per Logistica (dynamic jsPDF), include distinta `kit_contents`.
+- **`event-flow.js`** — Helpers per la biforcazione tipo-evento: `richiedeSpedizione/Hotel/Trasporti/usaTavoli(eventType)` + `effectiveRientroRichiesto(eventMaterialRow)`.
 - **`App.jsx`** — All routes with `React.lazy()` + `Suspense`. Only file with default export.
 
 ---
@@ -194,6 +196,41 @@ Semantic HTML, `aria-label` on icon-only buttons, `aria-hidden` on decorative ic
 - **Column name verification (mandatory):** Before writing `.insert()/.update()/.select()/.order()/.eq()`, verify field names against migrations. PostgREST silently ignores unknown fields on INSERT/UPDATE (data loss).
 - Compliance tables: RLS via `has_compliance_permission()`. Audit triggers on key tables.
 - pg_cron for automated tasks. Edge Functions in `supabase/functions/` (Deno).
+
+---
+
+## Event Flow Branching (2026-05-07)
+
+Per supportare eventi con flussi diversi (interni vs esterni, kit vs consumabili) le fasi del workflow sono **data-driven** sui flag del tipo evento e su override per item.
+
+### Flag su `event_types` (gestiti in admin → Tipologie Evento)
+| Colonna | Default | Effetto se `false` |
+|---------|---------|---------------------|
+| `richiede_spedizione` | `true` | Tab Materiale nasconde sezione spedizione/colli; gate `in_corso → concluso` salta il check rientri; PDF/Logistica esclude eventi di questo tipo dalla timeline |
+| `richiede_hotel` | `true` | Tab Persone nasconde sezione hotel + alert "senza hotel" + filtro |
+| `richiede_trasporti` | `true` | Tab Persone nasconde sezione trasporti + alert "senza trasporto" + filtro |
+| `usa_tavoli` | `false`* | Mostra tab Tavoli + assegnazione discenti. *Backfill `true` su `corso` e `cadaver_lab` |
+
+### Override per item su `event_materials`
+| Colonna | Uso |
+|---------|-----|
+| `rientro_richiesto` | NULL = eredita default catalogo (`products.serializzato`); `true/false` = override esplicito per quell'item nell'evento |
+| `data_rientro` | Quando l'item è rientrato a fine evento (NULL = ancora fuori). Path **quantity-based**, usato quando `material_id` è NULL (no specimen tracciato) |
+| `stato_rientro` / `quantita_rientrata` / `note_rientro` / `foto_rientro_url` | Dettagli rientro per item senza specimen. Il legacy path con `material_movements 'rientro'` resta per asset serializzati |
+
+### Catalogo prodotti
+- `products.famiglia` (text, nullable, indexed) — testo libero per raggruppamento commerciale (es. "CFix", "Sawbones cadaver"). Filtro + raggruppamento in `CatalogBrowser`. Editing massivo in `/admin/prodotti` via bulk action bar.
+
+### Helper centralizzato
+`src/lib/event-flow.js`:
+- `richiedeSpedizione(eventType)` / `richiedeHotel` / `richiedeTrasporti` / `usaTavoli` — default `true` (eccetto usaTavoli) per legacy compat
+- `effectiveRientroRichiesto(eventMaterialRow)` — risolve override per item
+
+### Punti gate aggiornati
+- `useEvents.checkGateConcluded` — salta se `richiede_spedizione=false`, altrimenti filtra per `effectiveRientroRichiesto`
+- `useMaterialAnalytics.fetchLogisticsTimeline` / `fetchOverdueReturns` — escludono eventi conclusi e tipi senza spedizione
+- `useMaterials.fetchPendingReturnsForEvent` / `fetchEventsPendingReturn` — combinano movimenti specimen + event_materials quantity-based
+- `useMaterials.registerBulkReturn` — due path: con `material_id` (movimenti) o con `event_material_id` (update event_materials)
 
 ---
 

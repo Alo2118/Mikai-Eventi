@@ -72,7 +72,8 @@ export function EventiList() {
   const fetchBatchLogisticsStatus = useLogisticsStore(s => s.fetchBatchLogisticsStatus)
   const fetchBatchCostsStatus = useCostsStore(s => s.fetchBatchCostsStatus)
   const { exporting, handleExport } = useExportHandler()
-  const { labels: tipoLabels, icons: tipoIcons } = useEventTypes()
+  const { labels: tipoLabels, icons: tipoIcons, eventTypes } = useEventTypes()
+  const eventTypeByCode = useMemo(() => Object.fromEntries(eventTypes.map(t => [t.codice, t])), [eventTypes])
   const [searchParams] = useSearchParams()
 
   const fetchMyInvolvement = useEventsStore(s => s.fetchMyInvolvement)
@@ -435,7 +436,7 @@ export function EventiList() {
                         : 'ring-yellow-300'
                       }`}
                     >
-                      <EventCard event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} involvement={involvementMap[event.id] || null} currentUserId={user?.id} tipoLabels={tipoLabels} tipoIcons={tipoIcons} />
+                      <EventCard event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} involvement={involvementMap[event.id] || null} currentUserId={user?.id} tipoLabels={tipoLabels} tipoIcons={tipoIcons} eventType={eventTypeByCode[event.tipo_evento]} />
                     </div>
                   ))}
                 </div>
@@ -470,7 +471,7 @@ export function EventiList() {
                   </div>
                   <div className="space-y-3">
                     {group.events.map(event => (
-                      <EventCard key={event.id} event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} involvement={involvementMap[event.id] || null} currentUserId={user?.id} tipoLabels={tipoLabels} tipoIcons={tipoIcons} />
+                      <EventCard key={event.id} event={event} semaphore={semaphores[event.id]} readiness={readinessMap[event.id] || null} involvement={involvementMap[event.id] || null} currentUserId={user?.id} tipoLabels={tipoLabels} tipoIcons={tipoIcons} eventType={eventTypeByCode[event.tipo_evento]} />
                     ))}
                   </div>
                 </div>

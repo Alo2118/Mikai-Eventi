@@ -15,41 +15,108 @@ export const useMaterialAnalyticsStore = create((set) => ({
 
   fetchLogisticsTimeline: async () => {
     set({ timelineLoading: true, error: null })
-    const { data, error } = await supabase
-      .from('event_materials')
-      .select(`
-        *,
-        evento:events!event_materials_event_id_fkey(id, titolo, data_inizio, data_fine, stato, indirizzo_spedizione, data_spedizione_prevista),
-        materiale:materials!event_materials_material_id_fkey(id, nome, codice_inventario),
-        product:products!event_materials_product_id_fkey(id, nome, codice, tipo, brand:brands(id, nome))
-      `)
-      .in('stato', ['approvato', 'in_preparazione'])
-      .order('data_richiesta', { ascending: true })
-      .limit(200)
-    set({ logisticsTimeline: data || [], timelineLoading: false, error: error?.message || null })
-    return { data: data || [], error }
+    const [emRes, etRes] = await Promise.all([
+      supabase
+        .from('event_materials')
+        .select(`
+          *,
+          evento:events!event_materials_event_id_fkey(id, titolo, data_inizio, data_fine, stato, tipo_evento, indirizzo_spedizione, data_spedizione_prevista),
+          materiale:materials!event_materials_material_id_fkey(id, nome, codice_inventario),
+          product:products!event_materials_product_id_fkey(id, nome, codice, tipo, brand:brands(id, nome))
+        `)
+        .in('stato', ['approvato', 'in_preparazione'])
+        .order('data_richiesta', { ascending: true })
+        .limit(200),
+      supabase.from('event_types').select('codice, richiede_spedizione'),
+    ])
+
+    if (emRes.error) {
+      set({ logisticsTimeline: [], timelineLoading: false, error: emRes.error.message })
+      return { data: [], error: emRes.error }
+    }
+
+    const noShipTypes = new Set(
+      (etRes.data || []).filter(t => t.richiede_spedizione === false).map(t => t.codice)
+    )
+    const closedStates = new Set(['concluso', 'cancellato', 'rifiutato'])
+    const filtered = (emRes.data || []).filter(em => {
+      if (!em.evento) return false
+      if (closedStates.has(em.evento.stato)) return false
+      if (em.evento.tipo_evento && noShipTypes.has(em.evento.tipo_evento)) return false
+      return true
+    })
+
+    set({ logisticsTimeline: filtered, timelineLoading: false, error: null })
+    return { data: filtered, error: null }
   },
 
   fetchOverdueReturns: async () => {
     set({ overdueLoading: true, error: null })
-    const { data, error } = await supabase
-      .from('material_movements')
-      .select(`
-        *,
-        materiale:materials!material_movements_material_id_fkey(id, nome, codice_inventario, posizione_attuale),
-        evento:events!material_movements_event_id_fkey(id, titolo, data_fine),
-        responsabile:users!material_movements_responsabile_id_fkey(id, nome, cognome)
-      `)
-      .eq('tipo', 'uscita')
-      .not('data_rientro_prevista', 'is', null)
-      .lt('data_rientro_prevista', todayISO())
-      .order('data_rientro_prevista', { ascending: true })
-      .limit(200)
-    const overdue = (data || []).filter(m =>
-      m.materiale && m.materiale.posizione_attuale !== 'in_magazzino'
-    )
-    set({ overdueReturns: overdue, overdueLoading: false, error: error?.message || null })
-    return { data: overdue, error }
+    const today = todayISO()
+    const [movRes, emRes] = await Promise.all([
+      supabase
+        .from('material_movements')
+        .select(`
+          *,
+          materiale:materials!material_movements_material_id_fkey(id, nome, codice_inventario, posizione_attuale),
+          evento:events!material_movements_event_id_fkey(id, titolo, data_fine),
+          responsabile:users!material_movements_responsabile_id_fkey(id, nome, cognome)
+        `)
+        .eq('tipo', 'uscita')
+        .not('data_rientro_prevista', 'is', null)
+        .lt('data_rientro_prevista', today)
+        .order('data_rientro_prevista', { ascending: true })
+        .limit(200),
+      // Quantity-based overdue: shipped item, no data_rientro yet, event already past data_fine
+      supabase
+        .from('event_materials')
+        .select(`
+          id, material_id, product_id, stato, rientro_richiesto, data_rientro,
+          product:products!event_materials_product_id_fkey(id, nome, codice, serializzato),
+          evento:events!event_materials_event_id_fkey(id, titolo, data_fine, stato)
+        `)
+        .in('stato', ['spedito', 'in_preparazione'])
+        .is('data_rientro', null)
+        .limit(200),
+    ])
+
+    if (movRes.error) {
+      set({ overdueReturns: [], overdueLoading: false, error: movRes.error.message })
+      return { data: [], error: movRes.error }
+    }
+
+    const overdue = []
+    const seenMatByEvent = new Set()
+    for (const m of (movRes.data || [])) {
+      if (!m.materiale || m.materiale.posizione_attuale === 'in_magazzino') continue
+      overdue.push(m)
+      if (m.material_id && m.event_id) seenMatByEvent.add(`${m.event_id}-${m.material_id}`)
+    }
+
+    if (!emRes.error) {
+      for (const em of (emRes.data || [])) {
+        const dataFine = em.evento?.data_fine
+        if (!dataFine || dataFine >= today) continue // not yet due
+        const needsReturn = em.rientro_richiesto !== null && em.rientro_richiesto !== undefined
+          ? em.rientro_richiesto === true
+          : !!em.product?.serializzato
+        if (!needsReturn) continue
+        if (em.material_id && em.evento?.id && seenMatByEvent.has(`${em.evento.id}-${em.material_id}`)) continue
+        overdue.push({
+          id: `em-${em.id}`,
+          event_material_id: em.id,
+          materiale: em.product
+            ? { id: em.product.id, nome: em.product.nome, codice_inventario: em.product.codice }
+            : null,
+          evento: em.evento,
+          data_rientro_prevista: dataFine,
+          source: 'event_material',
+        })
+      }
+    }
+
+    set({ overdueReturns: overdue, overdueLoading: false, error: null })
+    return { data: overdue, error: null }
   },
 
   fetchMaterialAnalytics: async () => {

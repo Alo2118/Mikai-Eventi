@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -17,8 +17,8 @@ import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useCostsStore } from '../../hooks/useCosts'
 import { useDocumentsStore } from '../../hooks/useDocuments'
 import { useTavoliStore } from '../../hooks/useTavoli'
-import { TIPI_EVENTO_CON_TAVOLI } from '../../lib/constants'
 import { useEventTypes } from '../../hooks/useEventTypes'
+import { richiedeSpedizione, richiedeHotel, richiedeTrasporti, usaTavoli } from '../../lib/event-flow'
 import { useSubActivitiesStore } from '../../hooks/useSubActivities'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
@@ -43,14 +43,14 @@ import { EventStatusFlow } from '../../components/eventi/EventStatusFlow'
 import { EventApprovalBar } from '../../components/eventi/EventApprovalBar'
 import { BulkReturnModal } from '../../components/materiale/BulkReturnModal'
 
-function getVisibleTabs(event, profile, permissions) {
+function getVisibleTabs(event, profile, permissions, eventType) {
   const ruolo = profile?.ruolo
   const isUfficio = ['admin', 'direzione', 'ufficio'].includes(ruolo)
   const modalita = event.modalita
 
   const tabs = [{ id: 'info', label: 'Info' }]
 
-  if (TIPI_EVENTO_CON_TAVOLI.includes(event.tipo_evento)) {
+  if (usaTavoli(eventType)) {
     tabs.push({ id: 'tavoli', label: 'Tavoli' })
   }
   tabs.push({ id: 'programma', label: 'Programma' })
@@ -76,9 +76,12 @@ function getVisibleTabs(event, profile, permissions) {
 
 const READINESS_DETAIL_STATES = new Set(['confermato', 'in_preparazione', 'pronto', 'in_corso'])
 
-function computeDetailReadiness({ event, eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants }) {
+function computeDetailReadiness({ event, eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants, eventType }) {
   const today = todayISO()
   const areas = []
+  const shippingEnabled = richiedeSpedizione(eventType) && event?.modalita !== 'contributo'
+  const hotelTracked = richiedeHotel(eventType)
+  const trasportiTracked = richiedeTrasporti(eventType)
 
   // Attivita (only pre-evento for readiness)
   const vis = eventActivities.filter(a => a.stato !== 'disattivata' && !a.post_evento)
@@ -92,22 +95,28 @@ function computeDetailReadiness({ event, eventActivities, eventMaterials, preven
   // Materiale
   const matRif = eventMaterials.filter(m => m.stato === 'rifiutato').length
   const matReq = eventMaterials.filter(m => m.stato === 'richiesto').length
-  const needsShipping = event?.modalita !== 'contributo' && !event?.spedizione_data
+  const needsShipping = shippingEnabled && !event?.spedizione_data
   if (eventMaterials.length === 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'gray', text: 'Nessuno', tab: 'materiale' })
   else if (matRif > 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'red', text: `${matRif} rifiutati`, tab: 'materiale' })
   else if (matReq > 0) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'yellow', text: `${matReq} da confermare`, tab: 'materiale' })
   else if (needsShipping) areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'yellow', text: 'Da spedire', tab: 'materiale' })
-  else areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'green', text: 'Confermato', tab: 'materiale' })
+  else areas.push({ icon: MATERIALE_ICONS.package, label: 'Materiale', color: 'green', text: shippingEnabled ? 'Confermato' : 'Pronto', tab: 'materiale' })
 
   // Persone & Logistica (count unique person+direction, not raw records)
   const totalPeople = (staff?.length || 0) + (participants?.length || 0)
-  const hConf = hotels.filter(h => h.stato === 'confermato' || h.stato === 'non_necessario').length
-  const tPersonDir = new Set(trasporti.map(t => `${t.user_id || t.contact_id}-${t.direzione}`))
-  const tConfPersonDir = new Set(trasporti.filter(t => t.stato === 'confermato' || t.stato === 'non_necessario').map(t => `${t.user_id || t.contact_id}-${t.direzione}`))
-  const logTotal = hotels.length + tPersonDir.size
+  const hConf = hotelTracked ? hotels.filter(h => h.stato === 'confermato' || h.stato === 'non_necessario').length : 0
+  const tPersonDir = trasportiTracked
+    ? new Set(trasporti.map(t => `${t.user_id || t.contact_id}-${t.direzione}`))
+    : new Set()
+  const tConfPersonDir = trasportiTracked
+    ? new Set(trasporti.filter(t => t.stato === 'confermato' || t.stato === 'non_necessario').map(t => `${t.user_id || t.contact_id}-${t.direzione}`))
+    : new Set()
+  const logTotal = (hotelTracked ? hotels.length : 0) + tPersonDir.size
   const logPending = logTotal - hConf - tConfPersonDir.size
   if (totalPeople === 0) {
     areas.push({ icon: DETAIL_NAV_ICONS.logistica, label: 'Persone', color: 'gray', text: 'Nessuna', tab: 'logistica' })
+  } else if (!hotelTracked && !trasportiTracked) {
+    areas.push({ icon: DETAIL_NAV_ICONS.logistica, label: 'Persone', color: 'green', text: `${totalPeople} ok`, tab: 'logistica' })
   } else if (logTotal === 0) {
     areas.push({ icon: DETAIL_NAV_ICONS.logistica, label: 'Persone', color: 'yellow', text: `${totalPeople} senza logistica`, tab: 'logistica' })
   } else if (logPending > 0) {
@@ -155,8 +164,12 @@ export function EventiDetail() {
   const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
   const preventivi = useCostsStore(s => s.preventivi)
   const addToast = useToastStore(s => s.add)
-  const { labels: tipoLabels } = useEventTypes()
+  const { labels: tipoLabels, eventTypes } = useEventTypes()
   const [event, setEvent] = useState(null)
+  const eventType = useMemo(() => event ? (eventTypes.find(t => t.codice === event.tipo_evento) || null) : null, [eventTypes, event?.tipo_evento])
+  const shippingEnabled = useMemo(() => richiedeSpedizione(eventType) && event?.modalita !== 'contributo', [eventType, event?.modalita])
+  const hotelTracked = useMemo(() => richiedeHotel(eventType), [eventType])
+  const trasportiTracked = useMemo(() => richiedeTrasporti(eventType), [eventType])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const initialTab = (tabFromUrl && VALID_TABS.includes(tabFromUrl)) ? tabFromUrl : 'info'
@@ -167,6 +180,7 @@ export function EventiDetail() {
   const [showLegend, setShowLegend] = useState(false)
   const [showTabBanner, setShowTabBanner] = useState(false)
   const bannerShownRef = useRef(false)
+  const bannerTimeoutRef = useRef(null)
   const legendRef = useRef(null)
 
   // Close legend popover on outside click
@@ -190,13 +204,16 @@ export function EventiDetail() {
         if (!bannerShownRef.current) {
           bannerShownRef.current = true
           setShowTabBanner(true)
-          setTimeout(() => setShowTabBanner(false), 4000)
+          bannerTimeoutRef.current = setTimeout(() => setShowTabBanner(false), 4000)
         }
       }
     }).catch(err => {
       setError('Errore nel caricamento dell\'evento.')
       setLoading(false)
     })
+    return () => {
+      if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current)
+    }
   }, [id])
 
   useEffect(() => { fetchUsers() }, [])
@@ -215,16 +232,12 @@ export function EventiDetail() {
     }
   }, [event?.id])
 
-  if (loading) return <LoadingSkeleton lines={8} />
-  if (error || !event) {
-    return <EmptyState title="Evento non trovato" description={error || 'L\'evento richiesto non esiste o non hai accesso.'} />
-  }
-
-  function computeTabStatus() {
+  const tabStatuses = useMemo(() => {
+    if (!event) return {}
     const statuses = {}
 
     // Tavoli (solo per eventi con tavoli)
-    if (TIPI_EVENTO_CON_TAVOLI.includes(event.tipo_evento) && tavoli.length > 0) {
+    if (usaTavoli(eventType) && tavoli.length > 0) {
       const allPeople = [...participants, ...staff]
       const assignedIds = new Set()
       tavoli.forEach(t => {
@@ -239,20 +252,28 @@ export function EventiDetail() {
     if (totalPeople > 0) {
       const staffConfirmed = staff.every(s => s.confermato)
       const partConfirmed = participants.every(p => p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente')
-      const hotelConfirmed = hotels.filter(h => h.stato === 'confermato' || h.stato === 'non_necessario').length
-      // Count unique persons with all legs confirmed per direction
-      const andataPersons = new Set(trasporti.filter(t => t.direzione === 'andata').map(t => t.user_id || t.contact_id))
-      const andataAllOk = [...andataPersons].filter(pid =>
-        trasporti.filter(t => t.direzione === 'andata' && (t.user_id === pid || t.contact_id === pid))
-          .every(t => t.stato === 'confermato' || t.stato === 'non_necessario')
-      ).length
-      const ritornoPersons = new Set(trasporti.filter(t => t.direzione === 'ritorno').map(t => t.user_id || t.contact_id))
-      const ritornoAllOk = [...ritornoPersons].filter(pid =>
-        trasporti.filter(t => t.direzione === 'ritorno' && (t.user_id === pid || t.contact_id === pid))
-          .every(t => t.stato === 'confermato' || t.stato === 'non_necessario')
-      ).length
+      let logisticsOk = true
+      if (hotelTracked) {
+        const hotelConfirmed = hotels.filter(h => h.stato === 'confermato' || h.stato === 'non_necessario').length
+        logisticsOk = logisticsOk && hotelConfirmed >= totalPeople
+      }
+      if (trasportiTracked) {
+        const andataByPerson = new Map()
+        const ritornoByPerson = new Map()
+        for (const t of trasporti) {
+          const pid = t.user_id || t.contact_id
+          if (!pid) continue
+          const bucket = t.direzione === 'andata' ? andataByPerson : t.direzione === 'ritorno' ? ritornoByPerson : null
+          if (!bucket) continue
+          if (!bucket.has(pid)) bucket.set(pid, [])
+          bucket.get(pid).push(t)
+        }
+        const allLegsOk = legs => legs.every(l => l.stato === 'confermato' || l.stato === 'non_necessario')
+        const andataAllOk = [...andataByPerson.values()].filter(allLegsOk).length
+        const ritornoAllOk = [...ritornoByPerson.values()].filter(allLegsOk).length
+        logisticsOk = logisticsOk && andataAllOk >= totalPeople && ritornoAllOk >= totalPeople
+      }
       const peopleOk = staffConfirmed && partConfirmed
-      const logisticsOk = hotelConfirmed >= totalPeople && andataAllOk >= totalPeople && ritornoAllOk >= totalPeople
       statuses.logistica = (peopleOk && logisticsOk) ? 'complete' : 'warning'
     }
 
@@ -273,17 +294,22 @@ export function EventiDetail() {
     // Preparazione
     const visibleActivities = eventActivities.filter(a => a.stato !== 'disattivata')
     if (visibleActivities.length > 0) {
+      const today = todayISO()
       const allComplete = visibleActivities.every(a => a.stato === 'completata')
-      const anyOverdue = visibleActivities.some(a => a.obbligatoria && a.deadline && new Date(a.deadline) < new Date() && a.stato !== 'completata')
+      const anyOverdue = visibleActivities.some(a => a.obbligatoria && a.deadline && a.deadline < today && a.stato !== 'completata')
       statuses.preparazione = allComplete ? 'complete' : anyOverdue ? 'incomplete' : 'warning'
     }
 
     return statuses
+  }, [event, tavoli, staff, participants, hotels, trasporti, eventMaterials, preventivi, eventActivities, hotelTracked, trasportiTracked])
+
+  if (loading) return <LoadingSkeleton lines={8} />
+  if (error || !event) {
+    return <EmptyState title="Evento non trovato" description={error || 'L\'evento richiesto non esiste o non hai accesso.'} />
   }
 
-  const tabStatuses = computeTabStatus()
   const readinessAreas = READINESS_DETAIL_STATES.has(event.stato)
-    ? computeDetailReadiness({ event, eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants })
+    ? computeDetailReadiness({ event, eventActivities, eventMaterials, preventivi, hotels, trasporti, staff, participants, eventType })
     : null
 
   // Build readiness detail map: tab id → { text, color }
@@ -292,7 +318,7 @@ export function EventiDetail() {
     readinessAreas.forEach(a => { readinessMap[a.tab] = { text: a.text, color: a.color } })
   }
 
-  const tabs = getVisibleTabs(event, profile, permissions).map(tab => ({
+  const tabs = getVisibleTabs(event, profile, permissions, eventType).map(tab => ({
     ...tab,
     status: tabStatuses[tab.id],
     detail: readinessMap[tab.id] || null,
@@ -396,7 +422,7 @@ export function EventiDetail() {
               if (event.stato === 'in_preparazione') {
                 const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata')
                 const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
-                const shipped = event.modalita === 'contributo' || !!event.spedizione_data
+                const shipped = !shippingEnabled || !!event.spedizione_data
                 return mandatoryIncomplete.length === 0 && (!hasMat || shipped)
               }
               return true
@@ -405,7 +431,7 @@ export function EventiDetail() {
               if (event.stato !== 'in_preparazione') return null
               const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata')
               const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
-              const shipped = event.modalita === 'contributo' || !!event.spedizione_data
+              const shipped = !shippingEnabled || !!event.spedizione_data
               if (mandatoryIncomplete.length > 0 && hasMat && !shipped) return 'Completa le attività e registra la spedizione'
               if (mandatoryIncomplete.length > 0) return 'Completa le attività obbligatorie'
               if (hasMat && !shipped) return 'Registra la spedizione del materiale'

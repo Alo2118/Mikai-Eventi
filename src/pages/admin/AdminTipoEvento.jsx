@@ -26,7 +26,12 @@ export function AdminTipoEvento() {
   useEffect(() => { fetchEventTypes() }, [])
 
   function handleNew() {
-    setEditing({ codice: '', nome: '', colore: 'mikai', icona: 'calendar', ordine: (eventTypes.length + 1) * 10, attivo: true })
+    setEditing({
+      codice: '', nome: '', colore: 'mikai', icona: 'calendar',
+      ordine: (eventTypes.length + 1) * 10, attivo: true,
+      richiede_spedizione: true, richiede_hotel: true, richiede_trasporti: true,
+      usa_tavoli: false,
+    })
   }
 
   function handleEdit(et) {
@@ -47,6 +52,10 @@ export function AdminTipoEvento() {
         icona: editing.icona,
         ordine: Number(editing.ordine) || 0,
         attivo: editing.attivo,
+        richiede_spedizione: !!editing.richiede_spedizione,
+        richiede_hotel: !!editing.richiede_hotel,
+        richiede_trasporti: !!editing.richiede_trasporti,
+        usa_tavoli: !!editing.usa_tavoli,
       })
       if (error) addToast(error, 'error')
       else { addToast('Tipologia aggiornata', 'success'); setEditing(null) }
@@ -58,6 +67,10 @@ export function AdminTipoEvento() {
         icona: editing.icona,
         ordine: Number(editing.ordine) || 0,
         attivo: editing.attivo,
+        richiede_spedizione: !!editing.richiede_spedizione,
+        richiede_hotel: !!editing.richiede_hotel,
+        richiede_trasporti: !!editing.richiede_trasporti,
+        usa_tavoli: !!editing.usa_tavoli,
       })
       if (error) addToast(error, 'error')
       else { addToast('Tipologia creata', 'success'); setEditing(null) }
@@ -138,7 +151,7 @@ export function AdminTipoEvento() {
                       key={ic.value}
                       type="button"
                       onClick={() => setEditing(prev => ({ ...prev, icona: ic.value }))}
-                      className={`min-h-[44px] min-w-[44px] rounded-lg flex items-center justify-center transition-all text-sm ${
+                      className={`min-h-[48px] min-w-[48px] rounded-lg flex items-center justify-center transition-all text-sm ${
                         editing.icona === ic.value
                           ? 'bg-mikai-100 text-mikai-700 ring-2 ring-mikai-400'
                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
@@ -166,6 +179,48 @@ export function AdminTipoEvento() {
                 />
                 <span className="text-sm font-medium text-gray-700">Attivo</span>
               </label>
+            </div>
+            <div className="space-y-2 pt-2 border-t border-gray-100">
+              <p className="text-sm font-medium text-gray-700">Fasi previste per questo tipo di evento</p>
+              <p className="text-xs text-gray-500">Disattiva le fasi non applicabili (es. eventi interni: niente spedizione, hotel o trasporti)</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
+                    checked={editing.richiede_spedizione !== false}
+                    onChange={e => setEditing(prev => ({ ...prev, richiede_spedizione: e.target.checked }))}
+                  />
+                  <span className="text-sm text-gray-700">Spedizione materiale</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
+                    checked={editing.richiede_hotel !== false}
+                    onChange={e => setEditing(prev => ({ ...prev, richiede_hotel: e.target.checked }))}
+                  />
+                  <span className="text-sm text-gray-700">Hotel</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
+                    checked={editing.richiede_trasporti !== false}
+                    onChange={e => setEditing(prev => ({ ...prev, richiede_trasporti: e.target.checked }))}
+                  />
+                  <span className="text-sm text-gray-700">Trasporti</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400"
+                    checked={!!editing.usa_tavoli}
+                    onChange={e => setEditing(prev => ({ ...prev, usa_tavoli: e.target.checked }))}
+                  />
+                  <span className="text-sm text-gray-700">Tavoli (assegnazione discenti)</span>
+                </label>
+              </div>
             </div>
             <div className="flex gap-3">
               <Button onClick={handleSave} loading={saving}>Salva</Button>

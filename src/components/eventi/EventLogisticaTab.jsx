@@ -11,7 +11,7 @@ import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import {
-  STATO_ISCRIZIONE, MEZZO_TRASPORTO, TIPI_EVENTO_CON_TAVOLI,
+  STATO_ISCRIZIONE, MEZZO_TRASPORTO,
   RUOLO_EVENTO, TIPO_PARTECIPANTE, TIPO_CONTATTO,
   SELECT_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, GROUP_HEADING_STYLE,
   BADGE_BASE, COLOR_BADGE, TAVOLO_COLORI,
@@ -34,6 +34,8 @@ import { SearchInput } from '../ui/SearchInput'
 import { formatTime, formatDateShort } from '../../lib/date-utils'
 import { exportToExcel } from '../../lib/export-utils'
 import { personKey, getPersonTavolo, sortLegs } from '../../lib/logistics-utils'
+import { useEventTypes } from '../../hooks/useEventTypes'
+import { richiedeHotel, richiedeTrasporti, usaTavoli } from '../../lib/event-flow'
 
 export function EventLogisticaTab({ event, users = [] }) {
   const hotels = useLogisticsStore(s => s.hotels)
@@ -86,7 +88,11 @@ export function EventLogisticaTab({ event, users = [] }) {
   const [exporting, setExporting] = useState(false)
   const [statoConfirm, setStatoConfirm] = useState(null)
 
-  const hasTavoli = TIPI_EVENTO_CON_TAVOLI.includes(event.tipo_evento)
+  const { eventTypes } = useEventTypes()
+  const eventType = useMemo(() => eventTypes.find(t => t.codice === event.tipo_evento) || null, [eventTypes, event.tipo_evento])
+  const hasTavoli = usaTavoli(eventType)
+  const hotelEnabled = richiedeHotel(eventType)
+  const trasportiEnabled = richiedeTrasporti(eventType)
 
   useEffect(() => {
     fetchEventStaff(event.id)
@@ -98,7 +104,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const handleAddStaff = async () => {
     if (!staffForm?.userId || !staffForm?.ruolo) return
     const { error } = await addStaff(event.id, staffForm.userId, staffForm.ruolo)
-    if (error) { addToast(error || 'Errore', 'error'); return }
+    if (error) { addToast(error || 'Non è stato possibile aggiungere lo staff. Riprova.', 'error'); return }
     addToast('Staff aggiunto', 'success')
     setStaffForm(null)
   }
@@ -106,7 +112,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const handleAddParticipant = async () => {
     if (!partForm?.contact || !partForm?.tipo) return
     const { error } = await addParticipant(event.id, partForm.contact.id, partForm.tipo)
-    if (error) { addToast(error || 'Errore', 'error'); return }
+    if (error) { addToast(error || 'Non è stato possibile aggiungere il partecipante. Riprova.', 'error'); return }
     addToast('Partecipante aggiunto', 'success')
     setPartForm(null)
   }
@@ -172,9 +178,9 @@ export function EventLogisticaTab({ event, users = [] }) {
   const FILTER_OPTIONS = useMemo(() => [
     { id: 'invitati', label: 'Invitati', count: participants.filter(p => p.stato_iscrizione === 'invitato').length, filter: p => p.type === 'participant' && p.statoIscrizione === 'invitato' },
     { id: 'confermati', label: 'Confermati', count: confirmedCount, filter: p => (p.type === 'staff' && p.confermato) || (p.type === 'participant' && ['confermato', 'presente'].includes(p.statoIscrizione)) },
-    { id: 'no_hotel', label: 'Senza hotel', count: people.length - withHotel, filter: p => !getHotel(p) },
-    { id: 'no_trasporto', label: 'Senza trasporto', count: people.length - withFullTransport, filter: p => !getAndata(p).length || !getRitorno(p).length },
-  ], [participants, people, confirmedCount, withHotel, withFullTransport, hotelMap, andataMap, ritornoMap])
+    ...(hotelEnabled ? [{ id: 'no_hotel', label: 'Senza hotel', count: people.length - withHotel, filter: p => !getHotel(p) }] : []),
+    ...(trasportiEnabled ? [{ id: 'no_trasporto', label: 'Senza trasporto', count: people.length - withFullTransport, filter: p => !getAndata(p).length || !getRitorno(p).length }] : []),
+  ], [participants, people, confirmedCount, withHotel, withFullTransport, hotelMap, andataMap, ritornoMap, hotelEnabled, trasportiEnabled])
 
   const toggleFilter = (filterId) => {
     setActiveFilters(prev => {
@@ -287,8 +293,8 @@ export function EventLogisticaTab({ event, users = [] }) {
     return [{ label: null, people: filteredPeople }]
   }, [filteredPeople, groupBy, tavoli, andataMap, ritornoMap])
 
-  const alerts = useMemo(() => computeAlerts(event, people, hotels, trasporti, staff, getHotel, getAndata)
-  , [event, people, hotels, trasporti, staff, hotelMap, andataMap])
+  const alerts = useMemo(() => computeAlerts(event, people, hotels, trasporti, staff, getHotel, getAndata, { hotelEnabled, trasportiEnabled })
+  , [event, people, hotels, trasporti, staff, hotelMap, andataMap, hotelEnabled, trasportiEnabled])
 
   const handleModalDone = () => {
     setActiveModal(null)
@@ -327,7 +333,7 @@ export function EventLogisticaTab({ event, users = [] }) {
       await exportToExcel({ columns, rows: people, filename: `Persone_${title}`, sheetName: 'Persone' })
       addToast('Esportazione completata', 'success')
     } catch {
-      addToast('Errore durante l\'export', 'error')
+      addToast('Non è stato possibile esportare. Riprova.', 'error')
     }
     setExporting(false)
   }
@@ -336,17 +342,17 @@ export function EventLogisticaTab({ event, users = [] }) {
     const { error } = person.type === 'staff'
       ? await updateStaff(person.staffId, { note })
       : await updateParticipant(person.participantId, { note })
-    if (error) addToast('Errore nel salvataggio nota', 'error')
+    if (error) addToast('Non è stato possibile salvare la nota. Riprova.', 'error')
   }
 
   const handleRoleSave = async (person, newRuolo) => {
     if (person.type === 'staff') {
       const { error } = await updateStaff(person.staffId, { ruolo_evento: newRuolo })
-      if (error) return addToast('Errore nel salvataggio ruolo', 'error')
+      if (error) return addToast('Non è stato possibile salvare il ruolo. Riprova.', 'error')
       await fetchEventStaff(event.id)
     } else {
       const { error } = await updateParticipant(person.participantId, { tipo: newRuolo })
-      if (error) return addToast('Errore nel salvataggio ruolo', 'error')
+      if (error) return addToast('Non è stato possibile salvare il ruolo. Riprova.', 'error')
       await fetchEventParticipants(event.id)
     }
     addToast('Ruolo aggiornato', 'success')
@@ -355,11 +361,11 @@ export function EventLogisticaTab({ event, users = [] }) {
   const handleEsigenzeSave = async (person, updates) => {
     if (person.type === 'participant') {
       const { error } = await updateContact(person.id, updates)
-      if (error) return addToast('Errore nel salvataggio esigenze', 'error')
+      if (error) return addToast('Non è stato possibile salvare le esigenze. Riprova.', 'error')
       await fetchEventParticipants(event.id)
     } else {
       const { error } = await updateUser(person.id, updates)
-      if (error) return addToast('Errore nel salvataggio esigenze', 'error')
+      if (error) return addToast('Non è stato possibile salvare le esigenze. Riprova.', 'error')
       await fetchEventStaff(event.id)
     }
     addToast('Esigenze aggiornate', 'success')
@@ -393,8 +399,8 @@ export function EventLogisticaTab({ event, users = [] }) {
           <div className="flex items-center gap-1.5 text-xs font-medium flex-shrink-0">
             <span className={BADGE_BASE + ' ' + COLOR_BADGE.gray}>{people.length}</span>
             <span className={BADGE_BASE + ' ' + COLOR_BADGE.green}>{confirmedCount} conf.</span>
-            <span className={BADGE_BASE + ' ' + COLOR_BADGE.blue}>{withHotel} hotel</span>
-            <span className={BADGE_BASE + ' ' + COLOR_BADGE.purple}>{withFullTransport} trasporti</span>
+            {hotelEnabled && <span className={BADGE_BASE + ' ' + COLOR_BADGE.blue}>{withHotel} hotel</span>}
+            {trasportiEnabled && <span className={BADGE_BASE + ' ' + COLOR_BADGE.purple}>{withFullTransport} trasporti</span>}
           </div>
         )}
         <div className="flex items-center gap-2 ml-auto">
@@ -493,18 +499,24 @@ export function EventLogisticaTab({ event, users = [] }) {
                 Imposta tavolo
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={() => setActiveModal('hotel')}>
-              <Icon icon={LOGISTICA_PERSONE_ICONS.hotel} size={16} className="mr-1" />
-              Imposta hotel
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setActiveModal('andata')}>
-              <Icon icon={ACTION_ICONS.forward} size={16} className="mr-1" />
-              Imposta andata
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setActiveModal('ritorno')}>
-              <Icon icon={ACTION_ICONS.back} size={16} className="mr-1" />
-              Imposta ritorno
-            </Button>
+            {hotelEnabled && (
+              <Button variant="secondary" size="sm" onClick={() => setActiveModal('hotel')}>
+                <Icon icon={LOGISTICA_PERSONE_ICONS.hotel} size={16} className="mr-1" />
+                Imposta hotel
+              </Button>
+            )}
+            {trasportiEnabled && (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => setActiveModal('andata')}>
+                  <Icon icon={ACTION_ICONS.forward} size={16} className="mr-1" />
+                  Imposta andata
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setActiveModal('ritorno')}>
+                  <Icon icon={ACTION_ICONS.back} size={16} className="mr-1" />
+                  Imposta ritorno
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -671,7 +683,7 @@ export function EventLogisticaTab({ event, users = [] }) {
             ? await updateStaff(statoConfirm.person.staffId, { confermato: statoConfirm.newStato })
             : await updateParticipant(statoConfirm.person.participantId, { stato_iscrizione: statoConfirm.newStato })
           setStatoConfirm(null)
-          if (error) addToast('Errore aggiornamento stato', 'error')
+          if (error) addToast('Non è stato possibile aggiornare lo stato. Riprova.', 'error')
         }}
         onCancel={() => setStatoConfirm(null)}
       />

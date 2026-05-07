@@ -1,15 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMaterialAnalyticsStore } from '../../hooks/useMaterialAnalytics'
+import { useCatalogStore } from '../../hooks/useCatalog'
+import { useToastStore } from '../../components/ui/Toast'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { ProgressIndicator } from '../../components/ui/ProgressIndicator'
 import { Icon } from '../../components/ui/Icon'
 import { Button } from '../../components/ui/Button'
-import { MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, NAV_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { MATERIALE_ICONS, TIPO_PRODOTTO_ICONS, NAV_ICONS, ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
 import { STATO_MATERIALE_LISTA, STATO_MATERIALE_LISTA_COLORE, CARD_STYLE, SUMMARY_BAR_STYLE } from '../../lib/constants'
-import { formatDate, formatDateRange, subtractDays } from '../../lib/date-utils'
+import { formatDate, formatDateRange, subtractDays, todayISO } from '../../lib/date-utils'
+import { generateShippingPDF } from '../../lib/generate-shipping-pdf'
 
 // Type icon + color (same as MaterialListRow)
 const TIPO_ICON = {
@@ -52,7 +55,36 @@ function groupByTipo(items) {
   return order.filter(t => map[t]).map(t => ({ tipo: t, items: map[t] }))
 }
 
-function EventShippingCard({ group, onNavigate }) {
+function KitContentsExpander({ contents }) {
+  const [open, setOpen] = useState(false)
+  if (!contents?.length) return null
+  return (
+    <div className="ml-7 mt-1 mb-1">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="text-xs text-mikai-600 hover:text-mikai-700 inline-flex items-center gap-1 min-h-[28px]"
+        aria-expanded={open}
+      >
+        <Icon icon={open ? ACTION_ICONS.chevronUp : ACTION_ICONS.chevronDown} size={12} />
+        Distinta ({contents.length} {contents.length === 1 ? 'pezzo' : 'pezzi'})
+      </button>
+      {open && (
+        <ul className="mt-1 ml-4 space-y-0.5 border-l-2 border-mikai-100 pl-3">
+          {contents.map(c => (
+            <li key={c.id} className="text-xs text-gray-600 flex items-center gap-2">
+              <span className="text-gray-400 font-mono shrink-0 min-w-[2rem]">×{c.quantity}</span>
+              <span className="text-gray-700">{c.piece_name}</span>
+              {c.piece_code && <span className="text-gray-400 font-mono text-[10px]">{c.piece_code}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function EventShippingCard({ group, onNavigate, kitContents }) {
   const { evento, items, shippingDate } = group
   const inPrep = items.filter(i => i.stato === 'in_preparazione').length
   const confirmed = items.filter(i => i.stato === 'approvato').length
@@ -117,13 +149,17 @@ function EventShippingCard({ group, onNavigate }) {
               <div className="space-y-1 pl-8">
                 {tipoItems.map(item => {
                   const nome = item.product?.nome || item.materiale?.nome || 'Materiale'
+                  const contents = kitContents?.[item.product_id]
                   return (
-                    <div key={item.id} className="flex items-center justify-between gap-2 py-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm text-gray-900 truncate">{nome}</span>
-                        {item.quantita > 1 && <span className="text-xs text-gray-400 flex-shrink-0">×{item.quantita}</span>}
+                    <div key={item.id} className="py-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm text-gray-900 truncate">{nome}</span>
+                          {item.quantita > 1 && <span className="text-xs text-gray-400 flex-shrink-0">×{item.quantita}</span>}
+                        </div>
+                        <StatusBadge stato={item.stato} labels={STATO_MATERIALE_LISTA} colors={STATO_MATERIALE_LISTA_COLORE} />
                       </div>
-                      <StatusBadge stato={item.stato} labels={STATO_MATERIALE_LISTA} colors={STATO_MATERIALE_LISTA_COLORE} />
+                      <KitContentsExpander contents={contents} />
                     </div>
                   )
                 })}
@@ -150,13 +186,38 @@ export function LogisticaTimeline() {
   const timeline = useMaterialAnalyticsStore(s => s.logisticsTimeline)
   const loading = useMaterialAnalyticsStore(s => s.timelineLoading)
   const fetchLogisticsTimeline = useMaterialAnalyticsStore(s => s.fetchLogisticsTimeline)
+  const fetchKitContentsBatch = useCatalogStore(s => s.fetchKitContentsBatch)
   const navigate = useNavigate()
+  const addToast = useToastStore(s => s.add)
+  const [generating, setGenerating] = useState(false)
+  const [kitContents, setKitContents] = useState({})
 
   useEffect(() => { fetchLogisticsTimeline() }, [])
 
+  useEffect(() => {
+    if (!timeline.length) { setKitContents({}); return }
+    const ids = [...new Set(timeline.map(t => t.product_id).filter(Boolean))]
+    fetchKitContentsBatch(ids).then(({ data }) => setKitContents(data || {}))
+  }, [timeline])
+
+  const eventGroups = timeline.length > 0 ? groupByEvent(timeline) : []
+
+  const handleDownloadPDF = async () => {
+    if (eventGroups.length === 0) return
+    setGenerating(true)
+    try {
+      const doc = await generateShippingPDF(eventGroups, kitContents)
+      doc.save(`spedizioni_materiale_${todayISO()}.pdf`)
+      addToast('PDF generato', 'success')
+    } catch {
+      addToast('Errore nella generazione del PDF', 'error')
+    }
+    setGenerating(false)
+  }
+
   if (loading) return <div className="px-4 md:px-8 py-4"><LoadingSkeleton lines={5} /></div>
 
-  if (timeline.length === 0) {
+  if (eventGroups.length === 0) {
     return (
       <EmptyState
         title="Nessuna spedizione in programma"
@@ -165,12 +226,17 @@ export function LogisticaTimeline() {
     )
   }
 
-  const eventGroups = groupByEvent(timeline)
-
   return (
     <div className="px-4 md:px-8 py-4 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm text-gray-500">{eventGroups.length} {eventGroups.length === 1 ? 'evento' : 'eventi'} con materiale da spedire</p>
+        <Button variant="secondary" size="sm" onClick={handleDownloadPDF} loading={generating}>
+          <Icon icon={DOCUMENTO_ICONS.dossier} size={16} className="mr-1" />
+          Scarica PDF
+        </Button>
+      </div>
       {eventGroups.map(group => (
-        <EventShippingCard key={group.evento.id} group={group} onNavigate={navigate} />
+        <EventShippingCard key={group.evento.id} group={group} onNavigate={navigate} kitContents={kitContents} />
       ))}
     </div>
   )

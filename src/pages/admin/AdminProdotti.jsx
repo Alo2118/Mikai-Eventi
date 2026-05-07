@@ -8,7 +8,7 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Icon } from '../../components/ui/Icon'
 import { ADMIN_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
-import { SELECT_STYLE, SUMMARY_BAR_STYLE, COLOR_BADGE } from '../../lib/constants'
+import { SELECT_STYLE, INPUT_STYLE, SUMMARY_BAR_STYLE, COLOR_BADGE } from '../../lib/constants'
 import { useProductTypes } from '../../hooks/useProductTypes'
 import { toDriveImageUrl } from '../../lib/format-utils'
 import { AdminProdottiForm } from './AdminProdottiForm'
@@ -39,8 +39,10 @@ export function AdminProdotti() {
   const [filterTipo, setFilterTipo] = useState('')
   const [filterBrand, setFilterBrand] = useState('')
   const [filterAttivo, setFilterAttivo] = useState('')
+  const [filterFamiglia, setFilterFamiglia] = useState('')
   const [selected, setSelected] = useState(new Set())
   const [bulkTipo, setBulkTipo] = useState('')
+  const [bulkFamiglia, setBulkFamiglia] = useState('')
   const [bulkLoading, setBulkLoading] = useState(false)
 
   useEffect(() => {
@@ -118,8 +120,15 @@ export function AdminProdotti() {
     if (filterBrand && p.brand?.id !== filterBrand) return false
     if (filterAttivo === 'true' && !p.attivo) return false
     if (filterAttivo === 'false' && p.attivo !== false) return false
+    if (filterFamiglia === '__none__' && p.famiglia) return false
+    if (filterFamiglia && filterFamiglia !== '__none__' && p.famiglia !== filterFamiglia) return false
     return true
-  }), [products, filterTipo, filterBrand, filterAttivo])
+  }), [products, filterTipo, filterBrand, filterAttivo, filterFamiglia])
+
+  const allFamilies = useMemo(
+    () => [...new Set(products.map(p => p.famiglia).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [products]
+  )
 
   const goToProduct = async (product) => {
     const form = {
@@ -197,6 +206,28 @@ export function AdminProdotti() {
       addToast(`${selected.size} prodotti aggiornati a "${tipoLabels[bulkTipo] || bulkTipo}"`, 'success')
       setSelected(new Set())
       setBulkTipo('')
+      fetchProducts()
+    }
+  }
+
+  const handleBulkFamiglia = async (clear = false) => {
+    if (selected.size === 0) return
+    const value = clear ? null : bulkFamiglia.trim()
+    if (!clear && !value) return
+    setBulkLoading(true)
+    const { error } = await bulkUpdateProducts([...selected], { famiglia: value })
+    setBulkLoading(false)
+    if (error) addToast(error, 'error')
+    else {
+      addToast(
+        clear
+          ? `Famiglia rimossa da ${selected.size} prodotti`
+          : `${selected.size} prodotti assegnati alla famiglia "${value}"`,
+        'success'
+      )
+      setSelected(new Set())
+      setBulkFamiglia('')
+      fetchProducts()
     }
   }
 
@@ -224,8 +255,13 @@ export function AdminProdotti() {
               <option value="true">Attivi</option>
               <option value="false">Non attivi</option>
             </select>
-            {(filterTipo || filterBrand || filterAttivo) && (
-              <button onClick={() => { setFilterTipo(''); setFilterBrand(''); setFilterAttivo('') }}
+            <select className={SELECT_STYLE + ' max-w-[200px]'} value={filterFamiglia} onChange={e => setFilterFamiglia(e.target.value)}>
+              <option value="">Tutte le famiglie</option>
+              <option value="__none__">— Senza famiglia</option>
+              {allFamilies.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+            {(filterTipo || filterBrand || filterAttivo || filterFamiglia) && (
+              <button onClick={() => { setFilterTipo(''); setFilterBrand(''); setFilterAttivo(''); setFilterFamiglia('') }}
                 className="text-sm text-mikai-600 hover:text-mikai-800 min-h-[48px] px-2">
                 Azzera filtri
               </button>
@@ -236,22 +272,54 @@ export function AdminProdotti() {
         {!editing && selected.size > 0 && (
           <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap mb-4'}>
             <span className="text-sm font-semibold text-mikai-700">{selected.size} selezionati</span>
+
+            {/* Tipologia */}
             <select
               value={bulkTipo}
               onChange={e => setBulkTipo(e.target.value)}
               className={SELECT_STYLE + ' max-w-[200px]'}
             >
-              <option value="">Cambia tipologia...</option>
+              <option value="">Cambia tipologia…</option>
               {productTypes.filter(pt => pt.attivo).map(pt => (
                 <option key={pt.codice} value={pt.codice}>{pt.nome}</option>
               ))}
             </select>
             {bulkTipo && (
               <Button size="sm" onClick={handleBulkTipo} loading={bulkLoading}>
-                Applica a {selected.size} prodotti
+                Applica tipo
               </Button>
             )}
-            <button onClick={() => { setSelected(new Set()); setBulkTipo('') }} className="text-sm text-gray-500 hover:text-gray-700 min-h-[48px] px-2">
+
+            {/* Famiglia */}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={bulkFamiglia}
+                onChange={e => setBulkFamiglia(e.target.value)}
+                placeholder="Imposta famiglia…"
+                className={INPUT_STYLE + ' max-w-[200px]'}
+                list="bulk-famiglia-options"
+                aria-label="Imposta famiglia per i prodotti selezionati"
+              />
+              <datalist id="bulk-famiglia-options">
+                {allFamilies.map(f => <option key={f} value={f} />)}
+              </datalist>
+              {bulkFamiglia.trim() && (
+                <Button size="sm" onClick={() => handleBulkFamiglia(false)} loading={bulkLoading}>
+                  Applica famiglia
+                </Button>
+              )}
+              <button
+                onClick={() => handleBulkFamiglia(true)}
+                disabled={bulkLoading}
+                className="text-sm text-gray-500 hover:text-red-600 min-h-[48px] px-2"
+                title="Rimuovi famiglia dai prodotti selezionati"
+              >
+                Svuota famiglia
+              </button>
+            </div>
+
+            <button onClick={() => { setSelected(new Set()); setBulkTipo(''); setBulkFamiglia('') }} className="text-sm text-gray-500 hover:text-gray-700 min-h-[48px] px-2 ml-auto">
               Deseleziona
             </button>
           </div>

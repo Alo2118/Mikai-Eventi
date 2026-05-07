@@ -16,6 +16,7 @@ const GROUP_OPTIONS = [
   { key: 'brand', label: 'Brand' },
   { key: 'distretto', label: 'Distretto' },
   { key: 'tipologia', label: 'Tipologia' },
+  { key: 'famiglia', label: 'Famiglia' },
 ]
 
 // ── Inline chip row ──────────────────────────────────────────────────────────
@@ -49,15 +50,32 @@ function ChipRow({ items, selectedIds, onToggle }) {
   )
 }
 
-// ── Lightweight group divider ────────────────────────────────────────────────
+// ── Group divider with colored accent (sticks while scrolling) ───────────────
+// Each group instance gets a distinct color rotating through the palette.
 
-function GroupDivider({ title, count, logoUrl }) {
+const GROUP_PALETTE = [
+  { bg: 'bg-blue-50',     bar: 'bg-blue-500',     text: 'text-blue-800',     count: 'bg-blue-100 text-blue-800' },
+  { bg: 'bg-purple-50',   bar: 'bg-purple-500',   text: 'text-purple-800',   count: 'bg-purple-100 text-purple-800' },
+  { bg: 'bg-emerald-50',  bar: 'bg-emerald-500',  text: 'text-emerald-800',  count: 'bg-emerald-100 text-emerald-800' },
+  { bg: 'bg-amber-50',    bar: 'bg-amber-500',    text: 'text-amber-800',    count: 'bg-amber-100 text-amber-800' },
+  { bg: 'bg-pink-50',     bar: 'bg-pink-500',     text: 'text-pink-800',     count: 'bg-pink-100 text-pink-800' },
+  { bg: 'bg-sky-50',      bar: 'bg-sky-500',      text: 'text-sky-800',      count: 'bg-sky-100 text-sky-800' },
+  { bg: 'bg-orange-50',   bar: 'bg-orange-500',   text: 'text-orange-800',   count: 'bg-orange-100 text-orange-800' },
+  { bg: 'bg-mikai-50',    bar: 'bg-mikai-500',    text: 'text-mikai-700',    count: 'bg-mikai-100 text-mikai-700' },
+]
+
+const FALLBACK_ACCENT = { bg: 'bg-gray-50', bar: 'bg-gray-400', text: 'text-gray-700', count: 'bg-gray-100 text-gray-700' }
+
+function GroupDivider({ title, count, logoUrl, accent }) {
+  const a = accent || FALLBACK_ACCENT
   return (
-    <div className="flex items-center gap-2 pt-3 pb-1 px-1">
-      {logoUrl && <img src={logoUrl} alt="" aria-hidden="true" className="h-3.5 w-auto object-contain" />}
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{title}</p>
-      <span className="text-xs text-gray-300">{count}</span>
-      <div className="flex-1 border-t border-gray-200 ml-1" />
+    <div className={`sticky top-0 z-10 flex items-stretch gap-3 mt-4 mb-2 rounded-lg overflow-hidden ${a.bg} border border-gray-200 shadow-sm`}>
+      <div className={`w-1.5 shrink-0 ${a.bar}`} aria-hidden="true" />
+      <div className="flex items-center gap-3 flex-1 px-3 py-2">
+        {logoUrl && <img src={logoUrl} alt="" aria-hidden="true" className="h-6 w-auto object-contain" />}
+        <h4 className={`text-base font-bold ${a.text} truncate`}>{title}</h4>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.count} shrink-0`}>{count}</span>
+      </div>
     </div>
   )
 }
@@ -68,6 +86,7 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
   const { labels: tipoLabels, productTypes } = useProductTypes()
   const [brands, setBrands] = useState([])
   const [sections, setSections] = useState([])
+  const [families, setFamilies] = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -75,6 +94,7 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
   const [brandIds, setBrandIds] = useState([])
   const [sectionIds, setSectionIds] = useState([])
   const [tipi, setTipi] = useState([])
+  const [famiglie, setFamiglie] = useState([])
   const [groupBy, setGroupBy] = useState('none')
   const [activeDrawer, setActiveDrawer] = useState(null)
   const [modalProduct, setModalProduct] = useState(null)
@@ -98,24 +118,26 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
 
   const fetchBrands = useCatalogStore(s => s.fetchBrands)
   const fetchAllBodySections = useCatalogStore(s => s.fetchAllBodySections)
+  const fetchAllFamilies = useCatalogStore(s => s.fetchAllFamilies)
   const fetchCatalogProducts = useCatalogStore(s => s.fetchCatalogProducts)
 
   useEffect(() => {
-    Promise.all([fetchBrands(), fetchAllBodySections()])
-      .then(([brandsRes, secsRes]) => {
+    Promise.all([fetchBrands(), fetchAllBodySections(), fetchAllFamilies()])
+      .then(([brandsRes, secsRes, famRes]) => {
         setBrands(brandsRes.data || [])
         setSections(secsRes.data || [])
+        setFamilies(famRes.data || [])
       })
-      .catch(() => { setBrands([]); setSections([]) })
+      .catch(() => { setBrands([]); setSections([]); setFamilies([]) })
   }, [])
 
   useEffect(() => {
     setLoading(true)
-    fetchCatalogProducts({ brandIds, sectionIds, tipi, search })
+    fetchCatalogProducts({ brandIds, sectionIds, tipi, famiglie, search })
       .then(({ data }) => { setProducts(data || []) })
       .catch(() => { setProducts([]) })
       .finally(() => { setLoading(false) })
-  }, [brandIds, sectionIds, tipi, search])
+  }, [brandIds, sectionIds, tipi, famiglie, search])
 
   // ── Cart operations ────────────────────────────────────────────────────────
 
@@ -185,22 +207,24 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
     setter(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
   const handleClearAllFilters = () => {
-    setBrandIds([]); setSectionIds([]); setTipi([]); setSearch('')
+    setBrandIds([]); setSectionIds([]); setTipi([]); setFamiglie([]); setSearch('')
   }
 
-  const filterCount = brandIds.length + sectionIds.length + tipi.length
+  const filterCount = brandIds.length + sectionIds.length + tipi.length + famiglie.length
 
   const activeFilterSummary = useMemo(() => {
     const parts = []
     for (const id of brandIds) { const b = brands.find(x => x.id === id); if (b) parts.push(b.nome) }
     for (const id of sectionIds) { const s = sections.find(x => x.id === id); if (s) parts.push(s.nome) }
     for (const key of tipi) { parts.push(tipoLabels[key] || key) }
+    for (const f of famiglie) { parts.push(f) }
     return parts.join(', ')
-  }, [brandIds, sectionIds, tipi, brands, sections, tipoLabels])
+  }, [brandIds, sectionIds, tipi, famiglie, brands, sections, tipoLabels])
 
   const brandChips = brands.map(b => ({ id: b.id, label: b.nome, imageUrl: b.logo_url }))
   const sectionChips = sections.map(s => ({ id: s.id, label: s.nome, imageUrl: s.immagine_url }))
   const tipoChips = (productTypes || []).map(pt => ({ id: pt.codice, label: pt.nome }))
+  const famigliaChips = families.map(f => ({ id: f, label: f }))
 
   // ── Grouping ───────────────────────────────────────────────────────────────
 
@@ -219,6 +243,10 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
         else { for (const sec of secs) { ensure(sec, {}); groups.get(sec).products.push(product) } }
       } else if (groupBy === 'tipologia') {
         const key = tipoLabels[product.tipo] || product.tipo || 'Altro'
+        ensure(key, {})
+        groups.get(key).products.push(product)
+      } else if (groupBy === 'famiglia') {
+        const key = product.famiglia || 'Senza famiglia'
         ensure(key, {})
         groups.get(key).products.push(product)
       }
@@ -261,7 +289,7 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
         <button
           type="button"
           onClick={handleClose}
-          className="min-h-[44px] px-3 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-sm"
+          className="min-h-[48px] px-3 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-sm"
           aria-label="Chiudi catalogo"
         >
           <Icon icon={ACTION_ICONS.close} size={18} />
@@ -274,7 +302,7 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
         <button
           type="button"
           onClick={() => setFiltersExpanded(prev => !prev)}
-          className="w-full flex items-center justify-between px-3 py-2 min-h-[44px] text-left"
+          className="w-full flex items-center justify-between px-3 py-2 min-h-[48px] text-left"
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Icon icon={CATALOGO_ICONS.filters} size={16} className="text-gray-400 shrink-0" />
@@ -320,6 +348,12 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
               <p className="text-xs text-gray-400 mb-1">Tipologia</p>
               <ChipRow items={tipoChips} selectedIds={tipi} onToggle={toggle(setTipi)} />
             </div>
+            {famigliaChips.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Famiglia</p>
+                <ChipRow items={famigliaChips} selectedIds={famiglie} onToggle={toggle(setFamiglie)} />
+              </div>
+            )}
             <div>
               <p className="text-xs text-gray-400 mb-1">Raggruppa per</p>
               <ChipRow
@@ -344,12 +378,17 @@ export function CatalogBrowser({ existingRows, onSave, onClose }) {
         <EmptyState title="Nessun prodotto trovato" description="Prova a cambiare i filtri o la ricerca." />
       ) : groupedProducts ? (
         <div>
-          {groupedProducts.map(([name, group]) => (
-            <div key={name}>
-              <GroupDivider title={name} count={group.products.length} logoUrl={group.logoUrl} />
-              {renderGrid(group.products, groupBy === 'brand')}
-            </div>
-          ))}
+          {groupedProducts.map(([name, group], idx) => {
+            const accent = name === 'Altro' || name === 'Senza famiglia'
+              ? FALLBACK_ACCENT
+              : GROUP_PALETTE[idx % GROUP_PALETTE.length]
+            return (
+              <div key={name}>
+                <GroupDivider title={name} count={group.products.length} logoUrl={group.logoUrl} accent={accent} />
+                {renderGrid(group.products, groupBy === 'brand')}
+              </div>
+            )
+          })}
         </div>
       ) : (
         renderGrid(products)

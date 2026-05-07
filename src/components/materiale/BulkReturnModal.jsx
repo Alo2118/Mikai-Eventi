@@ -20,11 +20,11 @@ const DAMAGE_BUCKET = 'event-documents'
 const ALLOWED_PHOTO = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_PHOTO = 5 * 1024 * 1024
 
-async function uploadDamagePhoto(file, eventId, materialId) {
+async function uploadDamagePhoto(file, eventId, refId) {
   if (!ALLOWED_PHOTO.includes(file.type)) throw new Error('Formato foto non valido (usa JPG/PNG/WEBP)')
   if (file.size > MAX_PHOTO) throw new Error('Foto troppo grande (max 5MB)')
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-  const path = `damage/${eventId}/${materialId}-${Date.now()}.${ext}`
+  const path = `damage/${eventId}/${refId}-${Date.now()}.${ext}`
   const { error } = await supabase.storage.from(DAMAGE_BUCKET).upload(path, file, { cacheControl: '3600', upsert: false })
   if (error) throw new Error(error.message)
   return path
@@ -161,6 +161,7 @@ export function BulkReturnModal({ open, eventId, eventTitolo, onClose, onDone })
       setRows((data || []).map(m => ({
         movement_id: m.id,
         material_id: m.material_id,
+        event_material_id: m.event_material_id || null,
         material: m.material,
         modalita: m.modalita,
         selected: true,
@@ -216,14 +217,16 @@ export function BulkReturnModal({ open, eventId, eventTitolo, onClose, onDone })
       // Upload damage photos first (only for danneggiato)
       const photoUploads = await Promise.all(selected.map(async (r) => {
         if (r.stato_rientro === 'danneggiato' && r.photoFile) {
-          const path = await uploadDamagePhoto(r.photoFile, eventId, r.material_id)
+          const refId = r.material_id || r.event_material_id || 'item'
+          const path = await uploadDamagePhoto(r.photoFile, eventId, refId)
           return { ...r, foto_danno_url: path }
         }
         return r
       }))
 
       const payload = photoUploads.map(r => ({
-        material_id: r.material_id,
+        material_id: r.material_id || null,
+        event_material_id: r.event_material_id || null,
         stato_rientro: r.stato_rientro,
         quantita_rientrata: r.quantita_rientrata ?? null,
         note_danni: r.note_danni || null,

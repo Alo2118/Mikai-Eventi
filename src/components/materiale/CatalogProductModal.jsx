@@ -164,12 +164,17 @@ export function CatalogProductModal({ product, cartQuantity, onAdd, onUpdateQuan
           </div>
         )}
 
-        {/* Badges: tipo + codice */}
+        {/* Badges: tipo + codice + famiglia */}
         <div className="flex flex-wrap gap-2">
           {product.tipo && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-mikai-50 border border-mikai-200 text-xs font-medium text-mikai-700">
               <Icon icon={MATERIALE_ICONS.package} size={12} />
               {product.tipo}
+            </span>
+          )}
+          {product.famiglia && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-xs font-medium text-purple-700" title="Famiglia prodotto">
+              {product.famiglia}
             </span>
           )}
           {product.codice && (

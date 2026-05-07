@@ -22,6 +22,8 @@ import { formatDate } from '../../lib/date-utils'
 import { useMaterialBulkActions } from './useMaterialBulkActions'
 import { ConsumptionReport } from './ConsumptionReport'
 import { useProductTypes } from '../../hooks/useProductTypes'
+import { useEventTypes } from '../../hooks/useEventTypes'
+import { richiedeSpedizione } from '../../lib/event-flow'
 
 // Section header colors per status group
 const SECTION_STYLES = {
@@ -69,6 +71,9 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const addToast = useToastStore(s => s.add)
   const [applyingTemplate, setApplyingTemplate] = useState(false)
   const { labels: tipoLabels, colors: tipoColors, icons: tipoIcons } = useProductTypes()
+  const { eventTypes } = useEventTypes()
+  const eventType = useMemo(() => eventTypes.find(t => t.codice === event.tipo_evento) || null, [eventTypes, event.tipo_evento])
+  const shippingEnabled = richiedeSpedizione(eventType)
 
   const closedStates = ['concluso', 'cancellato', 'rifiutato']
   const canEdit = hasPermission('richiedi_materiale') && !closedStates.includes(event.stato)
@@ -224,22 +229,20 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     loadData,
   })
 
-  // Map event_material_id → collo info (numero + imballato) aggregating quantities across multi-collo splits
+  // Map event_material_id → collo info. Items in a collo are considered packed.
   const colloByMaterialId = useMemo(() => {
     const map = {}
     for (const p of packingItems) {
       if (!p.event_material_id || p.collo_numero == null) continue
       if (!map[p.event_material_id]) {
-        map[p.event_material_id] = { numeri: new Set(), imballatiCount: 0, totalCount: 0 }
+        map[p.event_material_id] = { numeri: new Set() }
       }
       map[p.event_material_id].numeri.add(p.collo_numero)
-      map[p.event_material_id].totalCount++
-      if (p.imballato) map[p.event_material_id].imballatiCount++
     }
     const result = {}
     for (const [id, info] of Object.entries(map)) {
       const numeri = [...info.numeri].sort((a, b) => a - b)
-      result[id] = { numeri, imballato: info.imballatiCount === info.totalCount && info.totalCount > 0 }
+      result[id] = { numeri, imballato: true }
     }
     return result
   }, [packingItems])
@@ -248,17 +251,22 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const speditoCount = rows.filter(r => r.stato === 'spedito').length
   const allPrepared = rows.length > 0 && pendingCount === 0 && confirmedCount === 0
 
-  // Packing list derived data for readyToShip
+  // Packing list derived data for readyToShip — "in a collo" counts as packed
   const packingColliNumbers = [...new Set(packingItems.map(i => i.collo_numero).filter(n => n != null))]
-  const allPacked = packingItems.length > 0 && packingItems.every(i => i.imballato)
+  const allPacked = packingItems.length > 0 && packingItems.every(i => i.collo_numero != null)
   const readyToShip = allPrepared && allPacked && packingColliNumbers.length > 0 && !event.spedizione_data
 
   // Group rows by status for workflow
+  // For event types without shipping ('richiede_spedizione' = false), 'in_preparazione' is the
+  // terminal state — relabel it as "Pronto" and skip the Spediti group entirely.
+  const inPrepLabel = shippingEnabled ? 'In preparazione' : 'Pronto'
   const groups = [
     { key: 'richiesto', label: 'Da confermare', icon: FEEDBACK_ICONS.warning, color: 'text-yellow-600', rows: rows.filter(r => r.stato === 'richiesto') },
     { key: 'approvato', label: 'Da preparare', icon: MATERIALE_ICONS.package, color: 'text-blue-600', rows: rows.filter(r => r.stato === 'approvato') },
-    { key: 'in_preparazione', label: 'In preparazione', icon: ACTION_ICONS.forward, color: 'text-mikai-600', rows: rows.filter(r => r.stato === 'in_preparazione') },
-    { key: 'spedito', label: 'Spediti', icon: MATERIALE_ICONS.truck, color: 'text-emerald-600', rows: rows.filter(r => r.stato === 'spedito') },
+    { key: 'in_preparazione', label: inPrepLabel, icon: ACTION_ICONS.forward, color: 'text-mikai-600', rows: rows.filter(r => r.stato === 'in_preparazione') },
+    ...(shippingEnabled
+      ? [{ key: 'spedito', label: 'Spediti', icon: MATERIALE_ICONS.truck, color: 'text-emerald-600', rows: rows.filter(r => r.stato === 'spedito') }]
+      : []),
     { key: 'rifiutato', label: 'Rifiutati', icon: ACTION_ICONS.reject, color: 'text-red-500', rows: rows.filter(r => r.stato === 'rifiutato') },
   ].filter(g => g.rows.length > 0)
 
@@ -268,7 +276,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
       <div className={SUMMARY_BAR_STYLE + ' space-y-2'}>
         {/* Row 1: Key info */}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-mikai-600">
-          {event.indirizzo_spedizione && (
+          {shippingEnabled && event.indirizzo_spedizione && (
             <span className="flex items-center gap-1 text-mikai-700 font-medium">
               <Icon icon={MATERIALE_ICONS.truck} size={14} />
               {event.indirizzo_spedizione}
@@ -280,7 +288,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
               Prep. entro: {formatDate(event.deadline_preparazione)}
             </span>
           )}
-          {event.data_spedizione_prevista && (
+          {shippingEnabled && event.data_spedizione_prevista && (
             <span className="flex items-center gap-1">
               <Icon icon={MATERIALE_ICONS.truck} size={14} />
               Sped. entro: {formatDate(event.data_spedizione_prevista)}
@@ -293,8 +301,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
             <span className="text-gray-600">{rows.length} materiali</span>
             {pendingCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.yellow}>{pendingCount} da confermare</span>}
             {confirmedCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.green}>{confirmedCount} confermati</span>}
-            {inPrepCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.mikai}>{inPrepCount} in preparazione</span>}
-            {speditoCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.emerald}>{speditoCount} spediti</span>}
+            {inPrepCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.mikai}>{inPrepCount} {shippingEnabled ? 'in preparazione' : 'pronti'}</span>}
+            {shippingEnabled && speditoCount > 0 && <span className={BADGE_BASE + ' ' + COLOR_BADGE.emerald}>{speditoCount} spediti</span>}
           </div>
         )}
       </div>
@@ -441,6 +449,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                             tipoLabels={tipoLabels}
                             tipoColors={tipoColors}
                             tipoIcons={tipoIcons}
+                            shippingEnabled={shippingEnabled}
                             onUpdate={handleUpdate}
                             onRemove={handleRemove}
                             onConfirm={handleConfirm}
@@ -469,8 +478,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
       {/* Bulk action bar + reject dialog */}
       {bulk.renderBulkBar()}
 
-      {/* Shipping section — event level, driven by packing list data */}
-      {rows.length > 0 && (
+      {/* Shipping section — only for event types that ship material */}
+      {shippingEnabled && rows.length > 0 && (
         <EventMaterialShipping
           event={event}
           packingItems={packingItems}

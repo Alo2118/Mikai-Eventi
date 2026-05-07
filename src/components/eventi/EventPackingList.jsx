@@ -13,18 +13,18 @@ import { ACTION_ICONS, DOCUMENTO_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS } from '
 import { Modal } from '../ui/Modal'
 import { PackingItem } from './PackingItem'
 import { formatDateRange } from '../../lib/date-utils'
-import { INPUT_STYLE, TEXTAREA_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, CARD_STYLE } from '../../lib/constants'
+import { INPUT_STYLE, TEXTAREA_STYLE, FORM_CONTAINER_STYLE, SUMMARY_BAR_STYLE, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 
 export function EventPackingList({ event, onBack }) {
   const items = usePackingListStore(s => s.items)
   const loading = usePackingListStore(s => s.loading)
   const fetchPackingList = usePackingListStore(s => s.fetchPackingList)
   const generatePackingList = usePackingListStore(s => s.generatePackingList)
-  const togglePacked = usePackingListStore(s => s.togglePacked)
   const addManualItem = usePackingListStore(s => s.addManualItem)
   const removeItem = usePackingListStore(s => s.removeItem)
   const fetchEventMaterialList = useMaterialsStore(s => s.fetchEventMaterialList)
   const assignToCollo = usePackingListStore(s => s.assignToCollo)
+  const bulkAssignToCollo = usePackingListStore(s => s.bulkAssignToCollo)
   const splitToCollo = usePackingListStore(s => s.splitToCollo)
 
   const user = useAuthStore(s => s.user)
@@ -56,12 +56,12 @@ export function EventPackingList({ event, onBack }) {
 
   const linkedItems = items.filter(i => i.event_material_id)
   const manualItems = items.filter(i => !i.event_material_id)
-  const packedCount = items.filter(i => i.imballato).length
   const outOfSync = materialCount !== linkedItems.length && linkedItems.length > 0
   const colloNumbers = [...new Set(items.map(i => i.collo_numero).filter(n => n != null))].sort((a, b) => a - b)
   const unassigned = items.filter(i => i.collo_numero == null)
+  const assignedCount = items.length - unassigned.length
   const maxCollo = colloNumbers.length > 0 ? Math.max(...colloNumbers) : 0
-  const allPacked = items.length > 0 && packedCount === items.length
+  const allAssigned = items.length > 0 && unassigned.length === 0
   const hasColli = colloNumbers.length > 0 && unassigned.length === 0
 
   async function handleGenerate() {
@@ -79,11 +79,6 @@ export function EventPackingList({ event, onBack }) {
   function handleGenerateClick() {
     if (items.length > 0) setShowGenerateConfirm(true)
     else handleGenerate()
-  }
-
-  async function handleToggle(item) {
-    const { error } = await togglePacked(item.id, !item.imballato, user?.id)
-    if (error) addToast(`Errore: ${error}`, 'error')
   }
 
   async function handleAddManual() {
@@ -158,13 +153,13 @@ export function EventPackingList({ event, onBack }) {
       {/* Progress summary */}
       {items.length > 0 && (
         <div className={SUMMARY_BAR_STYLE + ' no-print space-y-2'}>
-          <ProgressIndicator label="Imballato" current={packedCount} total={items.length} color={allPacked ? 'green' : 'mikai'} />
+          <ProgressIndicator label="Assegnato a un collo" current={assignedCount} total={items.length} color={allAssigned ? 'green' : 'mikai'} />
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
             <span className={`font-medium ${hasColli ? 'text-emerald-700' : colloNumbers.length > 0 ? 'text-yellow-700' : 'text-gray-500'}`}>
               {colloNumbers.length} {colloNumbers.length === 1 ? 'collo creato' : 'colli creati'}
               {unassigned.length > 0 && ` · ${unassigned.length} da assegnare`}
             </span>
-            {allPacked && hasColli && (
+            {allAssigned && hasColli && (
               <span className="font-medium text-emerald-600 flex items-center gap-1">
                 <Icon icon={ACTION_ICONS.check} size={14} />
                 Pronto per la spedizione
@@ -211,45 +206,83 @@ export function EventPackingList({ event, onBack }) {
         )}
       </div>
 
-      {/* Selection bar — shows when items selected */}
+      {/* Selection bar — sticky, action-first ("seleziona, poi tocca un collo") */}
       {selected.size > 0 && (
-        <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap no-print sticky top-0 z-10'}>
-          <span className="text-sm font-medium text-mikai-700">{selected.size} voci selezionate</span>
-          <span className="text-xs text-mikai-600">Scegli un collo dove spostarle:</span>
+        <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-2 flex-wrap no-print sticky top-0 z-10'}>
+          <span className="text-sm font-semibold text-mikai-700 mr-1">
+            {selected.size} {selected.size === 1 ? 'voce' : 'voci'} selezionate
+          </span>
+          <span className="text-sm text-mikai-600">→ metti in:</span>
+
           {colloNumbers.map(num => (
-            <Button key={`move-${num}`} size="sm" variant="secondary" onClick={async () => {
-              const selectedItems = items.filter(i => selected.has(i.id))
-              for (const item of selectedItems) await assignToCollo(item.id, num)
-              addToast(`${selectedItems.length} voci spostate nel collo ${num}`, 'success')
-              setSelected(new Set())
-            }}>
-              → Collo {num}
-            </Button>
+            <button
+              key={`put-${num}`}
+              type="button"
+              onClick={async () => {
+                const ids = items.filter(i => selected.has(i.id)).map(i => i.id)
+                const { error } = await bulkAssignToCollo(ids, num)
+                if (error) { addToast(error, 'error'); return }
+                addToast(`${ids.length} ${ids.length === 1 ? 'voce' : 'voci'} → Collo ${num}`, 'success')
+                setSelected(new Set())
+                await fetchPackingList(event.id)
+              }}
+              className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg bg-white border-2 border-mikai-300 text-mikai-700 font-semibold text-sm hover:bg-mikai-50 hover:border-mikai-500 transition-colors"
+              aria-label={`Metti nel collo ${num}`}
+            >
+              Collo {num}
+            </button>
           ))}
-          <Button size="sm" onClick={async () => {
-            const nextCollo = maxCollo + 1
-            const selectedItems = items.filter(i => selected.has(i.id))
-            for (const item of selectedItems) await assignToCollo(item.id, nextCollo)
-            addToast(`Collo ${nextCollo} creato con ${selectedItems.length} voci`, 'success')
-            setSelected(new Set())
-          }}>
-            <Icon icon={ACTION_ICONS.add} size={16} className="mr-1" />
-            Nuovo collo
-          </Button>
-          <Button size="sm" variant="ghost" onClick={openAssignModal}>
-            Quantità parziali...
-          </Button>
-          {colloNumbers.length > 0 && (
-            <Button size="sm" variant="ghost" onClick={async () => {
-              const selectedItems = items.filter(i => selected.has(i.id))
-              for (const item of selectedItems) await assignToCollo(item.id, null)
-              addToast(`${selectedItems.length} voci rimosse dai colli`, 'success')
+
+          <button
+            type="button"
+            onClick={async () => {
+              const nextCollo = maxCollo + 1
+              const ids = items.filter(i => selected.has(i.id)).map(i => i.id)
+              const { error } = await bulkAssignToCollo(ids, nextCollo)
+              if (error) { addToast(error, 'error'); return }
+              addToast(`Collo ${nextCollo} creato con ${ids.length} ${ids.length === 1 ? 'voce' : 'voci'}`, 'success')
               setSelected(new Set())
+              await fetchPackingList(event.id)
+            }}
+            className="inline-flex items-center gap-1 min-h-[44px] px-3 rounded-lg bg-mikai-500 text-white font-semibold text-sm hover:bg-mikai-600 transition-colors"
+            aria-label={`Crea nuovo collo ${maxCollo + 1}`}
+          >
+            <Icon icon={ACTION_ICONS.add} size={16} />
+            Nuovo collo {maxCollo + 1}
+          </button>
+
+          <Button size="sm" variant="ghost" onClick={openAssignModal}>
+            Quantità parziali…
+          </Button>
+
+          {colloNumbers.length > 0 && items.filter(i => selected.has(i.id) && i.collo_numero != null).length > 0 && (
+            <Button size="sm" variant="ghost" onClick={async () => {
+              const ids = items.filter(i => selected.has(i.id)).map(i => i.id)
+              const { error } = await bulkAssignToCollo(ids, null)
+              if (error) { addToast(error, 'error'); return }
+              addToast(`${ids.length} ${ids.length === 1 ? 'voce rimossa' : 'voci rimosse'} dai colli`, 'success')
+              setSelected(new Set())
+              await fetchPackingList(event.id)
             }}>
-              Rimuovi dal collo
+              Togli dal collo
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Annulla selezione</Button>
+
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())} className="ml-auto">
+            Annulla
+          </Button>
+        </div>
+      )}
+
+      {/* Hint when nothing is selected yet */}
+      {items.length > 0 && selected.size === 0 && (
+        <div className="text-sm text-gray-500 px-1 no-print flex items-center gap-2">
+          <Icon icon={FEEDBACK_ICONS.info} size={14} className="text-mikai-400" />
+          <span>
+            {unassigned.length > 0
+              ? 'Tocca le voci per selezionarle, poi scegli in quale collo metterle.'
+              : 'Tocca una voce per spostarla in un altro collo o rimetterla tra quelle da assegnare. Usa "Sposta tutto…" sull\'header del collo per agire sull\'intero collo.'}
+          </span>
         </div>
       )}
 
@@ -262,7 +295,6 @@ export function EventPackingList({ event, onBack }) {
               title="Voci da assegnare a un collo"
               count={unassigned.length}
               items={unassigned}
-              onToggle={handleToggle}
               onDelete={i => !i.event_material_id ? setDeleteTarget(i) : null}
               selected={selected}
               onSelect={id => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })}
@@ -271,20 +303,36 @@ export function EventPackingList({ event, onBack }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button size="sm" onClick={async () => {
                     const nextCollo = maxCollo + 1
-                    for (const item of unassigned) await assignToCollo(item.id, nextCollo)
-                    addToast(`Collo ${nextCollo} creato con ${unassigned.length} voci`, 'success')
+                    const ids = unassigned.map(i => i.id)
+                    const { error } = await bulkAssignToCollo(ids, nextCollo)
+                    if (error) { addToast(error, 'error'); return }
+                    addToast(`Collo ${nextCollo} creato con ${ids.length} ${ids.length === 1 ? 'voce' : 'voci'}`, 'success')
+                    await fetchPackingList(event.id)
                   }}>
                     <Icon icon={ACTION_ICONS.add} size={14} className="mr-1" />
-                    Nuovo collo con tutto
+                    {colloNumbers.length === 0 ? 'Tutto in 1 collo' : 'Nuovo collo con tutto'}
                   </Button>
-                  {colloNumbers.map(num => (
-                    <Button key={`move-all-${num}`} size="sm" variant="secondary" onClick={async () => {
-                      for (const item of unassigned) await assignToCollo(item.id, num)
-                      addToast(`${unassigned.length} voci spostate nel collo ${num}`, 'success')
-                    }}>
-                      → Collo {num}
-                    </Button>
-                  ))}
+                  {colloNumbers.length > 0 && (
+                    <select
+                      className={SELECT_STYLE + ' max-w-[200px] text-sm'}
+                      value=""
+                      onChange={async (e) => {
+                        const num = parseInt(e.target.value)
+                        if (!num) return
+                        const ids = unassigned.map(i => i.id)
+                        const { error } = await bulkAssignToCollo(ids, num)
+                        if (error) { addToast(error, 'error'); return }
+                        addToast(`${ids.length} ${ids.length === 1 ? 'voce spostata' : 'voci spostate'} nel collo ${num}`, 'success')
+                        await fetchPackingList(event.id)
+                      }}
+                      aria-label="Sposta tutto in collo esistente"
+                    >
+                      <option value="">Sposta tutto in…</option>
+                      {colloNumbers.map(num => (
+                        <option key={`move-all-${num}`} value={num}>Collo {num}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )}
             />
@@ -292,19 +340,47 @@ export function EventPackingList({ event, onBack }) {
 
           {colloNumbers.map(num => {
             const colloItems = items.filter(i => i.collo_numero === num)
-            const colloPackedCount = colloItems.filter(i => i.imballato).length
+            const otherColli = colloNumbers.filter(n => n !== num)
             return (
               <PackingGroup
                 key={`collo-${num}`}
                 title={`Collo ${num}`}
                 count={colloItems.length}
-                packedCount={colloPackedCount}
                 items={colloItems}
-                onToggle={handleToggle}
                 onDelete={i => !i.event_material_id ? setDeleteTarget(i) : null}
                 selected={selected}
                 onSelect={id => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })}
                 onPrintCollo={() => { setPrintCollo(num); setTimeout(() => { window.print(); setPrintCollo(null) }, 100) }}
+                headerExtra={(
+                  <select
+                    className={SELECT_STYLE + ' text-xs py-1 px-2 min-h-0 h-8 max-w-[200px]'}
+                    value=""
+                    onChange={async (e) => {
+                      const target = e.target.value
+                      if (!target) return
+                      const ids = colloItems.map(i => i.id)
+                      if (target === 'unassign') {
+                        const { error } = await bulkAssignToCollo(ids, null)
+                        if (error) { addToast(error, 'error'); return }
+                        addToast(`Collo ${num} svuotato — voci da riassegnare`, 'success')
+                        await fetchPackingList(event.id)
+                        return
+                      }
+                      const targetNum = parseInt(target)
+                      const { error } = await bulkAssignToCollo(ids, targetNum)
+                      if (error) { addToast(error, 'error'); return }
+                      addToast(`Collo ${num} → Collo ${targetNum}`, 'success')
+                      await fetchPackingList(event.id)
+                    }}
+                    aria-label={`Sposta intero collo ${num}`}
+                  >
+                    <option value="">Sposta tutto…</option>
+                    <option value="unassign">↶ Annulla (torna a "da assegnare")</option>
+                    {otherColli.map(n => (
+                      <option key={`merge-${n}`} value={n}>→ Collo {n}</option>
+                    ))}
+                  </select>
+                )}
               />
             )
           })}
@@ -433,22 +509,22 @@ export function EventPackingList({ event, onBack }) {
   )
 }
 
-function PackingGroup({ title, count, packedCount, items, onToggle, onDelete, selected, onSelect, onPrintCollo, highlight, headerExtra }) {
-  const allDone = packedCount != null && packedCount === count
+function PackingGroup({ title, count, items, onDelete, selected, onSelect, onPrintCollo, highlight, headerExtra }) {
+  const isCollo = !highlight
   return (
     <div className={`border rounded-xl overflow-hidden ${
       highlight ? 'border-yellow-300 bg-yellow-50/30' :
-      allDone ? 'border-emerald-200' : 'border-gray-200'
+      'border-emerald-200'
     }`}>
       <div className={`px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 ${
-        highlight ? 'bg-yellow-50' : allDone ? 'bg-emerald-50' : 'bg-gray-50'
+        highlight ? 'bg-yellow-50' : 'bg-emerald-50'
       }`}>
         <div className="flex items-center gap-2">
-          {allDone && <Icon icon={ACTION_ICONS.check} size={14} className="text-emerald-600" />}
+          {isCollo && <Icon icon={ACTION_ICONS.check} size={14} className="text-emerald-600" />}
           {highlight && <Icon icon={FEEDBACK_ICONS.warning} size={14} className="text-yellow-600" />}
           <span className="font-semibold text-sm text-gray-700">{title}</span>
           <span className="text-sm text-gray-400">
-            {packedCount != null ? `${packedCount}/${count} imballati` : `${count} voci`}
+            {count} {count === 1 ? 'voce' : 'voci'}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap no-print">
@@ -466,26 +542,30 @@ function PackingGroup({ title, count, packedCount, items, onToggle, onDelete, se
         </div>
       </div>
       <div className="p-3 space-y-2">
-        {items.map(item => (
-          <div key={item.id} className="flex items-center gap-2 packing-item">
-            {onSelect && (
-              <input
-                type="checkbox"
-                checked={selected?.has(item.id) || false}
-                onChange={() => onSelect(item.id)}
-                className="w-5 h-5 rounded border-gray-300 text-mikai-500 focus:ring-mikai-400 no-print flex-shrink-0"
-                aria-label={`Seleziona ${item.descrizione} per assegnare a collo`}
-              />
-            )}
-            <div className="flex-1 min-w-0">
+        {items.map(item => {
+          const isSelected = selected?.has(item.id) || false
+          return (
+            <div
+              key={item.id}
+              className={`packing-item rounded-lg transition-all ${
+                isSelected ? 'ring-2 ring-mikai-400 ring-offset-1' : ''
+              }`}
+              onClick={(e) => {
+                if (!onSelect) return
+                if (e.target.closest('button')) return
+                onSelect(item.id)
+              }}
+              role={onSelect ? 'button' : undefined}
+              aria-pressed={onSelect ? isSelected : undefined}
+              aria-label={onSelect ? `${isSelected ? 'Deseleziona' : 'Seleziona'} ${item.descrizione} per assegnare a un collo` : undefined}
+            >
               <PackingItem
                 item={item}
-                onToggle={() => onToggle(item)}
                 onDelete={onDelete ? () => onDelete(item) : null}
               />
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

@@ -4,38 +4,47 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { Icon } from '../ui/Icon'
 import { STATO_EVENTO_COLORE, COLOR_BAND, COLOR_TEXT_600, COLOR_BG_50, COLOR_ICON_STATUS } from '../../lib/constants'
 import { FEEDBACK_ICONS, NAV_ICONS, MATERIALE_ICONS, INFO_EVENTO_ICONS, CATEGORIA_ICONS, ACTION_ICONS } from '../../lib/icons'
-import { formatDateRange, todayISO } from '../../lib/date-utils'
+import { formatDateRange, todayISO, formatDayNumber, formatMonthAbbr } from '../../lib/date-utils'
 import { getPromotoreName } from '../../lib/format-utils'
+import { richiedeSpedizione, richiedeHotel, richiedeTrasporti } from '../../lib/event-flow'
 
 const READINESS_STATES = new Set(['confermato', 'in_preparazione'])
 
-function computeAreas(r, event) {
+function computeAreas(r, event, eventType) {
   const a = r.attivita || { total: 0, completate: 0, inRitardo: 0 }
   const m = r.materiale || { total: 0, approvato: 0, in_preparazione: 0, richiesto: 0, rifiutato: 0, spedito: 0 }
   const l = r.logistica || { hotelTotal: 0, hotelConfermato: 0, trasportoTotal: 0, trasportoConfermato: 0 }
-  const lP = (l.hotelTotal - l.hotelConfermato) + (l.trasportoTotal - l.trasportoConfermato)
+  const shippingNeeded = richiedeSpedizione(eventType) && event?.modalita !== 'contributo'
+  const hotelTracked = richiedeHotel(eventType)
+  const trasportiTracked = richiedeTrasporti(eventType)
+  const hotelPending = hotelTracked ? l.hotelTotal - l.hotelConfermato : 0
+  const trasportiPending = trasportiTracked ? l.trasportoTotal - l.trasportoConfermato : 0
+  const lP = hotelPending + trasportiPending
+  const lTotal = (hotelTracked ? l.hotelTotal : 0) + (trasportiTracked ? l.trasportoTotal : 0)
   const shipped = !!event?.spedizione_data
   return [
     { icon: MATERIALE_ICONS.package, label: 'Materiale', tab: 'materiale',
       ...(m.total === 0 ? { color: 'gray' } : m.rifiutato > 0 ? { text: `${m.rifiutato} rifiutati`, color: 'red' }
         : m.richiesto > 0 ? { text: `${m.richiesto} da confermare`, color: 'yellow' }
-        : event?.modalita !== 'contributo' && !shipped ? { text: 'Da spedire', color: 'yellow' }
+        : shippingNeeded && !shipped ? { text: 'Da spedire', color: 'yellow' }
         : { color: 'green' }) },
     { icon: CATEGORIA_ICONS.organizzazione, label: 'Attività', tab: 'preparazione',
       ...(a.total === 0 ? { color: 'gray' } : a.inRitardo > 0 ? { text: `${a.inRitardo} in ritardo`, color: 'red' }
         : a.completate < a.total ? { text: `${a.total - a.completate} da fare`, color: 'yellow' } : { color: 'green' }) },
-    { icon: NAV_ICONS.logistica, label: 'Spedizione', tab: 'materiale',
-      ...(m.total === 0 ? { color: 'gray' }
-        : shipped || (m.spedito > 0 && m.spedito + (m.rifiutato || 0) >= m.total) ? { text: 'Spedito', color: 'green' }
-        : { text: 'Da spedire', color: 'yellow' }) },
+    ...(shippingNeeded
+      ? [{ icon: NAV_ICONS.logistica, label: 'Spedizione', tab: 'materiale',
+          ...(m.total === 0 ? { color: 'gray' }
+            : shipped || (m.spedito > 0 && m.spedito + (m.rifiutato || 0) >= m.total) ? { text: 'Spedito', color: 'green' }
+            : { text: 'Da spedire', color: 'yellow' }) }]
+      : []),
     { icon: NAV_ICONS.contatti, label: 'Persone', tab: 'logistica',
-      ...(l.hotelTotal + l.trasportoTotal === 0 ? { color: 'gray' }
+      ...(lTotal === 0 ? { color: 'gray' }
         : lP > 0 ? { text: `${lP} da prenotare`, color: 'yellow' } : { color: 'green' }) },
   ]
 }
 
 
-export const EventCard = memo(function EventCard({ event, semaphore, readiness, involvement, currentUserId, tipoLabels, tipoIcons }) {
+export const EventCard = memo(function EventCard({ event, semaphore, readiness, involvement, currentUserId, tipoLabels, tipoIcons, eventType }) {
   const [expanded, setExpanded] = useState(false)
   const navigate = useNavigate()
   const TipoIcon = tipoIcons?.[event.tipo_evento]
@@ -46,7 +55,7 @@ export const EventCard = memo(function EventCard({ event, semaphore, readiness, 
   const isPast = startDate !== null && startDate < today && event.stato !== 'in_corso'
   const promotore = getPromotoreName(event)
   const showReadiness = readiness && READINESS_STATES.has(event.stato)
-  const areas = showReadiness ? computeAreas(readiness, event) : null
+  const areas = showReadiness ? computeAreas(readiness, event, eventType) : null
   const problemAreas = areas ? areas.filter(a => a.color === 'red' || a.color === 'yellow') : []
 
   const inv = involvement || (currentUserId ? {
@@ -80,10 +89,10 @@ export const EventCard = memo(function EventCard({ event, semaphore, readiness, 
             {/* Date — compact on mobile, prominent on desktop */}
             <div className="flex-shrink-0 w-10 md:w-12 text-center">
               <p className="text-base md:text-lg font-bold text-gray-900 leading-none">
-                {startDate ? new Date(startDate).getDate() : '—'}
+                {startDate ? formatDayNumber(startDate) : '—'}
               </p>
               <p className="text-[9px] md:text-[10px] font-medium text-gray-400 uppercase leading-tight">
-                {startDate ? new Date(startDate).toLocaleDateString('it-IT', { month: 'short' }) : ''}
+                {startDate ? formatMonthAbbr(startDate) : ''}
               </p>
             </div>
 
