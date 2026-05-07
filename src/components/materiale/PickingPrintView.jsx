@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { POSIZIONE_MATERIALE, STATO_MATERIALE_LISTA } from '../../lib/constants'
-import { formatDateRange } from '../../lib/date-utils'
+import { formatDateRange, formatDateTime, nowISO } from '../../lib/date-utils'
 
 const POSIZIONE_PRINT_ORDER = ['in_magazzino', 'magazzino_agente', 'in_transito', 'manutenzione', 'presso_evento']
 
@@ -72,7 +72,7 @@ export function PickingPrintView({ event, rows, onClose }) {
       <div className="subtitle">
         {event?.data_inizio && formatDateRange(event.data_inizio, event.data_fine)}
         {event?.luogo && ` · ${event.luogo}`}
-        {' · stampato il '}{new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        {' · stampato il '}{formatDateTime(nowISO())}
       </div>
 
       {groups.length === 0 ? (

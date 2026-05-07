@@ -48,7 +48,7 @@ function ConsuntivoRow({ preventivo, canManage }) {
       note_consuntivo: form.note_consuntivo || null,
     })
     setSaving(false)
-    if (error) { addToast('Errore nel salvataggio', 'error'); return }
+    if (error) { addToast('Non è stato possibile salvare il consuntivo. Riprova.', 'error'); return }
     addToast('Consuntivo salvato', 'success')
     setDirty(false)
   }

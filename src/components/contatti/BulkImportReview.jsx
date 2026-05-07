@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, FEEDBACK_ICONS, TOAST_ICONS } from '../../lib/icons'
-import { TIPOLOGIA_IMPORT } from '../../lib/constants'
+import { TIPOLOGIA_IMPORT, SELECT_STYLE } from '../../lib/constants'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -147,7 +147,7 @@ function RowRight({ result, resolution, onChangeResolution }) {
   return (
     <div className="min-w-[200px]">
       <select
-        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 min-h-[48px] bg-white focus:outline-none focus:ring-2 focus:ring-mikai-400"
+        className={SELECT_STYLE + ' text-sm'}
         value={selectedValue}
         onChange={handleChange}
         aria-label="Scegli come gestire questo contatto"

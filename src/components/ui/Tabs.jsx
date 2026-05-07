@@ -78,7 +78,7 @@ export function Tabs({ tabs, activeTab, onChange }) {
             tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onChange(tab.id)}
             onKeyDown={(e) => handleKeyDown(e, index)}
-            className={`whitespace-nowrap px-2.5 md:px-3 py-2.5 min-h-[44px] text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${
+            className={`whitespace-nowrap px-2.5 md:px-3 py-2.5 min-h-[48px] text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${
               activeTab === tab.id
                 ? 'border-mikai-400 text-mikai-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'

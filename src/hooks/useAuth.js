@@ -8,6 +8,7 @@ export const useAuthStore = create((set, get) => ({
   permissions: [],
   loading: true,
   error: null,
+  _authSubscription: null,
 
   initialize: async () => {
     try {
@@ -21,11 +22,13 @@ export const useAuthStore = create((set, get) => ({
       set({ loading: false, error: err?.message || 'Errore di autenticazione' })
     }
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    // Idempotent: unsubscribe any prior listener before re-attaching (StrictMode + hot reload safe)
+    get()._authSubscription?.unsubscribe?.()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       set({ session, user: session?.user ?? null })
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
-          // Skip loadProfile if profile already loaded for this user (avoids duplicate on INITIAL_SESSION)
           if (get().profile?.id !== session.user.id) {
             await get().loadProfile(session.user.id)
           }
@@ -34,6 +37,7 @@ export const useAuthStore = create((set, get) => ({
         set({ profile: null, permissions: [] })
       }
     })
+    set({ _authSubscription: subscription })
   },
 
   loadProfile: async (userId) => {

@@ -81,9 +81,8 @@ export const ActivityCard = memo(function ActivityCard({
 }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showAssignPicker, setShowAssignPicker] = useState(false)
-  const now = new Date()
-  const deadline = activity.deadline ? new Date(activity.deadline) : null
-  const isOverdue = ['da_fare', 'in_corso'].includes(activity.stato) && deadline && deadline < now
+  const today = todayISO()
+  const isOverdue = ['da_fare', 'in_corso'].includes(activity.stato) && activity.deadline && activity.deadline < today
   const isBlocked = activity.dipendenza && activity.dipendenza.stato !== 'completata'
   const isDocumentType = activity.tipo_verifica === 'documento'
 
@@ -136,7 +135,7 @@ export const ActivityCard = memo(function ActivityCard({
       : null
 
     return (
-      <div className={`bg-white rounded-lg border ${borderColor} overflow-hidden ${isOverdue ? 'ring-1 ring-red-200' : ''}`}>
+      <div className={`bg-white rounded-xl border ${borderColor} overflow-hidden ${isOverdue ? 'ring-1 ring-red-200' : ''}`}>
         <div className="flex">
           <div className={`w-1 shrink-0 ${COLOR_BAND[catColor] || 'bg-gray-300'}`} />
           <div className="flex-1 px-2.5 py-2 space-y-1">
@@ -160,7 +159,7 @@ export const ActivityCard = memo(function ActivityCard({
             </div>
             {/* Row 2: deadline + assignee (colored by role) + actions — unified */}
             <div className="flex items-center gap-1.5 flex-wrap text-xs">
-              {deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
+              {activity.deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
               {assigneeName ? (
                 <button
                   onClick={() => canReassign && setShowAssignPicker(true)}
@@ -294,7 +293,7 @@ export const ActivityCard = memo(function ActivityCard({
       {/* Row 2: meta — role + deadline + assignee */}
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <ResponsabileBadge permesso={activity.permesso_responsabile} />
-        {deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
+        {activity.deadline && <DeadlineBadge deadline={activity.deadline} stato={activity.stato} />}
         {assigneeName ? (
           <button
             onClick={() => canReassign && setShowAssignPicker(true)}

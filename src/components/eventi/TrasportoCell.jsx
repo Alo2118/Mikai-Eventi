@@ -7,7 +7,7 @@ import { formatTime } from '../../lib/date-utils'
 function SingleLeg({ record, onClick, canEdit }) {
   if (record.stato === 'non_necessario') {
     return (
-      <button onClick={canEdit ? onClick : undefined} className={`flex items-center gap-1.5 ${canEdit ? 'hover:bg-gray-100 rounded px-1 -mx-1 cursor-pointer' : ''} transition-colors`} title="Non necessario" type="button">
+      <button onClick={canEdit ? onClick : undefined} className={`flex items-center gap-1.5 min-h-[48px] md:min-h-0 ${canEdit ? 'hover:bg-gray-100 rounded px-1 -mx-1 cursor-pointer' : ''} transition-colors`} title="Non necessario" type="button">
         <StatusDot stato={record.stato} />
         <span className="text-gray-400 italic text-xs">Non nec.</span>
       </button>
@@ -18,7 +18,7 @@ function SingleLeg({ record, onClick, canEdit }) {
   const arrTime = record.orario_arrivo ? formatTime(record.orario_arrivo) : null
   const route = [record.luogo_partenza, record.luogo_arrivo].filter(Boolean).join(' → ')
   return (
-    <button onClick={canEdit ? onClick : undefined} className={`text-left w-full ${canEdit ? 'hover:bg-mikai-50 rounded px-1 -mx-1 cursor-pointer' : ''} transition-colors`} title={`${MEZZO_TRASPORTO[record.mezzo] || ''} — ${STATO_PRENOTAZIONE[record.stato] || ''}`} type="button">
+    <button onClick={canEdit ? onClick : undefined} className={`text-left w-full min-h-[48px] md:min-h-0 ${canEdit ? 'hover:bg-mikai-50 rounded px-1 -mx-1 cursor-pointer' : ''} transition-colors`} title={`${MEZZO_TRASPORTO[record.mezzo] || ''} — ${STATO_PRENOTAZIONE[record.stato] || ''}`} type="button">
       <div className="flex items-center gap-1.5 flex-wrap">
         <StatusDot stato={record.stato} />
         {icon && <Icon icon={icon} size={14} className="text-gray-500" />}

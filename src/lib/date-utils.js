@@ -80,6 +80,14 @@ export function formatDateShort(dateStr) {
   return format(d, 'd MMM', { locale: it })
 }
 
+/** Returns abbreviated month name (e.g. 'mag') for badges/cards */
+export function formatMonthAbbr(dateStr) {
+  if (!dateStr) return ''
+  const d = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr
+  if (!isValid(d)) return ''
+  return format(d, 'MMM', { locale: it })
+}
+
 export function toLocalDateTime(iso) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -161,6 +169,25 @@ export function subtractDays(isoDateString, days) {
     const d = parseISO(isoDateString)
     if (!isValid(d)) return null
     return formatDayISO(subDays(d, days))
+  } catch {
+    return null
+  }
+}
+
+/** Returns YYYY-MM-DD for today + N days (N can be negative) */
+export function addDaysToToday(days) {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return formatDayISO(d)
+}
+
+/** Returns whole days elapsed between an ISO timestamp and now (positive = past) */
+export function daysSince(isoDateString) {
+  if (!isoDateString) return null
+  try {
+    const d = parseISO(isoDateString)
+    if (!isValid(d)) return null
+    return Math.floor((Date.now() - d.getTime()) / 86400000)
   } catch {
     return null
   }

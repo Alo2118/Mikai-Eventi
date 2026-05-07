@@ -240,7 +240,6 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   }
 
   async function handleToggleDocumento(activityId, newTipoVerifica) {
-    const updateActivity = useActivitiesStore.getState().updateActivity
     const { error } = await updateActivity(activityId, { tipo_verifica: newTipoVerifica })
     if (error) {
       addToast('Impossibile aggiornare l\'attività. Riprova.', 'error')

@@ -154,7 +154,7 @@ export function EventProgrammaTab({ event }) {
       ? await updateSubActivity(editingId, payload)
       : await createSubActivity({ ...payload, event_id: event.id })
     setSaving(false)
-    if (result.error) { addToast('Errore nel salvataggio', 'error'); return }
+    if (result.error) { addToast('Non è stato possibile salvare l\'attività. Riprova.', 'error'); return }
     addToast(editingId ? 'Attività aggiornata' : 'Attività aggiunta', 'success')
     closeModal()
   }
@@ -162,7 +162,7 @@ export function EventProgrammaTab({ event }) {
   const handleDelete = async () => {
     if (!editingId) return
     const { error } = await removeSubActivity(editingId)
-    if (error) { addToast('Errore', 'error'); return }
+    if (error) { addToast('Non è stato possibile rimuovere l\'attività. Riprova.', 'error'); return }
     fetchEventPreventivi(event.id)
     addToast('Attività rimossa', 'success')
     closeModal()
@@ -170,7 +170,7 @@ export function EventProgrammaTab({ event }) {
 
   const toggleConfirm = async (sa) => {
     const { error } = await updateSubActivity(sa.id, { confermata: !sa.confermata })
-    if (error) addToast('Errore', 'error')
+    if (error) addToast('Non è stato possibile aggiornare l\'attività. Riprova.', 'error')
   }
 
   const handleApplyTemplate = async () => {

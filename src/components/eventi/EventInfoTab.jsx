@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MODALITA_EVENTO, INPUT_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, CARD_STYLE } from '../../lib/constants'
+import { MODALITA_EVENTO, INPUT_STYLE, INPUT_ERROR_STYLE, SELECT_STYLE, FORM_CONTAINER_STYLE, CARD_STYLE } from '../../lib/constants'
 import { formatDateRange, formatDate } from '../../lib/date-utils'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -30,8 +30,8 @@ function InfoField({ label, value, placeholder }) {
 function InfoSection({ title, icon, children, cols3 }) {
   return (
     <div className={CARD_STYLE + ' space-y-3'}>
-      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-        <Icon icon={icon} size={14} className="text-gray-400" />
+      <h3 className="font-semibold text-lg flex items-center gap-2">
+        <Icon icon={icon} size={18} className="text-gray-400" />
         {title}
       </h3>
       <dl className={`grid grid-cols-2 ${cols3 ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-x-4 gap-y-3`}>
@@ -144,7 +144,7 @@ export function EventInfoTab({ event, onUpdate }) {
   const set = (key) => (e) => setFields(f => ({ ...f, [key]: e.target.value }))
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Status flow + approval bar moved to EventiDetail (always visible across tabs) */}
       {canEdit && !editing && (
         <div className="flex justify-end">
@@ -160,20 +160,20 @@ export function EventInfoTab({ event, onUpdate }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Titolo <span className="text-red-500">*</span></label>
             <input
-              className={INPUT_STYLE + (fieldError('titolo', fields.titolo) ? ' border-red-400 ring-1 ring-red-400' : '')}
+              className={fieldError('titolo', fields.titolo) ? INPUT_ERROR_STYLE : INPUT_STYLE}
               value={fields.titolo}
               onChange={set('titolo')}
               onBlur={() => handleBlur('titolo')}
             />
             {fieldError('titolo', fields.titolo) && (
-              <p className="text-xs text-red-500 mt-1" role="alert">Il titolo è obbligatorio</p>
+              <p className="text-sm text-red-600 mt-1" role="alert">Il titolo è obbligatorio</p>
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo evento <span className="text-red-500">*</span></label>
               <select
-                className={SELECT_STYLE + (fieldError('tipo_evento', fields.tipo_evento) ? ' border-red-400 ring-1 ring-red-400' : '')}
+                className={fieldError('tipo_evento', fields.tipo_evento) ? INPUT_ERROR_STYLE : SELECT_STYLE}
                 value={fields.tipo_evento}
                 onChange={set('tipo_evento')}
                 onBlur={() => handleBlur('tipo_evento')}
@@ -183,7 +183,7 @@ export function EventInfoTab({ event, onUpdate }) {
                 ))}
               </select>
               {fieldError('tipo_evento', fields.tipo_evento) && (
-                <p className="text-xs text-red-500 mt-1" role="alert">Seleziona un tipo evento</p>
+                <p className="text-sm text-red-600 mt-1" role="alert">Seleziona un tipo evento</p>
               )}
             </div>
             <div>
@@ -242,13 +242,13 @@ export function EventInfoTab({ event, onUpdate }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio <span className="text-red-500">*</span></label>
               <input
                 type="date"
-                className={INPUT_STYLE + (fieldError('data_inizio', fields.data_inizio) ? ' border-red-400 ring-1 ring-red-400' : '')}
+                className={fieldError('data_inizio', fields.data_inizio) ? INPUT_ERROR_STYLE : INPUT_STYLE}
                 value={fields.data_inizio}
                 onChange={set('data_inizio')}
                 onBlur={() => handleBlur('data_inizio')}
               />
               {fieldError('data_inizio', fields.data_inizio) && (
-                <p className="text-xs text-red-500 mt-1" role="alert">La data di inizio è obbligatoria</p>
+                <p className="text-sm text-red-600 mt-1" role="alert">La data di inizio è obbligatoria</p>
               )}
             </div>
             <div>

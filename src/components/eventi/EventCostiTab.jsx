@@ -54,7 +54,7 @@ export function EventCostiTab({ event }) {
       fornitore_nome: form.fornitore_nome || null,
       created_by: profile.id,
     })
-    if (error) { addToast('Errore', 'error'); return }
+    if (error) { addToast('Non è stato possibile salvare il preventivo. Riprova.', 'error'); return }
     addToast('Preventivo aggiunto', 'success')
     setShowForm(false)
     setForm({ descrizione: '', importo: '', fornitore_nome: '' })
@@ -66,7 +66,7 @@ export function EventCostiTab({ event }) {
     if (type === 'approve') result = await approvePreventivo(preventivo.id, profile.id, nota)
     else if (type === 'reject') result = await rejectPreventivo(preventivo.id, profile.id, nota)
     else if (type === 'revision') result = await requestRevision(preventivo.id, nota)
-    if (result?.error) { addToast('Errore', 'error'); return }
+    if (result?.error) { addToast('Non è stato possibile aggiornare il preventivo. Riprova.', 'error'); return }
     addToast(type === 'approve' ? 'Approvato' : type === 'reject' ? 'Rifiutato' : 'In revisione', 'success')
     setActionDialog(null)
   }
@@ -100,7 +100,7 @@ export function EventCostiTab({ event }) {
 
       {/* Budget bar */}
       <div className={CARD_STYLE}>
-        <h3 className="font-semibold text-lg mb-3">Budget</h3>
+        <h3 className="font-semibold text-lg">Budget</h3>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span>Previsto</span>

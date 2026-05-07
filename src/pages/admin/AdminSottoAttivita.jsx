@@ -31,7 +31,7 @@ export function AdminSottoAttivita() {
       ? await updateType(editing.id, { nome: nome.trim() })
       : await createType(nome.trim())
     setSaving(false)
-    if (error) { addToast('Errore nel salvataggio', 'error'); return }
+    if (error) { addToast('Non è stato possibile salvare il tipo. Riprova.', 'error'); return }
     addToast(editing?.id ? 'Tipo aggiornato' : 'Tipo creato', 'success')
     setEditing(null)
     setNome('')
@@ -40,7 +40,7 @@ export function AdminSottoAttivita() {
   const handleDelete = async () => {
     const { error } = await deleteType(deleting.id)
     setDeleting(null)
-    if (error) { addToast('Errore', 'error'); return }
+    if (error) { addToast('Non è stato possibile disattivare il tipo. Riprova.', 'error'); return }
     addToast('Tipo disattivato', 'success')
   }
 

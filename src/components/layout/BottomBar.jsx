@@ -34,8 +34,10 @@ export function BottomBar() {
             to={item.to}
             aria-label={item.to === '/notifiche' && unreadCount > 0 ? `Notifiche, ${unreadCount} non lette` : item.label}
             className={({ isActive }) =>
-              `relative flex flex-col items-center justify-center py-2 px-3 min-w-[64px] min-h-[56px] text-sm font-medium ${
-                isActive ? 'text-mikai-400' : 'text-gray-500'
+              `relative flex flex-col items-center justify-center py-2 px-3 min-w-[64px] min-h-[56px] text-sm transition-colors ${
+                isActive
+                  ? 'text-mikai-700 bg-mikai-50 font-semibold'
+                  : 'text-gray-500 font-medium'
               }`
             }
           >

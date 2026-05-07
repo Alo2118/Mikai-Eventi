@@ -227,7 +227,7 @@ export function MaterialeList() {
               onClick={() => setMainTab('oggi')}
               className={`px-5 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-all ${
                 mainTab === 'oggi'
-                  ? 'bg-white text-gray-900 shadow-sm'
+                  ? 'bg-white text-mikai-700 shadow-sm ring-2 ring-mikai-300'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -241,7 +241,7 @@ export function MaterialeList() {
             onClick={() => setMainTab('esemplari')}
             className={`px-5 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-all ${
               mainTab === 'esemplari'
-                ? 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-white text-mikai-700 shadow-sm ring-2 ring-mikai-300'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -254,7 +254,7 @@ export function MaterialeList() {
             onClick={() => setMainTab('stock')}
             className={`px-5 py-2.5 rounded-lg text-sm font-semibold min-h-[48px] transition-all ${
               mainTab === 'stock'
-                ? 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-white text-mikai-700 shadow-sm ring-2 ring-mikai-300'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -536,7 +536,7 @@ export function MaterialeList() {
                   onClick={() => setStockGrouping(opt.id)}
                   className={`px-3 py-2 rounded-md text-sm font-medium min-h-[48px] transition-all ${
                     stockGrouping === opt.id
-                      ? 'bg-white text-gray-900 shadow-sm'
+                      ? 'bg-white text-mikai-700 shadow-sm ring-2 ring-mikai-300'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >

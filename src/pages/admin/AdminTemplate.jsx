@@ -105,7 +105,7 @@ export function AdminTemplate() {
     setSaving(true)
     const { error } = await createTemplate(newTipo, newModalita)
     setSaving(false)
-    if (error) { addToast(error.message || 'Errore', 'error'); return }
+    if (error) { addToast(error.message || 'Non è stato possibile creare il template. Riprova.', 'error'); return }
     addToast('Template creato', 'success')
     setShowNewTemplate(false)
     setNewTipo('')
@@ -141,7 +141,7 @@ export function AdminTemplate() {
   async function handleDeleteChecklist() {
     const { error } = await deleteTemplateItem(deleting.id)
     setDeleting(null)
-    if (error) { addToast(error.message || 'Errore', 'error'); return }
+    if (error) { addToast(error.message || 'Non è stato possibile rimuovere l\'attività. Riprova.', 'error'); return }
     addToast('Attività rimossa dal template', 'success')
     loadItems(selectedTemplate.id)
   }
@@ -161,7 +161,7 @@ export function AdminTemplate() {
   async function handleDeleteProgram() {
     const { error } = await deleteProgramTemplateItem(deletingProgram.id)
     setDeletingProgram(null)
-    if (error) { addToast(error?.message || 'Errore', 'error'); return }
+    if (error) { addToast(error?.message || 'Non è stato possibile rimuovere la voce. Riprova.', 'error'); return }
     addToast('Voce rimossa dal template', 'success')
     loadItems(selectedTemplate.id)
   }
@@ -172,7 +172,7 @@ export function AdminTemplate() {
       ? await updateTemplateMaterial(editingMaterial.id, payload)
       : await createTemplateMaterial(selectedTemplate.id, payload)
     setSaving(false)
-    if (error) { addToast(error?.message || 'Errore', 'error'); return }
+    if (error) { addToast(error?.message || 'Non è stato possibile salvare il materiale. Riprova.', 'error'); return }
     addToast(editingMaterial?.id ? 'Materiale aggiornato' : 'Materiale aggiunto', 'success')
     setEditingMaterial(null)
     loadItems(selectedTemplate.id)
@@ -181,7 +181,7 @@ export function AdminTemplate() {
   async function handleDeleteMaterial() {
     const { error } = await deleteTemplateMaterial(deletingMaterial.id)
     setDeletingMaterial(null)
-    if (error) { addToast(error?.message || 'Errore', 'error'); return }
+    if (error) { addToast(error?.message || 'Non è stato possibile rimuovere il materiale. Riprova.', 'error'); return }
     addToast('Materiale rimosso dal template', 'success')
     loadItems(selectedTemplate.id)
   }
@@ -232,33 +232,42 @@ export function AdminTemplate() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {templates.map(t => (
-              <div
-                key={t.id}
-                className={`relative text-left p-4 rounded-xl border transition-all cursor-pointer ${
-                  selectedTemplate?.id === t.id
-                    ? 'border-mikai-400 bg-mikai-50 ring-2 ring-mikai-200'
-                    : 'border-gray-200 bg-white hover:shadow-md'
-                }`}
-                onClick={() => handleSelectTemplate(t)}
-              >
-                <p className="text-base font-semibold text-gray-900">
-                  {tipoLabels[t.tipo_evento] || t.tipo_evento}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {MODALITA_EVENTO[t.modalita] || t.modalita}
-                  {' · '}{t.items?.filter(i => i.tipo === 'checklist').length || 0} attività
-                  {' · '}{t.items?.filter(i => i.tipo === 'sub_activity').length || 0} programma
-                </p>
-                <button
-                  onClick={e => { e.stopPropagation(); setDeletingTemplate(t) }}
-                  className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1 transition-colors"
-                  aria-label="Elimina template"
+            {templates.map(t => {
+              const isSelected = selectedTemplate?.id === t.id
+              return (
+                <div
+                  key={t.id}
+                  className={`relative text-left p-4 pr-14 rounded-xl border-2 transition-all cursor-pointer ${
+                    isSelected
+                      ? 'border-mikai-400 bg-mikai-50 ring-2 ring-mikai-200'
+                      : 'border-gray-200 bg-white hover:shadow-md'
+                  }`}
+                  onClick={() => handleSelectTemplate(t)}
                 >
-                  <Icon icon={ACTION_ICONS.close} size={16} />
-                </button>
-              </div>
-            ))}
+                  {isSelected && (
+                    <span className="absolute top-2 left-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-mikai-400 text-white" aria-label="Selezionato">
+                      <Icon icon={ACTION_ICONS.check} size={14} />
+                    </span>
+                  )}
+                  <p className={`text-base font-semibold text-gray-900 ${isSelected ? 'pl-8' : ''}`}>
+                    {tipoLabels[t.tipo_evento] || t.tipo_evento}
+                  </p>
+                  <p className={`text-sm text-gray-500 ${isSelected ? 'pl-8' : ''}`}>
+                    {MODALITA_EVENTO[t.modalita] || t.modalita}
+                    {' · '}{t.items?.filter(i => i.tipo === 'checklist').length || 0} attività
+                    {' · '}{t.items?.filter(i => i.tipo === 'sub_activity').length || 0} programma
+                  </p>
+                  <button
+                    onClick={e => { e.stopPropagation(); setDeletingTemplate(t) }}
+                    className="absolute top-1 right-1 text-gray-300 hover:text-red-500 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-lg transition-colors"
+                    aria-label="Elimina template"
+                    title="Elimina template"
+                  >
+                    <Icon icon={ACTION_ICONS.close} size={18} />
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </div>
 

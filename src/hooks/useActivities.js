@@ -325,23 +325,27 @@ export const useActivitiesStore = create((set, get) => ({
       },
     }
 
-    let verified = 0
-    for (const activity of autoActivities) {
-      const checkFn = checks[activity.verifica_automatica]
-      if (checkFn && checkFn()) {
-        await supabase
-          .from('event_activities')
-          .update({
-            stato: 'completata',
-            completata_il: nowISO(),
-            note: 'Verificata automaticamente',
-          })
-          .eq('id', activity.id)
-        verified++
-      }
-    }
+    const idsToComplete = autoActivities
+      .filter(a => {
+        const checkFn = checks[a.verifica_automatica]
+        return checkFn && checkFn()
+      })
+      .map(a => a.id)
 
-    if (verified > 0) await get().fetchEventActivities(eventId)
-    return { verified }
+    if (idsToComplete.length === 0) return { verified: 0 }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase
+      .from('event_activities')
+      .update({
+        stato: 'completata',
+        completata_il: nowISO(),
+        completata_da: user?.id || null,
+        note: 'Verificata automaticamente',
+      })
+      .in('id', idsToComplete)
+
+    await get().fetchEventActivities(eventId)
+    return { verified: idsToComplete.length }
   },
 }))

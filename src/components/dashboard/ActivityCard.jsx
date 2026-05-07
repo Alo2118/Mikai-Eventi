@@ -81,7 +81,7 @@ export const ActivityCard = memo(function ActivityCard({ act, onComplete, onAssi
           <button
             onClick={() => onComplete(act.id)}
             disabled={completing === act.id}
-            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-green-700 bg-white border border-green-200 hover:bg-green-50 rounded-lg transition-colors min-h-[40px] min-w-[40px] shadow-sm"
+            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-green-700 bg-white border border-green-200 hover:bg-green-50 rounded-lg transition-colors min-h-[48px] min-w-[48px] shadow-sm"
             aria-label={`Completa attività: ${act.descrizione}`}
             title="Completa"
           >
@@ -91,7 +91,7 @@ export const ActivityCard = memo(function ActivityCard({ act, onComplete, onAssi
           {!act.assegnato && (
             <button
               onClick={() => onAssign(act.id)}
-              className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-mikai-700 bg-white border border-mikai-200 hover:bg-mikai-50 rounded-lg transition-colors min-h-[40px] min-w-[40px] shadow-sm"
+              className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-mikai-700 bg-white border border-mikai-200 hover:bg-mikai-50 rounded-lg transition-colors min-h-[48px] min-w-[48px] shadow-sm"
               aria-label={`Assegna a me: ${act.descrizione}`}
               title="Assegna a me"
             >

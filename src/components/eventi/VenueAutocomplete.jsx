@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
 import { useToastStore } from '../ui/Toast'
-import { FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { FORM_CONTAINER_STYLE, INPUT_STYLE, INPUT_ERROR_STYLE } from '../../lib/constants'
 
 export function VenueAutocomplete({ value, onChange, onSelect, onBlur, error }) {
   const [query, setQuery] = useState(value || '')
@@ -59,9 +59,7 @@ export function VenueAutocomplete({ value, onChange, onSelect, onBlur, error }) 
         onChange={(e) => { setQuery(e.target.value); onChange(e.target.value) }}
         onFocus={() => { if (results.length > 0) setShowDropdown(true) }}
         onBlur={() => onBlur && onBlur()}
-        className={`w-full px-4 py-3 text-base border rounded-lg min-h-[48px] focus:ring-2 ${
-          error ? 'border-red-400 ring-2 ring-red-300 focus:ring-red-400' : 'border-gray-300 focus:ring-mikai-400'
-        }`}
+        className={error ? INPUT_ERROR_STYLE : INPUT_STYLE}
         placeholder="Cerca sede o digita il nome..."
         aria-invalid={!!error}
       />
@@ -93,16 +91,16 @@ export function VenueAutocomplete({ value, onChange, onSelect, onBlur, error }) 
         <div className={'mt-3 ' + FORM_CONTAINER_STYLE + ' space-y-3'}>
           <h4 className="text-base font-semibold text-gray-900">Nuova sede</h4>
           <input type="text" value={newVenue.nome} onChange={(e) => setNewVenue({ ...newVenue, nome: e.target.value })}
-            placeholder="Nome sede" className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400" />
+            placeholder="Nome sede" className={INPUT_STYLE} />
           <input type="text" value={newVenue.indirizzo} onChange={(e) => setNewVenue({ ...newVenue, indirizzo: e.target.value })}
-            placeholder="Indirizzo" className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400" />
+            placeholder="Indirizzo" className={INPUT_STYLE} />
           <div className="grid grid-cols-3 gap-3">
             <input type="text" value={newVenue.cap} onChange={(e) => setNewVenue({ ...newVenue, cap: e.target.value })}
-              placeholder="CAP" className="px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400" />
+              placeholder="CAP" className={INPUT_STYLE} />
             <input type="text" value={newVenue.citta} onChange={(e) => setNewVenue({ ...newVenue, citta: e.target.value })}
-              placeholder="Città" className="px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400" />
+              placeholder="Città" className={INPUT_STYLE} />
             <input type="text" value={newVenue.provincia} onChange={(e) => setNewVenue({ ...newVenue, provincia: e.target.value.toUpperCase().slice(0, 2) })}
-              placeholder="Prov." maxLength={2} className="px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px] focus:ring-2 focus:ring-mikai-400" />
+              placeholder="Prov." maxLength={2} className={INPUT_STYLE} />
           </div>
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setShowNewForm(false)}>Annulla</Button>

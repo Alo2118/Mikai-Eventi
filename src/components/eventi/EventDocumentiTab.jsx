@@ -48,10 +48,8 @@ export function EventDocumentiTab({ event, onShowPackingList }) {
   const replaceInputRef = useRef(null)
 
   useEffect(() => {
-    if (event?.id) {
-      fetchEventDocuments(event.id)
-      fetchEventActivities(event.id)
-    }
+    if (event?.id) fetchEventDocuments(event.id)
+    // attività già caricate da EventiDetail; fetchEventActivities resta per i refresh post-azione (riga 136)
   }, [event?.id])
 
   const isAdminOrDirezione = profile && ['admin', 'direzione'].includes(profile.ruolo)

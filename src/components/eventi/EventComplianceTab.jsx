@@ -94,7 +94,7 @@ export function EventComplianceTab({ event }) {
 
   const handleSaveInterazione = async (data) => {
     const { error } = await createInterazione(data)
-    if (error) { addToast('Errore nel salvataggio', 'error'); return }
+    if (error) { addToast('Non è stato possibile salvare l\'interazione. Riprova.', 'error'); return }
     addToast('Interazione registrata', 'success')
     setShowInterazione(false)
     fetchInterazioni({ evento_id: event.id })
@@ -133,8 +133,8 @@ export function EventComplianceTab({ event }) {
       </div>
 
       {/* ToV list */}
-      <div>
-        <h3 className="font-semibold text-lg mb-3">Trasferimenti di valore</h3>
+      <div className="space-y-3">
+        <h3 className="font-semibold text-lg">Trasferimenti di valore</h3>
         {tovLoading ? (
           <LoadingSkeleton lines={3} />
         ) : tovList.length === 0 ? (
@@ -168,8 +168,8 @@ export function EventComplianceTab({ event }) {
       </div>
 
       {/* Interazioni list */}
-      <div>
-        <h3 className="font-semibold text-lg mb-3">Interazioni HCP</h3>
+      <div className="space-y-3">
+        <h3 className="font-semibold text-lg">Interazioni HCP</h3>
         {interazioniLoading ? (
           <LoadingSkeleton lines={3} />
         ) : interazioni.length === 0 ? (

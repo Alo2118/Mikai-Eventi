@@ -107,7 +107,7 @@ function SidebarLink({ item, compact }) {
     <NavLink
       to={item.to}
       className={({ isActive }) =>
-        `flex items-center gap-3 ${compact ? 'px-4 py-2 text-sm' : 'px-4 py-2.5 text-base'} rounded-lg font-medium min-h-[44px] transition-colors ${
+        `flex items-center gap-3 ${compact ? 'px-4 py-2 text-sm' : 'px-4 py-2.5 text-base'} rounded-lg font-medium min-h-[48px] transition-colors ${
           isActive
             ? 'bg-mikai-50 text-mikai-700'
             : 'text-gray-700 hover:bg-gray-50'
