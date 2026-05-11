@@ -43,25 +43,25 @@ function RientroCard({ movement, hideContext, onNavigate }) {
     <button
       type="button"
       onClick={() => onNavigate(`/eventi/${evento?.id}`)}
-      className={`w-full text-left rounded-lg border px-3 py-2.5 hover:shadow-sm transition-all min-h-[48px] flex items-center gap-3 ${
+      className={`w-full text-left rounded-lg border px-3 py-2.5 hover:shadow-sm transition-all min-h-[48px] flex items-start gap-3 ${
         urgente ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
       }`}
     >
       <Icon
         icon={urgente ? FEEDBACK_ICONS.warning : MATERIALE_ICONS.rientro}
         size={18}
-        className={`shrink-0 ${urgente ? 'text-red-500' : 'text-yellow-500'}`}
+        className={`shrink-0 mt-0.5 ${urgente ? 'text-red-500' : 'text-yellow-500'}`}
       />
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-gray-900 text-base truncate">
+        <p className="font-semibold text-gray-900 text-base">
           {materiale?.nome || 'Materiale sconosciuto'}
           {materiale?.codice_inventario && (
             <span className="ml-2 text-sm font-normal text-gray-400">{materiale.codice_inventario}</span>
           )}
         </p>
-        <p className="text-sm text-gray-500 truncate">{meta}</p>
+        <p className="text-sm text-gray-500">{meta}</p>
       </div>
-      <span className={`shrink-0 text-sm font-bold whitespace-nowrap ${urgente ? 'text-red-600' : 'text-yellow-600'}`}>
+      <span className={`shrink-0 mt-0.5 text-sm font-bold whitespace-nowrap ${urgente ? 'text-red-600' : 'text-yellow-600'}`}>
         +{giorni} gg
       </span>
     </button>
