@@ -1,31 +1,59 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { monthFloorISO } from '../lib/date-utils'
 
 const EVENTS_PAGE_SIZE = 25
 const EVENTS_SELECT = 'id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, promotore_contact_id, manager_user_id, spedizione_data, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)'
 
-function buildEventQuery(filters, roleFilter, from, to) {
+// Strip characters that have special meaning inside a PostgREST `.or()` filter string.
+function sanitizeSearch(value) {
+  return (value || '').replace(/[,()*]/g, ' ').trim()
+}
+
+function buildEventQuery(filters, roleFilter, involvedIds, from, to) {
+  const { search, stato, tipo, mese, periodo, promotore, onlyMine } = filters
+  const { userId, ruolo, showAll } = roleFilter
+
   let query = supabase
     .from('events')
     .select(EVENTS_SELECT, { count: 'exact' })
-    .order('data_inizio', { ascending: true })
+    // For "Tutto" (no time window) show the most recent first; otherwise soonest first.
+    .order('data_inizio', { ascending: periodo !== 'past' })
 
-  const { search, stato, tipo, mese } = filters
-  const { userId, ruolo, showAll } = roleFilter
-
+  // Role-based visibility (legacy)
   if (!showAll && userId && ruolo === 'commerciale') query = query.eq('promotore_id', userId)
   if (!showAll && userId && ruolo === 'area_manager') query = query.eq('manager_user_id', userId)
 
+  // "I miei": promotore OR manager OR (assigned as staff / on an open activity)
+  if (onlyMine && userId) {
+    const ors = [`promotore_id.eq.${userId}`, `manager_user_id.eq.${userId}`]
+    if (involvedIds && involvedIds.length) ors.push(`id.in.(${involvedIds.join(',')})`)
+    query = query.or(ors.join(','))
+  }
+
   if (stato) query = query.eq('stato', stato)
   if (tipo) query = query.eq('tipo_evento', tipo)
-  if (search) query = query.ilike('titolo', `%${search}%`)
+  const s = sanitizeSearch(search)
+  if (s) query = query.or(`titolo.ilike.%${s}%,luogo.ilike.%${s}%`)
+  if (promotore) {
+    const [t, id] = promotore.split(':')
+    query = t === 'contact' ? query.eq('promotore_contact_id', id) : query.eq('promotore_id', id)
+  }
+
+  // Time window — an explicit month (calendar) takes precedence over the list's period selector.
   if (mese) {
     const startDate = `${mese.year}-${String(mese.month).padStart(2, '0')}-01`
     const endMonth = mese.month === 12 ? 1 : mese.month + 1
     const endYear = mese.month === 12 ? mese.year + 1 : mese.year
     const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`
     query = query.lt('data_inizio', endDate).gte('data_fine', startDate)
+  } else if (periodo === '3months') {
+    // Events not finished before this month, AND starting within ~3 months (or still awaiting approval).
+    query = query.gte('data_fine', monthFloorISO(0)).or(`data_inizio.lt.${monthFloorISO(3)},stato.eq.proposto`)
+  } else if (periodo === 'all') {
+    query = query.gte('data_fine', monthFloorISO(0))
   }
+  // periodo === 'past' → no time constraint
 
   return query.range(from, to)
 }
@@ -46,16 +74,39 @@ export const useEventsStore = create((set, get) => {
     stato: '',
     tipo: '',
     mese: null,
+    periodo: '3months',
+    promotore: '',
+    onlyMine: false,
+  },
+  // Cache of event ids the current user is involved in (staff / open activity), for the "I miei" filter.
+  myInvolvedIds: [],
+
+  refreshMyInvolvedIds: async () => {
+    const userId = get().roleFilter.userId
+    if (!userId) { set({ myInvolvedIds: [] }); return [] }
+    const [staffRes, actRes] = await Promise.all([
+      supabase.from('event_staff').select('event_id').eq('user_id', userId),
+      supabase.from('event_activities').select('event_id').eq('assegnato_a', userId).in('stato', ['da_fare', 'in_corso']),
+    ])
+    const ids = [...new Set([
+      ...(staffRes.data || []).map(r => r.event_id),
+      ...(actRes.data || []).map(r => r.event_id),
+    ])].filter(Boolean)
+    set({ myInvolvedIds: ids })
+    return ids
   },
 
   setFilter: (key, value) => {
     set((s) => ({ filters: { ...s.filters, [key]: value }, page: 0, events: [], hasMore: true }))
     clearTimeout(filterDebounceTimer)
-    filterDebounceTimer = setTimeout(() => get().fetchEvents(), 300)
+    filterDebounceTimer = setTimeout(async () => {
+      if (get().filters.onlyMine) await get().refreshMyInvolvedIds()
+      get().fetchEvents()
+    }, 300)
   },
 
   resetFilters: () => {
-    set({ filters: { search: '', stato: '', tipo: '', mese: null }, page: 0, events: [], hasMore: true })
+    set({ filters: { search: '', stato: '', tipo: '', mese: null, periodo: '3months', promotore: '', onlyMine: false }, page: 0, events: [], hasMore: true })
     clearTimeout(filterDebounceTimer)
     get().fetchEvents()
   },
@@ -78,7 +129,7 @@ export const useEventsStore = create((set, get) => {
     const to = from + pageSize - 1
 
     set({ loading: true, error: null })
-    const query = buildEventQuery(get().filters, get().roleFilter, from, to)
+    const query = buildEventQuery(get().filters, get().roleFilter, get().myInvolvedIds, from, to)
     const { data, error, count } = await query
     const rows = data || []
     set({
@@ -99,7 +150,7 @@ export const useEventsStore = create((set, get) => {
     const to = from + pageSize - 1
 
     set({ loadingMore: true })
-    const query = buildEventQuery(get().filters, get().roleFilter, from, to)
+    const query = buildEventQuery(get().filters, get().roleFilter, get().myInvolvedIds, from, to)
     const { data, error, count } = await query
     const rows = data || []
     set((s) => ({

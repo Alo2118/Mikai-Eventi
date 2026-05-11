@@ -17,7 +17,7 @@ export function EventFilters({ promotori, filterPromotore, onFilterPromotore, vi
   const resetFilters = useEventsStore(s => s.resetFilters)
   const { eventTypes } = useEventTypes()
 
-  const hasFilters = filters.search || filters.stato || filters.tipo || filterPromotore
+  const hasFilters = filters.search || filters.stato || filters.tipo || filterPromotore || onlyMine || (viewMode && viewMode !== '3months')
 
   return (
     <div className="px-4 md:px-6 py-3">
@@ -104,7 +104,7 @@ export function EventFilters({ promotori, filterPromotore, onFilterPromotore, vi
         {/* Azzera */}
         {hasFilters && (
           <button
-            onClick={() => { resetFilters(); onFilterPromotore?.('') }}
+            onClick={resetFilters}
             className="inline-flex items-center gap-1 px-2 min-h-[48px] text-sm text-gray-500 hover:text-gray-700"
           >
             <Icon icon={ACTION_ICONS.clearFilter} size={14} />

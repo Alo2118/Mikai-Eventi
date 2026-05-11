@@ -212,6 +212,11 @@ export function isOnOrBefore(isoA, isoB) {
   return isoA <= isoB
 }
 
+// First day (ISO yyyy-mm-dd) of the month `offsetMonths` away from today (negative = past).
+export function monthFloorISO(offsetMonths = 0) {
+  return formatDayISO(startOfMonth(addMonths(new Date(), offsetMonths)))
+}
+
 // --- Date range presets (TimeRangeFilter) ---
 
 export function getMonthRange() {

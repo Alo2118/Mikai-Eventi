@@ -82,21 +82,19 @@ export function EventiList() {
   const [semaphores, setSemaphores] = useState({})
   const [readinessMap, setReadinessMap] = useState({})
   const [involvementMap, setInvolvementMap] = useState({})
-  const [onlyMine, setOnlyMine] = useState(false)
   const [attentionExpanded, setAttentionExpanded] = useState(false)
-  const [filterPromotore, setFilterPromotore] = useState('')
 
   useEffect(() => {
     if (!user || !profile) return
     const searchFromUrl = searchParams.get('search') || ''
-    useEventsStore.setState({ filters: { search: searchFromUrl, stato: '', tipo: '', mese: null }, page: 0, events: [], hasMore: true })
+    useEventsStore.setState({ filters: { search: searchFromUrl, stato: '', tipo: '', mese: null, periodo: '3months', promotore: '', onlyMine: false }, myInvolvedIds: [], page: 0, events: [], hasMore: true })
     setRoleFilter(user.id, ruolo)
   }, [user?.id, profile?.id])
 
   // Scroll to top when filters change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [filters.search, filters.stato, filters.tipo, filters.mese])
+  }, [filters.search, filters.stato, filters.tipo, filters.periodo, filters.promotore, filters.onlyMine])
 
   // Fetch semaphores + readiness data for events in preparation states
   useEffect(() => {
@@ -169,18 +167,7 @@ export function EventiList() {
     return { upcoming: upcoming.length, proposti: proposti.length, inPrep: inPrep.length, past: past.length, total: events.length }
   }, [events, today])
 
-  // Extended client-side search (titolo + luogo + promotore)
-  const searchFiltered = useMemo(() => {
-    if (!filters.search) return events
-    const s = filters.search.toLowerCase()
-    return events.filter(e =>
-      e.titolo?.toLowerCase().includes(s) ||
-      e.luogo?.toLowerCase().includes(s) ||
-      (getPromotoreName(e) || '').toLowerCase().includes(s)
-    )
-  }, [events, filters.search])
-
-  // Promotore filter (client-side) — includes both users and agent contacts
+  // Promotori for the dropdown — built from the currently loaded events (users + agent contacts)
   const promotori = useMemo(() => {
     const map = new Map()
     for (const e of events) {
@@ -190,56 +177,21 @@ export function EventiList() {
     return [...map.values()].sort((a, b) => (a.cognome || '').localeCompare(b.cognome || ''))
   }, [events])
 
+  // Stato/tipo/promotore/periodo/"I miei" are server-side; here we only do an instant
+  // titolo+luogo narrowing for the brief window before the debounced re-fetch lands.
   const filteredEvents = useMemo(() => {
-    let result = searchFiltered
-    if (filterPromotore) {
-      const [type, id] = filterPromotore.split(':')
-      result = type === 'contact'
-        ? result.filter(e => e.promotore_agente?.id === id)
-        : result.filter(e => e.promotore?.id === id)
-    }
-    if (onlyMine) {
-      result = result.filter(e => involvementMap[e.id])
-    }
-    return result
-  }, [searchFiltered, filterPromotore, onlyMine, involvementMap])
+    if (!filters.search) return events
+    const s = filters.search.toLowerCase()
+    return events.filter(e => e.titolo?.toLowerCase().includes(s) || e.luogo?.toLowerCase().includes(s))
+  }, [events, filters.search])
 
-  // View mode: '3months' (default), 'all', 'past'
-  const [viewMode, setViewMode] = useState('3months')
   const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-
-  const threeMonthsLater = useMemo(() => {
-    const d = new Date()
-    d.setMonth(d.getMonth() + 3)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  }, [])
-
-  // Include future events + past events still open (not concluso/cancellato/rifiutato)
   const CLOSED_STATES = ['concluso', 'cancellato', 'rifiutato']
-  const futureEvents = useMemo(() => filteredEvents.filter(e =>
-    e.data_inizio >= today || !CLOSED_STATES.includes(e.stato)
-  ), [filteredEvents, today])
-
-  // Period counts for labels
-  const threeMonthCount = useMemo(() => {
-    return futureEvents.filter(e => {
-      const d = new Date(e.data_inizio)
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      return k >= currentMonthKey && k <= threeMonthsLater
-    }).length
-  }, [futureEvents, currentMonthKey, threeMonthsLater])
 
   const monthGroups = useMemo(() => {
-    if (viewMode === 'past') return groupByMonth(filteredEvents)
-    if (viewMode === 'all') return groupByMonth(futureEvents)
-    // Default: future events within 3 months
-    const threeMonthEvents = futureEvents.filter(e => {
-      const d = new Date(e.data_inizio)
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      return k <= threeMonthsLater
-    })
-    return groupByMonth(threeMonthEvents)
-  }, [filteredEvents, futureEvents, viewMode, threeMonthsLater])
+    const groups = groupByMonth(filteredEvents)
+    return filters.periodo === 'past' ? [...groups].reverse() : groups
+  }, [filteredEvents, filters.periodo])
 
   // "Richiede attenzione" events
   const attentionEvents = useMemo(() => {
@@ -330,12 +282,12 @@ export function EventiList() {
       {/* Row 2: All filters in one row */}
       <EventFilters
         promotori={promotori}
-        filterPromotore={filterPromotore}
-        onFilterPromotore={setFilterPromotore}
-        viewMode={!loading && events.length > 0 ? viewMode : undefined}
-        onViewMode={!loading && events.length > 0 ? setViewMode : undefined}
-        onlyMine={onlyMine}
-        onToggleMine={() => setOnlyMine(!onlyMine)}
+        filterPromotore={filters.promotore}
+        onFilterPromotore={(v) => setFilter('promotore', v)}
+        viewMode={filters.periodo}
+        onViewMode={(v) => setFilter('periodo', v)}
+        onlyMine={filters.onlyMine}
+        onToggleMine={() => setFilter('onlyMine', !filters.onlyMine)}
       />
 
       {/* Row 3: Active filter chips + count + alert summary */}
@@ -379,13 +331,23 @@ export function EventiList() {
               <Icon name="close" size={14} />
             </button>
           )}
-          {filterPromotore && (
+          {filters.promotore && (
             <button
-              onClick={() => setFilterPromotore('')}
+              onClick={() => setFilter('promotore', '')}
               className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label="Rimuovi filtro promotore"
             >
-              {(() => { const p = promotori.find(p => p._key === filterPromotore); return p ? `${p.cognome} ${p.nome}` : 'Promotore' })()}
+              {(() => { const p = promotori.find(p => p._key === filters.promotore); return p ? `${p.cognome} ${p.nome}` : 'Promotore' })()}
+              <Icon name="close" size={14} />
+            </button>
+          )}
+          {filters.onlyMine && (
+            <button
+              onClick={() => setFilter('onlyMine', false)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
+              aria-label="Rimuovi filtro: solo i miei eventi"
+            >
+              Solo i miei
               <Icon name="close" size={14} />
             </button>
           )}
