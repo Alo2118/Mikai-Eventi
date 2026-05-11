@@ -1,13 +1,35 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMaterialAnalyticsStore } from '../../hooks/useMaterialAnalytics'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { MATERIALE_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { GROUP_HEADING_STYLE } from '../../lib/constants'
+import { GROUP_RIENTRI, groupReturns } from '../../lib/logistics-utils'
 import { formatDate, daysFromToday } from '../../lib/date-utils'
 
-function RientroCard({ movement, onNavigate }) {
+const GROUPBY_KEY = 'eventi.logistica.rientri.groupBy'
+const VALID_GROUPBY = GROUP_RIENTRI.map(g => g.id)
+
+function loadGroupBy() {
+  try {
+    const raw = localStorage.getItem(GROUPBY_KEY)
+    return VALID_GROUPBY.includes(raw) ? raw : 'urgenza'
+  } catch {
+    return 'urgenza'
+  }
+}
+
+function saveGroupBy(value) {
+  try {
+    localStorage.setItem(GROUPBY_KEY, value)
+  } catch {
+    // localStorage non disponibile — ignora silenziosamente
+  }
+}
+
+function RientroCard({ movement, hideContext, onNavigate }) {
   const { materiale, evento, responsabile, data_rientro_prevista } = movement
   const giorni = daysFromToday(data_rientro_prevista)
   const urgente = giorni >= 7
@@ -34,8 +56,10 @@ function RientroCard({ movement, onNavigate }) {
             {materiale?.codice_inventario && (
               <p className="text-sm text-gray-500">{materiale.codice_inventario}</p>
             )}
-            <p className="text-sm text-gray-500 truncate mt-0.5">{evento?.titolo || '—'}</p>
-            {responsabile && (
+            {hideContext !== 'evento' && (
+              <p className="text-sm text-gray-500 truncate mt-0.5">{evento?.titolo || '—'}</p>
+            )}
+            {hideContext !== 'responsabile' && responsabile && (
               <p className="text-sm text-gray-500 mt-0.5">
                 Presso: {responsabile.nome} {responsabile.cognome}
               </p>
@@ -56,13 +80,33 @@ function RientroCard({ movement, onNavigate }) {
   )
 }
 
+function GroupHeader({ group }) {
+  const accentText =
+    group.accent === 'red' ? 'text-red-600' : group.accent === 'yellow' ? 'text-yellow-600' : 'text-gray-700'
+  const accentIcon =
+    group.accent === 'red' ? FEEDBACK_ICONS.warning : group.accent === 'yellow' ? MATERIALE_ICONS.rientro : null
+
+  return (
+    <div className={`${GROUP_HEADING_STYLE} flex items-center justify-between gap-2`}>
+      <span className={`flex items-center gap-2 min-w-0 ${accentText}`}>
+        {accentIcon && <Icon icon={accentIcon} size={16} className="shrink-0" />}
+        <span className="font-medium truncate">{group.label}</span>
+        {group.sublabel && <span className="text-gray-500 font-normal truncate">· {group.sublabel}</span>}
+      </span>
+      <span className="shrink-0 text-gray-600 font-semibold">{group.count}</span>
+    </div>
+  )
+}
+
 export function LogisticaRientri() {
   const overdueReturns = useMaterialAnalyticsStore(s => s.overdueReturns)
   const loading = useMaterialAnalyticsStore(s => s.overdueLoading)
   const fetchOverdueReturns = useMaterialAnalyticsStore(s => s.fetchOverdueReturns)
   const navigate = useNavigate()
+  const [groupBy, setGroupBy] = useState(loadGroupBy)
 
   useEffect(() => { fetchOverdueReturns() }, [])
+  useEffect(() => { saveGroupBy(groupBy) }, [groupBy])
 
   if (loading) return <div className="px-4 md:px-8 py-4"><LoadingSkeleton lines={4} /></div>
 
@@ -75,14 +119,40 @@ export function LogisticaRientri() {
     )
   }
 
+  const groups = groupReturns(overdueReturns, groupBy)
+  const hideContext = groupBy === 'evento' ? 'evento' : groupBy === 'responsabile' ? 'responsabile' : null
+
   return (
-    <div className="px-4 md:px-8 py-4">
-      <p className="text-sm text-gray-500 mb-4">
+    <div className="px-4 md:px-8 py-4 space-y-4">
+      <p className="text-sm text-gray-500">
         {overdueReturns.length} materiale{overdueReturns.length !== 1 ? 'i' : ''} con rientro scaduto
       </p>
-      <div className="space-y-3">
-        {overdueReturns.map(m => (
-          <RientroCard key={m.id} movement={m} onNavigate={navigate} />
+      <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Raggruppa i rientri">
+        <span className="text-sm text-gray-400">Raggruppa per:</span>
+        <div className="flex rounded-lg bg-gray-100 p-0.5">
+          {GROUP_RIENTRI.map(g => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setGroupBy(g.id)}
+              aria-pressed={groupBy === g.id}
+              className={`px-3 py-1 rounded-md text-sm font-medium min-h-[48px] md:min-h-0 transition-colors ${
+                groupBy === g.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-6">
+        {groups.map(group => (
+          <div key={group.key} className="space-y-3">
+            {group.label !== null && <GroupHeader group={group} />}
+            {group.items.map(m => (
+              <RientroCard key={m.id} movement={m} hideContext={hideContext} onNavigate={navigate} />
+            ))}
+          </div>
         ))}
       </div>
     </div>
