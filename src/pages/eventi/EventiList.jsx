@@ -17,7 +17,7 @@ import { NAV_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { TIPO_EVENTO, STATO_EVENTO } from '../../lib/constants'
 import { useEventTypes } from '../../hooks/useEventTypes'
-import { formatDate, todayISO } from '../../lib/date-utils'
+import { formatDate, todayISO, monthFloorISO } from '../../lib/date-utils'
 import { getPromotoreName } from '../../lib/format-utils'
 
 const EXPORT_COLUMNS_EVENTI = [
@@ -189,7 +189,14 @@ export function EventiList() {
   const CLOSED_STATES = ['concluso', 'cancellato', 'rifiutato']
 
   const monthGroups = useMemo(() => {
-    const groups = groupByMonth(filteredEvents)
+    // On "3 mesi", far-future events that loaded only because they're still in approval
+    // belong in "Richiede attenzione", not in the by-month list.
+    let list = filteredEvents
+    if (filters.periodo === '3months') {
+      const m3 = monthFloorISO(3)
+      list = filteredEvents.filter(e => !e.data_inizio || e.data_inizio < m3)
+    }
+    const groups = groupByMonth(list)
     return filters.periodo === 'past' ? [...groups].reverse() : groups
   }, [filteredEvents, filters.periodo])
 
