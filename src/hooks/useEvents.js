@@ -88,6 +88,9 @@ export const useEventsStore = create((set, get) => {
       supabase.from('event_staff').select('event_id').eq('user_id', userId),
       supabase.from('event_activities').select('event_id').eq('assegnato_a', userId).in('stato', ['da_fare', 'in_corso']),
     ])
+    if (staffRes.error || actRes.error) {
+      console.warn('refreshMyInvolvedIds:', staffRes.error?.message || actRes.error?.message)
+    }
     const ids = [...new Set([
       ...(staffRes.data || []).map(r => r.event_id),
       ...(actRes.data || []).map(r => r.event_id),

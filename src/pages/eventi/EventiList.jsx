@@ -58,8 +58,6 @@ export function EventiList() {
   const fetchEvents = useEventsStore(s => s.fetchEvents)
   const loadMore = useEventsStore(s => s.loadMore)
   const setRoleFilter = useEventsStore(s => s.setRoleFilter)
-  const setShowAll = useEventsStore(s => s.setShowAll)
-  const showAll = useEventsStore(s => s.roleFilter.showAll)
   const filters = useEventsStore(s => s.filters)
   const setFilter = useEventsStore(s => s.setFilter)
   const profile = useAuthStore(s => s.profile)
@@ -321,7 +319,7 @@ export function EventiList() {
           {filters.stato && (
             <button
               onClick={() => setFilter('stato', '')}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 min-h-[48px] bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label={`Rimuovi filtro stato: ${STATO_EVENTO[filters.stato]}`}
             >
               {STATO_EVENTO[filters.stato]}
@@ -331,7 +329,7 @@ export function EventiList() {
           {filters.tipo && (
             <button
               onClick={() => setFilter('tipo', '')}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 min-h-[48px] bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label={`Rimuovi filtro tipo: ${tipoLabels[filters.tipo] || filters.tipo}`}
             >
               {tipoLabels[filters.tipo] || filters.tipo}
@@ -341,7 +339,7 @@ export function EventiList() {
           {filters.promotore && (
             <button
               onClick={() => setFilter('promotore', '')}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 min-h-[48px] bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label="Rimuovi filtro promotore"
             >
               {(() => { const p = promotori.find(p => p._key === filters.promotore); return p ? `${p.cognome} ${p.nome}` : 'Promotore' })()}
@@ -351,7 +349,7 @@ export function EventiList() {
           {filters.onlyMine && (
             <button
               onClick={() => setFilter('onlyMine', false)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 min-h-[48px] bg-mikai-100 text-mikai-700 hover:bg-mikai-200 rounded-full text-sm font-medium transition-colors"
               aria-label="Rimuovi filtro: solo i miei eventi"
             >
               Solo i miei
