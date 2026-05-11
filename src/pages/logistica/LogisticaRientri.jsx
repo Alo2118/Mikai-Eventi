@@ -33,49 +33,37 @@ function RientroCard({ movement, hideContext, onNavigate }) {
   const { materiale, evento, responsabile, data_rientro_prevista } = movement
   const giorni = daysFromToday(data_rientro_prevista)
   const urgente = giorni >= 7
+  const meta = [
+    hideContext !== 'evento' ? (evento?.titolo || 'Senza evento') : null,
+    hideContext !== 'responsabile' && responsabile ? `Presso ${responsabile.nome} ${responsabile.cognome}` : null,
+    `prev. ${formatDate(data_rientro_prevista)}`,
+  ].filter(Boolean).join(' · ')
 
   return (
     <button
       type="button"
       onClick={() => onNavigate(`/eventi/${evento?.id}`)}
-      className={`w-full text-left rounded-xl border p-4 hover:shadow-md transition-all min-h-[48px] ${
+      className={`w-full text-left rounded-lg border px-3 py-2.5 hover:shadow-sm transition-all min-h-[48px] flex items-center gap-3 ${
         urgente ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <Icon
-            icon={urgente ? FEEDBACK_ICONS.warning : MATERIALE_ICONS.rientro}
-            size={20}
-            className={urgente ? 'text-red-500 mt-0.5 shrink-0' : 'text-yellow-500 mt-0.5 shrink-0'}
-          />
-          <div className="min-w-0">
-            <p className="font-semibold text-gray-900 text-base truncate">
-              {materiale?.nome || 'Materiale sconosciuto'}
-            </p>
-            {materiale?.codice_inventario && (
-              <p className="text-sm text-gray-500">{materiale.codice_inventario}</p>
-            )}
-            {hideContext !== 'evento' && (
-              <p className="text-sm text-gray-500 truncate mt-0.5">{evento?.titolo || '—'}</p>
-            )}
-            {hideContext !== 'responsabile' && responsabile && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                Presso: {responsabile.nome} {responsabile.cognome}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className={`text-sm font-bold ${urgente ? 'text-red-600' : 'text-yellow-600'}`}>
-            +{giorni} gg
-          </span>
-          <span className="text-sm text-red-600 font-medium">in ritardo</span>
-        </div>
+      <Icon
+        icon={urgente ? FEEDBACK_ICONS.warning : MATERIALE_ICONS.rientro}
+        size={18}
+        className={`shrink-0 ${urgente ? 'text-red-500' : 'text-yellow-500'}`}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-gray-900 text-base truncate">
+          {materiale?.nome || 'Materiale sconosciuto'}
+          {materiale?.codice_inventario && (
+            <span className="ml-2 text-sm font-normal text-gray-400">{materiale.codice_inventario}</span>
+          )}
+        </p>
+        <p className="text-sm text-gray-500 truncate">{meta}</p>
       </div>
-      <p className="mt-2 text-sm text-gray-500">
-        Rientro previsto: {formatDate(data_rientro_prevista)}
-      </p>
+      <span className={`shrink-0 text-sm font-bold whitespace-nowrap ${urgente ? 'text-red-600' : 'text-yellow-600'}`}>
+        +{giorni} gg
+      </span>
     </button>
   )
 }
@@ -145,9 +133,9 @@ export function LogisticaRientri() {
           ))}
         </div>
       </div>
-      <div className="space-y-6">
+      <div className="space-y-5">
         {groups.map(group => (
-          <div key={group.key} className="space-y-3">
+          <div key={group.key} className="space-y-2">
             {group.label !== null && <GroupHeader group={group} />}
             {group.items.map(m => (
               <RientroCard key={m.id} movement={m} hideContext={hideContext} onNavigate={navigate} />
