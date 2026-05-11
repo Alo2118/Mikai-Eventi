@@ -86,6 +86,7 @@ export function AdminProdotti() {
     const payload = {
       nome: editing.nome || '', brand_id: editing.brand_id || null,
       tipo: editing.tipo || 'demo_kit', codice: editing.codice || null,
+      famiglia: editing.famiglia?.trim() || null,
       descrizione: editing.descrizione || null, foto_url: editing.foto_url || null,
       attivo: editing.attivo !== false, serializzato: editing.serializzato === true,
     }
