@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { ACTION_ICONS, ADMIN_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
@@ -17,7 +18,7 @@ export function AdminProdottiForm({
   handleTipoChange, handleSerializzatoChange,
   // Save / navigation
   handleSave, onCancel,
-  filteredProducts, goToProduct,
+  filteredProducts, goToProduct, allFamilies,
   // Kit
   kitContents, newPiece, setNewPiece,
   editingPiece, editingPieceData, setEditingPieceData,
@@ -38,6 +39,16 @@ export function AdminProdottiForm({
   const currentIndex = editing?.id ? filteredProducts.findIndex(p => p.id === editing.id) : -1
   const canGoPrev = currentIndex > 0
   const canGoNext = currentIndex >= 0 && currentIndex < filteredProducts.length - 1
+
+  // Famiglia: select fra le esistenti + voce "+ Nuova famiglia…" che rivela un campo testo
+  const familyOptions = (allFamilies && allFamilies.length)
+    ? allFamilies
+    : [...new Set((filteredProducts || []).map(p => p.famiglia).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  const famValue = editing.famiglia || ''
+  const famInList = !!famValue && familyOptions.includes(famValue)
+  const [famManual, setFamManual] = useState(false)
+  useEffect(() => { setFamManual(false) }, [editing?.id])
+  const showFamInput = famManual || (!!famValue && !famInList)
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -145,19 +156,43 @@ export function AdminProdottiForm({
           </div>
           <div>
             <label htmlFor="prod-famiglia" className="block text-sm font-medium text-gray-700 mb-1">Famiglia</label>
-            <input
+            <select
               id="prod-famiglia"
-              className={INPUT_STYLE}
-              value={editing.famiglia || ''}
-              onChange={e => setEditing({ ...editing, famiglia: e.target.value })}
-              placeholder="Es. CFix, Sawbones cadaver"
-              list="prod-famiglia-options"
-            />
-            <datalist id="prod-famiglia-options">
-              {[...new Set((filteredProducts || []).map(p => p.famiglia).filter(Boolean))]
-                .sort((a, b) => a.localeCompare(b))
-                .map(f => <option key={f} value={f} />)}
-            </datalist>
+              className={SELECT_STYLE}
+              value={showFamInput ? '__new__' : famValue}
+              onChange={e => {
+                const v = e.target.value
+                if (v === '__new__') { setFamManual(true); setEditing({ ...editing, famiglia: '' }) }
+                else { setFamManual(false); setEditing({ ...editing, famiglia: v || null }) }
+              }}
+            >
+              <option value="">— Nessuna</option>
+              {familyOptions.map(f => <option key={f} value={f}>{f}</option>)}
+              <option value="__new__">+ Nuova famiglia…</option>
+            </select>
+            {showFamInput && (
+              <div className="mt-2 flex gap-2">
+                <input
+                  className={INPUT_STYLE}
+                  value={editing.famiglia || ''}
+                  onChange={e => setEditing({ ...editing, famiglia: e.target.value })}
+                  placeholder="Nome nuova famiglia"
+                  list="prod-famiglia-options"
+                  autoFocus
+                  aria-label="Nome nuova famiglia"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setFamManual(false); setEditing({ ...editing, famiglia: null }) }}
+                  className="shrink-0 min-h-[48px] px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  Annulla
+                </button>
+                <datalist id="prod-famiglia-options">
+                  {familyOptions.map(f => <option key={f} value={f} />)}
+                </datalist>
+              </div>
+            )}
           </div>
         </div>
         <div>

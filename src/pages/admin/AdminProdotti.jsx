@@ -334,7 +334,7 @@ export function AdminProdotti() {
             handleTipoChange={handleTipoChange}
             handleSerializzatoChange={(val) => h.handleSerializzatoChange(val, editing, setEditing)}
             handleSave={handleSave} onCancel={() => setEditing(null)}
-            filteredProducts={filteredProducts} goToProduct={goToProduct}
+            filteredProducts={filteredProducts} goToProduct={goToProduct} allFamilies={allFamilies}
             kitContents={h.kitContents} newPiece={h.newPiece} setNewPiece={h.setNewPiece}
             editingPiece={h.editingPiece} editingPieceData={h.editingPieceData} setEditingPieceData={h.setEditingPieceData}
             handleAddPiece={() => h.handleAddPiece(editing.id)} handleDeletePiece={(id) => h.handleDeletePiece(id, editing.id)}
