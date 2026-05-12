@@ -3,6 +3,7 @@ import { useAdminStore } from '../../hooks/useAdmin'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useToastStore } from '../../components/ui/Toast'
+import { STOCK_MOTIVO } from '../../lib/constants'
 
 const SERIALIZED_TYPES = new Set(['demo_kit', 'strumentario', 'montaggio'])
 
@@ -20,12 +21,12 @@ export function useAdminProdottiHandlers() {
   const updateSpecimen = useAdminStore(s => s.updateSpecimen)
   const deleteSpecimen = useAdminStore(s => s.deleteSpecimen)
   const fetchProductStock = useAdminStore(s => s.fetchProductStock)
-  const updateProductStock = useAdminStore(s => s.updateProductStock)
   const adjustStock = useAdminStore(s => s.adjustStock)
+  const setStockLocationQty = useAdminStore(s => s.setStockLocationQty)
+  const reverseStockAdjustment = useAdminStore(s => s.reverseStockAdjustment)
   const fetchStockHistory = useAdminStore(s => s.fetchStockHistory)
-  const updateStockAdjustment = useAdminStore(s => s.updateStockAdjustment)
-  const deleteStockAdjustment = useAdminStore(s => s.deleteStockAdjustment)
   const fetchStockLocations = useAdminStore(s => s.fetchStockLocations)
+  const fetchCommittedStock = useAdminStore(s => s.fetchCommittedStock)
   const addToast = useToastStore(s => s.add)
   const currentUserId = useAuthStore(s => s.user?.id)
   const fetchMagazzini = useMaterialsStore(s => s.fetchMagazzini)
@@ -47,13 +48,13 @@ export function useAdminProdottiHandlers() {
 
   // Stock state
   const [stock, setStock] = useState({ quantita_disponibile: 0, soglia_minima: 0 })
-  const [stockSaving, setStockSaving] = useState(false)
-  const [lottoQty, setLottoQty] = useState('')
-  const [lottoMotivo, setLottoMotivo] = useState('')
-  const [lottoSaving, setLottoSaving] = useState(false)
-  const [stockHistory, setStockHistory] = useState([])
-  const [showHistory, setShowHistory] = useState(false)
+  const [committed, setCommitted] = useState(0)
   const [stockLocations, setStockLocations] = useState([])
+  const [stockHistory, setStockHistory] = useState([])
+  const [historyHasMore, setHistoryHasMore] = useState(false)
+  const [historyLimit, setHistoryLimit] = useState(50)
+  const [stockBusy, setStockBusy] = useState(false)
+  const [loadingMoreHistory, setLoadingMoreHistory] = useState(false)
   const [magazzini, setMagazzini] = useState([])
   const [agenti, setAgenti] = useState([])
 
@@ -61,6 +62,15 @@ export function useAdminProdottiHandlers() {
     fetchMagazzini().then(r => setMagazzini(r.data || []))
     fetchAgenti().then(r => setAgenti(r.data || []))
   }, [])
+
+  const resetStockState = () => {
+    setStock({ quantita_disponibile: 0, soglia_minima: 0 })
+    setCommitted(0)
+    setStockLocations([])
+    setStockHistory([])
+    setHistoryHasMore(false)
+    setHistoryLimit(50)
+  }
 
   const loadRelated = useCallback(async (product) => {
     if (product.id) {
@@ -71,43 +81,42 @@ export function useAdminProdottiHandlers() {
         ])
         setKitContents(kcRes.data || [])
         setSpecimens(spRes.data || [])
-        setStock({ quantita_disponibile: 0, soglia_minima: 0 })
-        setStockHistory([])
-        setStockLocations([])
+        resetStockState()
       } else {
-        const [kcRes, stRes, histRes, locRes] = await Promise.all([
+        const [kcRes, stRes, histRes, locRes, commRes] = await Promise.all([
           fetchKitContents(product.id),
           fetchProductStock(product.id),
-          fetchStockHistory(product.id),
+          fetchStockHistory(product.id, 50),
           fetchStockLocations(product.id),
+          fetchCommittedStock(product.id),
         ])
         setKitContents(kcRes.data || [])
         setSpecimens([])
         setStock({ quantita_disponibile: stRes.data?.quantita_disponibile ?? 0, soglia_minima: stRes.data?.soglia_minima ?? 0 })
         setStockHistory(histRes.data || [])
+        setHistoryHasMore(!!histRes.hasMore)
+        setHistoryLimit(50)
         setStockLocations(locRes.data || [])
+        setCommitted(commRes.data || 0)
       }
     } else {
       setKitContents([])
       setSpecimens([])
-      setStock({ quantita_disponibile: 0, soglia_minima: 0 })
+      resetStockState()
     }
-  }, [fetchKitContents, fetchProductSpecimens, fetchProductStock, fetchStockHistory, fetchStockLocations])
+  }, [fetchKitContents, fetchProductSpecimens, fetchProductStock, fetchStockHistory, fetchStockLocations, fetchCommittedStock])
 
   const resetEditState = () => {
     setNewPiece({ piece_name: '', piece_code: '', quantity: 1 })
     setNewSpecimen({ codice_inventario: '', posizione_attuale: 'in_magazzino', note: '' })
     setEditingSpecimen(null)
-    setLottoQty('')
-    setLottoMotivo('')
-    setShowHistory(false)
   }
 
   const resetAllState = () => {
     setKitContents([])
     setSpecimens([])
     resetEditState()
-    setStock({ quantita_disponibile: 0, soglia_minima: 0 })
+    resetStockState()
   }
 
   // Kit
@@ -214,53 +223,64 @@ export function useAdminProdottiHandlers() {
   }
 
   // Stock
-  const handleSaveStock = async (productId) => {
-    if (!productId) return
-    setStockSaving(true)
-    const { error } = await updateProductStock(productId, stock.quantita_disponibile, stock.soglia_minima)
-    setStockSaving(false)
-    if (error) { addToast(error, 'error'); return }
-    addToast('Stock aggiornato', 'success')
-  }
-
-  const handleCaricaLotto = async (productId, magazzinoId, agentUserId) => {
-    const delta = parseInt(lottoQty)
-    if (!productId || !delta || delta <= 0) return
-    if (!magazzinoId && !agentUserId) { addToast('Seleziona una destinazione', 'warning'); return }
-    setLottoSaving(true)
-    const { error, quantitaDopo } = await adjustStock(productId, delta, lottoMotivo || 'Carico lotto', currentUserId, magazzinoId || null, agentUserId || null)
-    setLottoSaving(false)
-    if (error) { addToast(error, 'error'); return }
-    setStock(s => ({ ...s, quantita_disponibile: quantitaDopo }))
-    setLottoQty('')
-    setLottoMotivo('')
-    const [histRes, locRes] = await Promise.all([fetchStockHistory(productId), fetchStockLocations(productId)])
-    setStockHistory(histRes.data || [])
-    setStockLocations(locRes.data || [])
-    addToast(`+${delta} pz caricati`, 'success')
-  }
-
-  const reloadStockData = async (productId) => {
-    const [histRes, locRes, stRes] = await Promise.all([
-      fetchStockHistory(productId), fetchStockLocations(productId), fetchProductStock(productId),
+  const reloadStockData = async (productId, limit = historyLimit) => {
+    const [histRes, locRes, stRes, commRes] = await Promise.all([
+      fetchStockHistory(productId, limit),
+      fetchStockLocations(productId),
+      fetchProductStock(productId),
+      fetchCommittedStock(productId),
     ])
     setStockHistory(histRes.data || [])
+    setHistoryHasMore(!!histRes.hasMore)
     setStockLocations(locRes.data || [])
-    setStock({ quantita_disponibile: stRes.data?.quantita_disponibile ?? 0, soglia_minima: stRes.data?.soglia_minima ?? stock.soglia_minima })
+    setStock(s => ({ quantita_disponibile: stRes.data?.quantita_disponibile ?? 0, soglia_minima: stRes.data?.soglia_minima ?? s.soglia_minima }))
+    setCommitted(commRes.data || 0)
   }
 
-  const handleUpdateAdjustment = async (adjId, productId, newDelta, newMotivo) => {
-    const { error } = await updateStockAdjustment(adjId, productId, newDelta, newMotivo)
-    if (error) { addToast(error, 'error'); return }
+  const handleCaricaLotto = async (productId, qty, motivo, magazzinoId, agentUserId) => {
+    const delta = parseInt(qty, 10)
+    if (!productId || !delta || delta <= 0) return { error: 'Quantità non valida' }
+    if (!magazzinoId && !agentUserId) { addToast('Seleziona una destinazione', 'warning'); return { error: 'Destinazione mancante' } }
+    setStockBusy(true)
+    const { error } = await adjustStock(productId, delta, motivo?.trim() || STOCK_MOTIVO.caricoLotto, currentUserId, magazzinoId || null, agentUserId || null)
+    setStockBusy(false)
+    if (error) { addToast(error, 'error'); return { error } }
     await reloadStockData(productId)
-    addToast('Movimento aggiornato', 'success')
+    addToast(`+${delta} pz caricati`, 'success')
+    return { error: null }
   }
 
-  const handleDeleteAdjustment = async (adjId, productId) => {
-    const { error } = await deleteStockAdjustment(adjId, productId)
-    if (error) { addToast(error, 'error'); return }
+  const handleRettificaPosizione = async (productId, magazzinoId, agentUserId, targetQty, motivo) => {
+    if (!productId) return { error: 'Prodotto non valido' }
+    setStockBusy(true)
+    const { error, delta } = await setStockLocationQty(productId, magazzinoId, agentUserId, targetQty, currentUserId, motivo?.trim() || STOCK_MOTIVO.rettifica)
+    setStockBusy(false)
+    if (error) { addToast(error, 'error'); return { error } }
+    if (delta === 0) { addToast('La giacenza era già corretta', 'success'); return { error: null } }
     await reloadStockData(productId)
-    addToast('Movimento eliminato', 'success')
+    addToast('Giacenza rettificata', 'success')
+    return { error: null }
+  }
+
+  const handleReverseAdjustment = async (adjId, productId) => {
+    if (!productId) return { error: 'Prodotto non valido' }
+    setStockBusy(true)
+    const { error } = await reverseStockAdjustment(adjId, productId, currentUserId)
+    setStockBusy(false)
+    if (error) { addToast(error, 'error'); return { error } }
+    await reloadStockData(productId)
+    addToast('Movimento stornato', 'success')
+    return { error: null }
+  }
+
+  const handleLoadMoreHistory = async (productId) => {
+    const newLimit = historyLimit + 50
+    setLoadingMoreHistory(true)
+    const res = await fetchStockHistory(productId, newLimit)
+    setLoadingMoreHistory(false)
+    setHistoryLimit(newLimit)
+    setStockHistory(res.data || [])
+    setHistoryHasMore(!!res.hasMore)
   }
 
   const handleSerializzatoChange = async (val, editing, setEditing) => {
@@ -269,11 +289,10 @@ export function useAdminProdottiHandlers() {
       if (val) {
         const { data: sp } = await fetchProductSpecimens(editing.id)
         setSpecimens(sp || [])
-        setStock({ quantita_disponibile: 0, soglia_minima: 0 })
       } else {
         setSpecimens([])
-        const { data: st } = await fetchProductStock(editing.id)
-        setStock({ quantita_disponibile: st?.quantita_disponibile ?? 0, soglia_minima: st?.soglia_minima ?? 0 })
+        await reloadStockData(editing.id, 50)
+        setHistoryLimit(50)
       }
     }
   }
@@ -292,11 +311,11 @@ export function useAdminProdottiHandlers() {
     handleAddSpecimen, handleStartEditSpecimen, handleSaveSpecimen, handleDeleteSpecimen,
     nextInventoryCode,
     // Stock
-    stock, setStock, stockSaving,
-    lottoQty, setLottoQty, lottoMotivo, setLottoMotivo, lottoSaving,
-    stockHistory, showHistory, setShowHistory, stockLocations,
+    stock, setStock, committed,
+    stockLocations, stockHistory, historyHasMore,
+    stockBusy, loadingMoreHistory,
     magazzini, agenti,
-    handleSaveStock, handleCaricaLotto, handleUpdateAdjustment, handleDeleteAdjustment,
+    handleCaricaLotto, handleRettificaPosizione, handleReverseAdjustment, handleLoadMoreHistory,
     handleSerializzatoChange,
   }
 }

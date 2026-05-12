@@ -316,6 +316,8 @@ export const MATERIALE_ICONS = {
   trasferimento: ArrowRightLeft,
   manutenzione: Wrench,
   gadget: Gift,
+  rettifica: Scale,
+  storno: RotateCcw,
   produttore: Building2,
   distributore: Handshake,
   inLista: Clock,

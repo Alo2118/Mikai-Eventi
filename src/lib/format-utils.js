@@ -5,6 +5,11 @@ export function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+// Signed delta for stock movements: +5 / -3 / 0
+export function formatStockDelta(delta) {
+  return delta > 0 ? `+${delta}` : `${delta}`
+}
+
 const currencyFormatter = new Intl.NumberFormat('it-IT', {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,

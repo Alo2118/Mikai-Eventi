@@ -50,8 +50,8 @@ export function AdminProdottiSpecimens({
   return (
     <>
       <div className={CARD_STYLE + ' md:p-6'}>
-        <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between min-h-[48px]">
-          <h3 className="font-semibold text-lg">Esemplari</h3>
+        <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full flex items-center justify-between min-h-[48px]">
+          <span className="font-semibold text-lg">Esemplari</span>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">{specimens.length} registrati</span>
             <Icon icon={ACTION_ICONS.chevron_right} size={18} className={open ? 'rotate-90 transition-transform' : 'transition-transform'} />
@@ -149,7 +149,7 @@ export function AdminProdottiSpecimens({
               <p className="text-sm font-medium text-gray-700">Aggiungi esemplare</p>
               <div className="flex flex-col md:flex-row gap-3">
                 <div className="flex-1">
-                  <label htmlFor="specimen-codice" className="block text-sm text-gray-600 mb-1">Cod. inventario <span className="text-red-500">*</span></label>
+                  <label htmlFor="specimen-codice" className="block text-sm font-medium text-gray-700 mb-1">Cod. inventario <span className="text-red-500">*</span></label>
                   <input
                     id="specimen-codice"
                     className={INPUT_STYLE}
@@ -159,7 +159,7 @@ export function AdminProdottiSpecimens({
                   />
                 </div>
                 <div className="flex-1">
-                  <label htmlFor="specimen-posizione" className="block text-sm text-gray-600 mb-1">Posizione</label>
+                  <label htmlFor="specimen-posizione" className="block text-sm font-medium text-gray-700 mb-1">Posizione</label>
                   <select
                     id="specimen-posizione"
                     className={SELECT_STYLE}

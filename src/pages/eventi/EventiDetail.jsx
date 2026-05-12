@@ -335,6 +335,8 @@ export function EventiDetail() {
   }
 
   const DOSSIER_STATES = ['confermato', 'in_preparazione', 'pronto', 'in_corso', 'concluso']
+  const canRientro = event.stato === 'concluso' && hasPermission('gestione_magazzino') && eventMaterials.some(m => m.stato !== 'rifiutato')
+  const canDossier = DOSSIER_STATES.includes(event.stato)
 
   const handleGenerateDossier = async () => {
     setGenerating(true)
@@ -394,14 +396,14 @@ export function EventiDetail() {
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {event.stato === 'concluso' && hasPermission('gestione_magazzino') && eventMaterials.some(m => m.stato !== 'rifiutato') && (
+        <div className="flex items-center gap-3 shrink-0">
+          {canRientro && (
             <Button variant="secondary" onClick={() => setShowReturnModal(true)} className="shrink-0">
               <Icon icon={MAGAZZINO_ICONS.rientro} size={16} className="mr-1.5" />
               Registra rientro
             </Button>
           )}
-          {DOSSIER_STATES.includes(event.stato) && (
+          {canDossier && (
             <Button variant="secondary" onClick={handleGenerateDossier} loading={generating} className="shrink-0">
               <Icon icon={DOCUMENTO_ICONS.dossier} size={16} className="mr-1.5" />
               Riepilogo
@@ -409,6 +411,24 @@ export function EventiDetail() {
           )}
         </div>
       </div>
+
+      {/* Azioni evento — mobile (su desktop sono nella barra titolo sopra) */}
+      {!showPackingList && (canRientro || canDossier) && (
+        <div className="md:hidden flex gap-3 px-4 pt-2">
+          {canRientro && (
+            <Button size="sm" variant="secondary" onClick={() => setShowReturnModal(true)} className="flex-1">
+              <Icon icon={MAGAZZINO_ICONS.rientro} size={16} className="mr-1.5" />
+              Registra rientro
+            </Button>
+          )}
+          {canDossier && (
+            <Button size="sm" variant="secondary" onClick={handleGenerateDossier} loading={generating} className="flex-1">
+              <Icon icon={DOCUMENTO_ICONS.dossier} size={16} className="mr-1.5" />
+              Riepilogo
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Status flow — sempre visibile, su tutte le tab */}
       {!showPackingList && (

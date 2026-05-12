@@ -91,15 +91,15 @@ export function AdminProdotti() {
       attivo: editing.attivo !== false, serializzato: editing.serializzato === true,
     }
     const isNew = !editing.id
-    if (isNew && !payload.serializzato && h.stock.soglia_minima > 0) {
-      payload.soglia_minima = h.stock.soglia_minima
+    if (!payload.serializzato) {
+      payload.soglia_minima = h.stock.soglia_minima ?? 0
     }
     const res = isNew ? await createProduct(payload) : await updateProduct(editing.id, payload)
-    if (res.error) { setSaving(false); addToast(res.error, 'error'); return }
+    if (res.error) { setSaving(false); console.warn('Errore salvataggio prodotto:', res.error); addToast('Non siamo riusciti a salvare il prodotto. Riprova.', 'error'); return }
     const productId = isNew ? res.data?.id : editing.id
     if (productId) {
       const sectRes = await setProductBodySections(productId, selectedSections)
-      if (sectRes?.error) { addToast('Errore salvataggio distretti: ' + sectRes.error, 'error') }
+      if (sectRes?.error) { console.warn('Errore salvataggio distretti:', sectRes.error); addToast('Prodotto salvato, ma non siamo riusciti ad aggiornare i distretti anatomici.', 'error') }
     }
     setSaving(false)
     addToast(isNew ? 'Prodotto creato' : 'Prodotto aggiornato', 'success')
@@ -108,7 +108,7 @@ export function AdminProdotti() {
 
   const handleDelete = async () => {
     const { error } = await deleteProduct(deleting.id)
-    if (error) { addToast(error, 'error') } else { addToast('Prodotto eliminato', 'success') }
+    if (error) { console.warn('Errore eliminazione prodotto:', error); addToast('Non siamo riusciti a eliminare il prodotto. Riprova.', 'error') } else { addToast('Prodotto eliminato', 'success') }
     setDeleting(null)
   }
 
@@ -145,6 +145,7 @@ export function AdminProdotti() {
   }
 
   const columns = [
+    { key: 'codice', label: 'Codice', render: (r) => r.codice ? <span className="text-sm font-mono text-gray-500">{r.codice}</span> : <span className="text-sm text-gray-300">—</span> },
     { key: 'nome', label: 'Nome', render: (r) => (
       <div className="flex items-center gap-3">
         {r.foto_url ? (
@@ -157,8 +158,8 @@ export function AdminProdotti() {
         <span>{r.nome}</span>
       </div>
     )},
-    { key: 'codice', label: 'Codice', render: (r) => r.codice ? <span className="text-sm font-mono text-gray-500">{r.codice}</span> : <span className="text-sm text-gray-300">—</span> },
     { key: 'brand_nome', label: 'Brand', render: (r) => r.brand?.nome || '-' },
+    { key: 'famiglia', label: 'Famiglia', render: (r) => r.famiglia ? <span className="text-sm text-gray-600">{r.famiglia}</span> : <span className="text-sm text-gray-300">—</span> },
     { key: 'tipo', label: 'Tipo', render: (r) => tipoLabels[r.tipo] || r.tipo },
     { key: 'modalita', label: 'Modalità', render: (r) => {
       const ser = r.serializzato !== undefined ? r.serializzato : h.defaultSerializzato(r.tipo)
@@ -175,7 +176,7 @@ export function AdminProdotti() {
       const qty = r.quantita_disponibile ?? null
       const soglia = r.soglia_minima ?? 0
       if (qty === null) return <span className="text-sm text-gray-400">—</span>
-      const sottoSoglia = qty <= soglia
+      const sottoSoglia = soglia > 0 && qty <= soglia
       return (
         <span className={`text-sm font-medium ${sottoSoglia ? 'text-red-600' : 'text-gray-700'}`}>
           {qty} pz{sottoSoglia && <Icon icon={FEEDBACK_ICONS.warning} size={14} className="ml-1 text-red-500 inline" />}
@@ -189,7 +190,7 @@ export function AdminProdotti() {
     )},
   ]
 
-  const stockUnderThreshold = h.stock.quantita_disponibile <= h.stock.soglia_minima && h.stock.quantita_disponibile !== null
+  const stockUnderThreshold = (h.stock.soglia_minima ?? 0) > 0 && h.stock.quantita_disponibile <= h.stock.soglia_minima
 
   const toggleSelect = (id) => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
   const toggleSelectAll = (ids) => {
@@ -202,7 +203,7 @@ export function AdminProdotti() {
     setBulkLoading(true)
     const { error } = await bulkUpdateProducts([...selected], { tipo: bulkTipo })
     setBulkLoading(false)
-    if (error) addToast(error, 'error')
+    if (error) { console.warn('Errore aggiornamento massivo tipo:', error); addToast('Non siamo riusciti ad aggiornare i prodotti. Riprova.', 'error') }
     else {
       addToast(`${selected.size} prodotti aggiornati a "${tipoLabels[bulkTipo] || bulkTipo}"`, 'success')
       setSelected(new Set())
@@ -218,7 +219,7 @@ export function AdminProdotti() {
     setBulkLoading(true)
     const { error } = await bulkUpdateProducts([...selected], { famiglia: value })
     setBulkLoading(false)
-    if (error) addToast(error, 'error')
+    if (error) { console.warn('Errore aggiornamento massivo famiglia:', error); addToast('Non siamo riusciti ad aggiornare i prodotti. Riprova.', 'error') }
     else {
       addToast(
         clear
@@ -344,13 +345,14 @@ export function AdminProdotti() {
             deletingSpecimen={h.deletingSpecimen} setDeletingSpecimen={h.setDeletingSpecimen} specimenSaving={h.specimenSaving}
             handleAddSpecimen={() => h.handleAddSpecimen(editing.id, editing)} handleStartEditSpecimen={h.handleStartEditSpecimen}
             handleSaveSpecimen={() => h.handleSaveSpecimen(editing.id)} handleDeleteSpecimen={() => h.handleDeleteSpecimen(editing?.id)}
-            stock={h.stock} setStock={h.setStock} stockSaving={h.stockSaving} stockUnderThreshold={stockUnderThreshold}
-            lottoQty={h.lottoQty} setLottoQty={h.setLottoQty} lottoMotivo={h.lottoMotivo} setLottoMotivo={h.setLottoMotivo} lottoSaving={h.lottoSaving}
-            stockHistory={h.stockHistory} showHistory={h.showHistory} setShowHistory={h.setShowHistory}
-            handleSaveStock={() => h.handleSaveStock(editing?.id)} handleCaricaLotto={(m, a) => h.handleCaricaLotto(editing?.id, m, a)}
-            handleUpdateAdjustment={(adjId, d, m) => h.handleUpdateAdjustment(adjId, editing?.id, d, m)}
-            handleDeleteAdjustment={(adjId) => h.handleDeleteAdjustment(adjId, editing?.id)}
-            stockLocations={h.stockLocations} magazzini={h.magazzini} agenti={h.agenti}
+            stock={h.stock} setStock={h.setStock} stockUnderThreshold={stockUnderThreshold} committed={h.committed}
+            stockLocations={h.stockLocations} stockHistory={h.stockHistory} historyHasMore={h.historyHasMore}
+            stockBusy={h.stockBusy} loadingMoreHistory={h.loadingMoreHistory}
+            onCaricaLotto={(qty, motivo, m, a) => h.handleCaricaLotto(editing?.id, qty, motivo, m, a)}
+            onRettificaPosizione={(m, a, target, motivo) => h.handleRettificaPosizione(editing?.id, m, a, target, motivo)}
+            onReverseAdjustment={(adjId) => h.handleReverseAdjustment(adjId, editing?.id)}
+            onLoadMoreHistory={() => h.handleLoadMoreHistory(editing?.id)}
+            magazzini={h.magazzini} agenti={h.agenti}
           />
         ) : (
           <AdminTable

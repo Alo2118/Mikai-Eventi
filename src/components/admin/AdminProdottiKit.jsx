@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
 import { INPUT_STYLE, CARD_STYLE } from '../../lib/constants'
@@ -20,13 +21,14 @@ export function AdminProdottiKit({
   defaultOpen = true,
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  const [deletingPiece, setDeletingPiece] = useState(null)
 
   if (!editing.id) return null
 
   return (
     <div className={CARD_STYLE + ' md:p-6'}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between min-h-[48px]">
-        <h3 className="font-semibold text-lg">Contenuto kit</h3>
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full flex items-center justify-between min-h-[48px]">
+        <span className="font-semibold text-lg">Contenuto kit</span>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">{kitContents.length} pezzi</span>
           <Icon icon={ACTION_ICONS.chevron_right} size={18} className={open ? 'rotate-90 transition-transform' : 'transition-transform'} />
@@ -74,7 +76,7 @@ export function AdminProdottiKit({
                               <button onClick={() => onStartEditPiece(kc)} className="text-gray-400 hover:text-mikai-500 min-h-[48px] min-w-[48px] flex items-center justify-center" aria-label="Modifica">
                                 <Icon icon={ACTION_ICONS.edit} size={16} />
                               </button>
-                              <button onClick={() => onDeletePiece(kc.id)} className="text-gray-400 hover:text-red-500 min-h-[48px] min-w-[48px] flex items-center justify-center" aria-label="Rimuovi pezzo">
+                              <button onClick={() => setDeletingPiece(kc)} className="text-gray-400 hover:text-red-500 min-h-[48px] min-w-[48px] flex items-center justify-center" aria-label="Rimuovi pezzo">
                                 <Icon icon={ACTION_ICONS.close} size={16} />
                               </button>
                             </div>
@@ -91,15 +93,15 @@ export function AdminProdottiKit({
           )}
           <div className="flex flex-col md:flex-row gap-3 items-end">
             <div className="flex-1">
-              <label htmlFor="kit-piece-name" className="block text-sm text-gray-600 mb-1">Nome pezzo</label>
+              <label htmlFor="kit-piece-name" className="block text-sm font-medium text-gray-700 mb-1">Nome pezzo</label>
               <input id="kit-piece-name" className={INPUT_STYLE} value={newPiece.piece_name} onChange={e => setNewPiece({ ...newPiece, piece_name: e.target.value })} placeholder="Nome pezzo" />
             </div>
             <div className="w-full md:w-32">
-              <label htmlFor="kit-piece-code" className="block text-sm text-gray-600 mb-1">Codice</label>
+              <label htmlFor="kit-piece-code" className="block text-sm font-medium text-gray-700 mb-1">Codice</label>
               <input id="kit-piece-code" className={INPUT_STYLE} value={newPiece.piece_code} onChange={e => setNewPiece({ ...newPiece, piece_code: e.target.value })} placeholder="Codice" />
             </div>
             <div className="w-full md:w-24">
-              <label htmlFor="kit-piece-qty" className="block text-sm text-gray-600 mb-1">Qtà</label>
+              <label htmlFor="kit-piece-qty" className="block text-sm font-medium text-gray-700 mb-1">Qtà</label>
               <input id="kit-piece-qty" type="number" min="1" className={INPUT_STYLE} value={newPiece.quantity} onChange={e => setNewPiece({ ...newPiece, quantity: e.target.value })} />
             </div>
             <Button size="sm" onClick={onAddPiece} disabled={!newPiece.piece_name.trim()} title={!newPiece.piece_name.trim() ? 'Inserisci il nome del pezzo' : ''}>
@@ -108,6 +110,16 @@ export function AdminProdottiKit({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deletingPiece}
+        title="Rimuovi pezzo dal kit"
+        message={deletingPiece ? `Rimuovere "${deletingPiece.piece_name}" dal contenuto del kit?` : ''}
+        confirmLabel="Rimuovi"
+        onConfirm={() => { onDeletePiece(deletingPiece.id); setDeletingPiece(null) }}
+        onCancel={() => setDeletingPiece(null)}
+        danger
+      />
     </div>
   )
 }

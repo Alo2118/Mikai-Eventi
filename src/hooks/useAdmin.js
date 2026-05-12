@@ -188,26 +188,29 @@ export const useAdminStore = create((set, get) => ({
     return { data, error: error?.message || null }
   },
 
-  // Updates stock levels for quantity-tracked products
-  updateProductStock: async (productId, quantita_disponibile, soglia_minima) => {
-    const { data, error } = await supabase
-      .from('products')
-      .update({ quantita_disponibile, soglia_minima })
-      .eq('id', productId)
-      .select()
-      .single()
-    if (!error) get().fetchProducts()
-    return { data, error: error?.message || null }
-  },
-
   // Fetch stock breakdown by location for a product
   fetchStockLocations: async (productId) => {
     const { data, error } = await supabase
       .from('product_stock_locations')
       .select('*, magazzino:magazzini(id, nome), agent:users(id, nome, cognome)')
       .eq('product_id', productId)
+      .gt('quantita', 0)
       .order('quantita', { ascending: false })
     return { data: data || [], error: error?.message || null }
+  },
+
+  // Quantity reserved by events still in house (approved / in preparazione). For
+  // gadgets this is the amount already deducted from quantita_disponibile, so
+  // fisica a magazzino = quantita_disponibile + impegnato.
+  fetchCommittedStock: async (productId) => {
+    const { data, error } = await supabase
+      .from('event_materials')
+      .select('quantita_approvata')
+      .eq('product_id', productId)
+      .in('stato', ['approvato', 'in_preparazione'])
+    if (error) return { data: 0, error: error.message }
+    const total = (data || []).reduce((sum, r) => sum + (r.quantita_approvata || 0), 0)
+    return { data: total, error: null }
   },
 
   // Adjust stock by delta at a specific location, with audit log
@@ -243,122 +246,69 @@ export const useAdminStore = create((set, get) => ({
       if (updateErr) return { error: updateErr.message }
     }
 
-    // Log the adjustment
-    const { error: logErr } = await supabase.from('stock_adjustments').insert({
-      product_id: productId,
-      user_id: userId,
-      delta,
-      quantita_prima: quantitaPrima,
-      quantita_dopo: quantitaDopo,
-      motivo: motivo || null,
-      magazzino_id: magazzinoId || null,
-      agent_user_id: agentUserId || null,
+    // Log the adjustment via the SECURITY DEFINER RPC (bypasses RLS so it works for
+    // any caller; best-effort — the stock change above already committed).
+    const { error: logErr } = await supabase.rpc('log_stock_adjustment', {
+      p_product_id: productId,
+      p_user_id: userId,
+      p_delta: delta,
+      p_quantita_prima: quantitaPrima,
+      p_quantita_dopo: quantitaDopo,
+      p_motivo: motivo || null,
+      p_magazzino_id: magazzinoId || null,
+      p_agent_user_id: agentUserId || null,
+      p_event_id: null,
     })
-    if (logErr) return { error: logErr.message }
+    if (logErr) console.warn('stock_adjustments log failed:', logErr.message)
 
     get().fetchProducts()
     return { error: null, quantitaDopo }
   },
 
-  updateStockAdjustment: async (adjustmentId, productId, newDelta, newMotivo) => {
+  // Set the stock of one location to an exact counted value (inventory reconciliation).
+  // Computes the delta from the current location quantity and records it via adjustStock.
+  setStockLocationQty: async (productId, magazzinoId, agentUserId, targetQty, userId, motivo) => {
+    if (!magazzinoId && !agentUserId) return { error: 'Seleziona una posizione' }
+    const target = Math.max(0, parseInt(targetQty, 10) || 0)
+    let locQuery = supabase
+      .from('product_stock_locations')
+      .select('quantita')
+      .eq('product_id', productId)
+    locQuery = magazzinoId
+      ? locQuery.eq('magazzino_id', magazzinoId).is('user_id', null)
+      : locQuery.is('magazzino_id', null).eq('user_id', agentUserId)
+    const { data: locRows, error: locErr } = await locQuery
+    if (locErr) return { error: locErr.message }
+    const current = (locRows || []).reduce((sum, r) => sum + (r.quantita || 0), 0)
+    const delta = target - current
+    if (delta === 0) return { error: null, quantitaDopo: null, delta: 0 }
+    const result = await get().adjustStock(productId, delta, motivo || 'Rettifica inventario', userId, magazzinoId || null, agentUserId || null)
+    return { ...result, delta }
+  },
+
+  // Reverse a past adjustment by recording a compensating one — the original row
+  // stays in the history (the log is append-only).
+  reverseStockAdjustment: async (adjustmentId, productId, userId) => {
     const { data: adj, error: fetchErr } = await supabase
       .from('stock_adjustments')
-      .select('delta, magazzino_id, agent_user_id')
+      .select('delta, magazzino_id, agent_user_id, motivo')
       .eq('id', adjustmentId)
       .single()
     if (fetchErr) return { error: fetchErr.message }
-
-    const diff = newDelta - adj.delta
-    if (diff !== 0) {
-      const hasLocation = adj.magazzino_id || adj.agent_user_id
-      if (hasLocation) {
-        const { error: stockErr } = await supabase.rpc('adjust_product_stock_location', {
-          p_product_id: productId,
-          p_magazzino_id: adj.magazzino_id || null,
-          p_user_id: adj.agent_user_id || null,
-          p_delta: diff,
-        })
-        if (stockErr) return { error: stockErr.message }
-      } else {
-        const { error: stockErr } = await supabase.rpc('adjust_product_stock', {
-          p_product_id: productId,
-          p_delta: diff,
-        })
-        if (stockErr) return { error: stockErr.message }
-      }
-    }
-
-    const { data: product } = await supabase
-      .from('products')
-      .select('quantita_disponibile')
-      .eq('id', productId)
-      .single()
-
-    const newQty = product?.quantita_disponibile ?? 0
-    const { error: updateErr } = await supabase
-      .from('stock_adjustments')
-      .update({
-        delta: newDelta,
-        quantita_dopo: newQty,
-        motivo: newMotivo || null,
-      })
-      .eq('id', adjustmentId)
-    if (updateErr) return { error: updateErr.message }
-
-    get().fetchProducts()
-    return { error: null, quantitaDopo: newQty }
+    const motivo = adj.motivo ? `Storno di: ${adj.motivo}` : 'Storno movimento'
+    return get().adjustStock(productId, -adj.delta, motivo, userId, adj.magazzino_id || null, adj.agent_user_id || null)
   },
 
-  deleteStockAdjustment: async (adjustmentId, productId) => {
-    const { data: adj, error: fetchErr } = await supabase
-      .from('stock_adjustments')
-      .select('delta, magazzino_id, agent_user_id')
-      .eq('id', adjustmentId)
-      .single()
-    if (fetchErr) return { error: fetchErr.message }
-
-    const reverseDelta = -adj.delta
-    const hasLocation = adj.magazzino_id || adj.agent_user_id
-    if (hasLocation) {
-      const { error: stockErr } = await supabase.rpc('adjust_product_stock_location', {
-        p_product_id: productId,
-        p_magazzino_id: adj.magazzino_id || null,
-        p_user_id: adj.agent_user_id || null,
-        p_delta: reverseDelta,
-      })
-      if (stockErr) return { error: stockErr.message }
-    } else {
-      const { error: stockErr } = await supabase.rpc('adjust_product_stock', {
-        p_product_id: productId,
-        p_delta: reverseDelta,
-      })
-      if (stockErr) return { error: stockErr.message }
-    }
-
-    const { error: delErr } = await supabase
-      .from('stock_adjustments')
-      .delete()
-      .eq('id', adjustmentId)
-    if (delErr) return { error: delErr.message }
-
-    const { data: product } = await supabase
-      .from('products')
-      .select('quantita_disponibile')
-      .eq('id', productId)
-      .single()
-
-    get().fetchProducts()
-    return { error: null, quantitaDopo: product?.quantita_disponibile ?? 0 }
-  },
-
-  fetchStockHistory: async (productId) => {
+  fetchStockHistory: async (productId, limit = 50) => {
     const { data, error } = await supabase
       .from('stock_adjustments')
-      .select('*, user:users(id, nome, cognome)')
+      .select('*, user:users!stock_adjustments_user_id_fkey(id, nome, cognome), event:events(id, titolo)')
       .eq('product_id', productId)
       .order('created_at', { ascending: false })
-      .limit(50)
-    return { data: data || [], error: error?.message || null }
+      .limit(limit + 1)
+    if (error) return { data: [], hasMore: false, error: error.message }
+    const hasMore = (data || []).length > limit
+    return { data: (data || []).slice(0, limit), hasMore, error: null }
   },
 
   // === Venues ===

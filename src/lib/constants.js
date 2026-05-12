@@ -9,6 +9,9 @@ export const RUOLI = {
   commerciale: 'Commerciale',
 }
 
+// Ruoli che possono fare da Area Manager di un evento (anche un commerciale può coordinare la zona)
+export const AREA_MANAGER_ROLES = ['area_manager', 'direzione', 'admin', 'commerciale']
+
 export const TIPO_EVENTO = {
   workshop: 'Workshop',
   corso: 'Corso',
@@ -372,6 +375,12 @@ export const STATO_MOVIMENTO = {
   uscita: 'Uscita',
   rientro: 'Rientro',
   trasferimento: 'Trasferimento',
+}
+
+// Default motivi for stock adjustments (stock_adjustments.motivo)
+export const STOCK_MOTIVO = {
+  caricoLotto: 'Carico lotto',
+  rettifica: 'Rettifica inventario',
 }
 
 export const MODALITA_MOVIMENTO = {

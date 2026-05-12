@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
-import { ACTION_ICONS, ADMIN_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { INPUT_STYLE, SELECT_STYLE, TEXTAREA_STYLE, CARD_STYLE } from '../../lib/constants'
 import { AdminProdottiKit } from '../../components/admin/AdminProdottiKit'
 import { AdminProdottiSpecimens } from '../../components/admin/AdminProdottiSpecimens'
@@ -30,11 +30,11 @@ export function AdminProdottiForm({
   handleAddSpecimen, handleStartEditSpecimen, handleSaveSpecimen,
   handleDeleteSpecimen,
   // Stock
-  stock, setStock, stockSaving, stockUnderThreshold,
-  lottoQty, setLottoQty, lottoMotivo, setLottoMotivo, lottoSaving,
-  stockHistory, showHistory, setShowHistory,
-  handleSaveStock, handleCaricaLotto, handleUpdateAdjustment, handleDeleteAdjustment,
-  stockLocations, magazzini, agenti,
+  stock, setStock, stockUnderThreshold, committed,
+  stockLocations, stockHistory, historyHasMore,
+  stockBusy, loadingMoreHistory,
+  onCaricaLotto, onRettificaPosizione, onReverseAdjustment, onLoadMoreHistory,
+  magazzini, agenti,
 }) {
   const currentIndex = editing?.id ? filteredProducts.findIndex(p => p.id === editing.id) : -1
   const canGoPrev = currentIndex > 0
@@ -67,6 +67,11 @@ export function AdminProdottiForm({
             <h2 className="font-semibold text-base text-gray-900 truncate">{editing.nome || 'Nuovo prodotto'}</h2>
             {editing.codice && <p className="text-xs text-gray-500 font-mono">{editing.codice}</p>}
           </div>
+          {editing.id && !editing.serializzato && (
+            <span className={`shrink-0 text-xs font-medium px-2 py-1 rounded-full ${stockUnderThreshold ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+              Giac. {stock?.quantita_disponibile ?? 0} pz
+            </span>
+          )}
         </div>
         {editing.id && filteredProducts.length > 1 && (
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -147,6 +152,12 @@ export function AdminProdottiForm({
               </div>
             </button>
           </div>
+          {editing.id && editing.serializzato && (editing.quantita_disponibile ?? 0) > 0 && (
+            <div className="mt-3 flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <Icon icon={FEEDBACK_ICONS.warning} size={16} className="text-amber-500 shrink-0 mt-0.5" />
+              <span>Questo prodotto ha {editing.quantita_disponibile} pz registrati come giacenza a quantità. Passando alla gestione a esemplari non saranno più visibili (restano nel database): torna a "Gestione a quantità" per gestirli.</span>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -213,6 +224,25 @@ export function AdminProdottiForm({
         </div>
       </div>
 
+      {/* Stock (prodotti a quantità) — in primo piano subito dopo i dati */}
+      <AdminProdottiStock
+        editing={editing}
+        stock={stock}
+        setStock={setStock}
+        committed={committed}
+        stockLocations={stockLocations}
+        magazzini={magazzini}
+        agenti={agenti}
+        stockHistory={stockHistory}
+        historyHasMore={historyHasMore}
+        busy={stockBusy}
+        loadingMore={loadingMoreHistory}
+        onCaricaLotto={onCaricaLotto}
+        onRettificaPosizione={onRettificaPosizione}
+        onReverseAdjustment={onReverseAdjustment}
+        onLoadMoreHistory={onLoadMoreHistory}
+      />
+
       {/* Distretti anatomici */}
       <div className={CARD_STYLE + ' md:p-6'}>
         <h3 className="font-semibold text-lg text-gray-900 mb-3">Distretti anatomici</h3>
@@ -259,30 +289,6 @@ export function AdminProdottiForm({
         onSaveSpecimen={handleSaveSpecimen}
         onCancelEditSpecimen={() => setEditingSpecimen(null)}
         onDeleteSpecimen={handleDeleteSpecimen}
-      />
-
-      {/* Stock (quantity) */}
-      <AdminProdottiStock
-        editing={editing}
-        stock={stock}
-        setStock={setStock}
-        stockSaving={stockSaving}
-        stockUnderThreshold={stockUnderThreshold}
-        lottoQty={lottoQty}
-        setLottoQty={setLottoQty}
-        lottoMotivo={lottoMotivo}
-        setLottoMotivo={setLottoMotivo}
-        lottoSaving={lottoSaving}
-        stockHistory={stockHistory}
-        showHistory={showHistory}
-        setShowHistory={setShowHistory}
-        onSaveStock={handleSaveStock}
-        onCaricaLotto={handleCaricaLotto}
-        onUpdateAdjustment={handleUpdateAdjustment}
-        onDeleteAdjustment={handleDeleteAdjustment}
-        stockLocations={stockLocations}
-        magazzini={magazzini}
-        agenti={agenti}
       />
 
       <div className="flex gap-3">

@@ -33,6 +33,11 @@ export const useMaterialsStore = create((set, get) => {
   hasMore: true,
   totalCount: 0,
   positionCounts: {},
+  // Inventario logistica: lista completa (non paginata), indipendente da `materials`
+  inventory: [],          // esemplari serializzati (materials)
+  inventoryStock: [],     // giacenze a quantità (product_stock_locations)
+  inventoryLoading: false,
+  inventoryError: null,
   filters: { search: '', tipo: '', posizione: '', brand: '' },
 
   setFilter: (key, value) => {
@@ -75,6 +80,42 @@ export const useMaterialsStore = create((set, get) => {
       totalCount: count ?? s.totalCount,
       hasMore: (data || []).length === pageSize,
     }))
+  },
+
+  // Inventario completo (senza paginazione) per la pagina Logistica → Inventario:
+  // esemplari serializzati (materials) + giacenze a quantità (product_stock_locations)
+  fetchInventory: async () => {
+    set({ inventoryLoading: true, inventoryError: null })
+    const [specRes, stockRes] = await Promise.all([
+      supabase
+        .from('materials')
+        .select(`
+          *,
+          product:products(id, nome, codice, foto_url, brand:brands(id, nome)),
+          magazzino:magazzini(id, nome),
+          agente:users!materials_presso_utente_id_fkey(id, nome, cognome)
+        `)
+        .eq('attivo', true)
+        .order('nome')
+        .limit(5000),
+      supabase
+        .from('product_stock_locations')
+        .select(`
+          id, quantita, product_id, magazzino_id, user_id,
+          product:products(id, nome, codice, tipo, serializzato),
+          magazzino:magazzini(id, nome),
+          agent:users(id, nome, cognome)
+        `)
+        .gt('quantita', 0)
+        .limit(5000),
+    ])
+    set({
+      inventory: specRes.data || [],
+      inventoryStock: stockRes.data || [],
+      inventoryLoading: false,
+      inventoryError: specRes.error?.message || stockRes.error?.message || null,
+    })
+    return { error: specRes.error?.message || stockRes.error?.message || null }
   },
 
   fetchMaterial: async (id) => {
@@ -265,11 +306,23 @@ export const useMaterialsStore = create((set, get) => {
     return { data, error: error?.message || null }
   },
 
+  // Pick the location with the most stock for a product (used to decide where to draw from / return to).
+  _topStockLocation: async (productId) => {
+    const { data } = await supabase
+      .from('product_stock_locations')
+      .select('magazzino_id, user_id')
+      .eq('product_id', productId)
+      .order('quantita', { ascending: false })
+      .limit(1)
+    const loc = data?.[0] || null
+    return { magazzinoId: loc?.magazzino_id || null, agentUserId: loc?.user_id || null }
+  },
+
   confirmMaterialRow: async (id, quantitaApprovata, noteUfficio) => {
     // Pre-check: verify stock availability for gadgets before confirming
     const { data: row } = await supabase
       .from('event_materials')
-      .select('product_id, product:products(id, tipo, quantita_disponibile, serializzato)')
+      .select('product_id, event_id, product:products(id, tipo, quantita_disponibile, serializzato), event:events(id, titolo)')
       .eq('id', id)
       .single()
 
@@ -279,14 +332,20 @@ export const useMaterialsStore = create((set, get) => {
       }
     }
 
-    // Decrement stock FIRST for gadgets — before changing stato
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+    // Decrement stock FIRST for gadgets — before changing stato. Capture the location so a
+    // rollback hits the same one.
     const isGadget = row?.product?.tipo === 'gadget' && row?.product?.quantita_disponibile != null
+    let drawMeta = null
     if (isGadget) {
-      const stockError = await get()._adjustStock(row.product_id, -quantitaApprovata)
+      const loc = await get()._topStockLocation(row.product_id)
+      drawMeta = { userId: currentUser?.id, eventId: row.event_id, ...loc }
+      const motivo = row.event?.titolo ? `Consumo materiale — evento "${row.event.titolo}"` : 'Consumo materiale per evento'
+      const stockError = await get()._adjustStock(row.product_id, -quantitaApprovata, { ...drawMeta, motivo })
       if (stockError) return { data: null, error: stockError }
     }
 
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('event_materials')
       .update({
@@ -301,8 +360,8 @@ export const useMaterialsStore = create((set, get) => {
       .single()
 
     // Rollback stock if status update failed
-    if (error && isGadget) {
-      await get()._adjustStock(row.product_id, quantitaApprovata)
+    if (error && drawMeta) {
+      await get()._adjustStock(row.product_id, quantitaApprovata, { ...drawMeta, motivo: 'Annullamento consumo — errore salvataggio' })
       return { data: null, error: error.message }
     }
 
@@ -313,16 +372,20 @@ export const useMaterialsStore = create((set, get) => {
     // Fetch full row to restore stock if needed
     const { data: existing } = await supabase
       .from('event_materials')
-      .select('*, product:products(id, tipo, quantita_disponibile)')
+      .select('*, product:products(id, tipo, quantita_disponibile), event:events(id, titolo)')
       .eq('id', id)
       .single()
 
     // Restore gadget stock before rejecting (only if was approved/in_preparazione)
-    if (existing && ['approvato', 'in_preparazione'].includes(existing.stato) && existing.quantita_approvata) {
-      if (existing.product?.tipo === 'gadget') {
-        const stockError = await get()._adjustStock(existing.product_id, existing.quantita_approvata)
-        if (stockError) return { data: null, error: `Errore ripristino stock: ${stockError}` }
-      }
+    const restoring = !!(existing && ['approvato', 'in_preparazione'].includes(existing.stato) && existing.quantita_approvata && existing.product?.tipo === 'gadget')
+    let restoreMeta = null
+    if (restoring) {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const loc = await get()._topStockLocation(existing.product_id)
+      restoreMeta = { userId: currentUser?.id, eventId: existing.event_id, ...loc }
+      const m = existing.event?.titolo ? `Rientro stock — richiesta annullata, evento "${existing.event.titolo}"` : 'Rientro stock — richiesta materiale annullata'
+      const stockError = await get()._adjustStock(existing.product_id, existing.quantita_approvata, { ...restoreMeta, motivo: m })
+      if (stockError) return { data: null, error: `Errore ripristino stock: ${stockError}` }
     }
 
     const { data, error } = await supabase
@@ -336,8 +399,8 @@ export const useMaterialsStore = create((set, get) => {
       .single()
 
     // Rollback stock restore if reject failed
-    if (error && existing && ['approvato', 'in_preparazione'].includes(existing.stato) && existing.quantita_approvata && existing.product?.tipo === 'gadget') {
-      await get()._adjustStock(existing.product_id, -existing.quantita_approvata)
+    if (error && restoreMeta) {
+      await get()._adjustStock(existing.product_id, -existing.quantita_approvata, { ...restoreMeta, motivo: 'Annullamento rientro — errore salvataggio' })
     }
 
     return { data, error: error?.message || null }
@@ -345,36 +408,73 @@ export const useMaterialsStore = create((set, get) => {
 
   restoreGadgetStock: async (row) => {
     if ((row.stato === 'approvato' || row.stato === 'in_preparazione') && row.quantita_approvata && row.product?.tipo === 'gadget') {
-      const stockError = await get()._adjustStock(row.product_id, row.quantita_approvata)
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const stockError = await get()._adjustStock(row.product_id, row.quantita_approvata, {
+        userId: currentUser?.id,
+        eventId: row.event_id,
+        motivo: 'Rientro stock — richiesta materiale modificata',
+      })
       if (stockError) return { error: stockError }
     }
     return { error: null }
   },
 
-  // Internal: adjust stock with location awareness. Returns error string or null.
-  _adjustStock: async (productId, delta) => {
-    const { data: locs } = await supabase
-      .from('product_stock_locations')
-      .select('magazzino_id, user_id, quantita')
-      .eq('product_id', productId)
-      .order('quantita', { ascending: false })
-      .limit(1)
+  // Internal best-effort audit log (the stock change itself already committed).
+  _logStockAdj: async (productId, delta, prima, dopo, magazzinoId, agentUserId, meta) => {
+    if (!meta?.userId || delta === 0) return
+    await supabase.rpc('log_stock_adjustment', {
+      p_product_id: productId,
+      p_user_id: meta.userId,
+      p_delta: delta,
+      p_quantita_prima: prima,
+      p_quantita_dopo: dopo,
+      p_motivo: meta.motivo || null,
+      p_magazzino_id: magazzinoId || null,
+      p_agent_user_id: agentUserId || null,
+      p_event_id: meta.eventId || null,
+    })
+  },
 
-    if (locs && locs.length > 0) {
-      const { error } = await supabase.rpc('adjust_product_stock_location', {
-        p_product_id: productId,
-        p_magazzino_id: locs[0].magazzino_id,
-        p_user_id: locs[0].user_id,
-        p_delta: delta,
-      })
-      if (error) return error.message
-    } else {
-      const { error } = await supabase.rpc('adjust_product_stock', {
-        p_product_id: productId,
-        p_delta: delta,
-      })
-      if (error) return error.message
+  // Internal: adjust stock with location awareness. Returns error string or null.
+  // meta (optional): { userId, motivo, eventId, magazzinoId, agentUserId } — if a location
+  // is given it is used, otherwise the location with the most stock; when userId is set the
+  // change is recorded in stock_adjustments.
+  _adjustStock: async (productId, delta, meta = {}) => {
+    const { data: before } = await supabase
+      .from('products')
+      .select('quantita_disponibile')
+      .eq('id', productId)
+      .single()
+    const quantitaPrima = before?.quantita_disponibile ?? 0
+
+    let magId = meta.magazzinoId || null
+    let agId = meta.agentUserId || null
+    if (!magId && !agId) {
+      const top = await get()._topStockLocation(productId)
+      magId = top.magazzinoId
+      agId = top.agentUserId
     }
+
+    let quantitaDopo
+    if (magId || agId) {
+      const { data: total, error } = await supabase.rpc('adjust_product_stock_location', {
+        p_product_id: productId,
+        p_magazzino_id: magId,
+        p_user_id: agId,
+        p_delta: delta,
+      })
+      if (error) return error.message
+      quantitaDopo = total != null ? total : quantitaPrima + delta
+    } else {
+      const { data: qty, error } = await supabase.rpc('adjust_product_stock', {
+        p_product_id: productId,
+        p_delta: delta,
+      })
+      if (error) return error.message
+      quantitaDopo = qty != null && qty >= 0 ? qty : quantitaPrima + delta
+    }
+
+    await get()._logStockAdj(productId, delta, quantitaPrima, quantitaDopo, magId, agId, meta)
     return null
   },
 
@@ -482,7 +582,7 @@ export const useMaterialsStore = create((set, get) => {
   },
 
   reportConsumption: async (eventMaterialId, quantitaConsumata, userId, productId, quantitaApprovata) => {
-    const { error: updateErr } = await supabase
+    const { data: emRow, error: updateErr } = await supabase
       .from('event_materials')
       .update({
         quantita_consumata: quantitaConsumata,
@@ -490,15 +590,32 @@ export const useMaterialsStore = create((set, get) => {
         consumo_registrato_at: nowISO(),
       })
       .eq('id', eventMaterialId)
+      .select('event_id, event:events(titolo)')
+      .single()
     if (updateErr) return { error: updateErr.message }
 
     const remainder = (quantitaApprovata || 0) - (quantitaConsumata || 0)
     if (remainder > 0 && userId) {
-      await supabase.rpc('adjust_product_stock_location', {
+      const { data: before } = await supabase
+        .from('products').select('quantita_disponibile').eq('id', productId).single()
+      const quantitaPrima = before?.quantita_disponibile ?? 0
+      const { data: total, error: rpcErr } = await supabase.rpc('adjust_product_stock_location', {
         p_product_id: productId,
         p_magazzino_id: null,
         p_user_id: userId,
         p_delta: remainder,
+      })
+      if (rpcErr) return { error: rpcErr.message }
+      await supabase.rpc('log_stock_adjustment', {
+        p_product_id: productId,
+        p_user_id: userId,
+        p_delta: remainder,
+        p_quantita_prima: quantitaPrima,
+        p_quantita_dopo: total != null ? total : quantitaPrima + remainder,
+        p_motivo: emRow?.event?.titolo ? `Rientro materiale non consumato — evento "${emRow.event.titolo}"` : 'Rientro materiale non consumato',
+        p_magazzino_id: null,
+        p_agent_user_id: userId,
+        p_event_id: emRow?.event_id || null,
       })
     }
     return { error: null }
