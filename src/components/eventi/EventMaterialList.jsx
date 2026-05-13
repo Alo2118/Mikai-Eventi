@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useActivityTemplatesStore } from '../../hooks/useActivityTemplates'
 import { useAuthStore } from '../../hooks/useAuth'
+import { useCatalogStore } from '../../hooks/useCatalog'
 import { useToastStore } from '../ui/Toast'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { ACTION_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, MATERIALE_ICONS, FEEDBACK_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
 import { useEventsStore } from '../../hooks/useEvents'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
@@ -18,7 +19,8 @@ import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
 import { EventMaterialShipping } from './EventMaterialShipping'
 import { SUMMARY_BAR_STYLE, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
-import { formatDate } from '../../lib/date-utils'
+import { formatDate, subtractDays, todayISO } from '../../lib/date-utils'
+import { generateShippingPDF } from '../../lib/generate-shipping-pdf'
 import { useMaterialBulkActions } from './useMaterialBulkActions'
 import { ConsumptionReport } from './ConsumptionReport'
 import { useProductTypes } from '../../hooks/useProductTypes'
@@ -46,7 +48,10 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const [stockLocations, setStockLocations] = useState({})
   const [eventZoneId, setEventZoneId] = useState(null)
   const [packingItems, setPackingItems] = useState([])
+  const [generatingShippingPdf, setGeneratingShippingPdf] = useState(false)
+  const [kitContents, setKitContents] = useState({})
   const updateEvent = useEventsStore(s => s.updateEvent)
+  const fetchKitContentsBatch = useCatalogStore(s => s.fetchKitContentsBatch)
 
   const fetchEventMovements = useMaterialsStore(s => s.fetchEventMovements)
   const fetchPackingList = usePackingListStore(s => s.fetchPackingList)
@@ -99,12 +104,14 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     setMovements(movRes.data)
     setPackingItems(packRes.data || [])
     const productIds = [...new Set((matRes.data || []).map(r => r.product_id).filter(Boolean))]
-    const [avail, stockLocs] = await Promise.all([
+    const [avail, stockLocs, kitRes] = await Promise.all([
       fetchBatchAvailability(productIds),
       fetchStockByLocation(productIds),
+      fetchKitContentsBatch(productIds),
     ])
     setAvailability(avail)
     setStockLocations(stockLocs.data || {})
+    setKitContents(kitRes.data || {})
     // Fetch venue zone_id if event has a venue
     if (event.venue_id) {
       const zoneId = await fetchVenueZone(event.venue_id)
@@ -219,6 +226,24 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     else { addToast('Riportato in attesa di conferma', 'success'); loadData() }
   }
 
+  const handleDownloadShippingPDF = async () => {
+    const shippingItems = rows.filter(r => r.stato === 'approvato' || r.stato === 'in_preparazione')
+    if (shippingItems.length === 0) return
+    setGeneratingShippingPdf(true)
+    try {
+      const shippingDate = event.data_spedizione_prevista
+        || (event.data_inizio ? subtractDays(event.data_inizio, 7) : null)
+      const group = { evento: event, items: shippingItems, shippingDate }
+      const doc = await generateShippingPDF([group], kitContents)
+      const safeTitle = (event.titolo || 'evento').replace(/[\\/:*?"<>|]+/g, '').trim() || 'evento'
+      doc.save(`Lista ${safeTitle} ${todayISO()}.pdf`)
+      addToast('PDF spedizione generato', 'success')
+    } catch {
+      addToast('Errore nella generazione del PDF', 'error')
+    }
+    setGeneratingShippingPdf(false)
+  }
+
   const pendingCount = rows.filter(r => r.stato === 'richiesto').length
   const confirmedCount = rows.filter(r => r.stato === 'approvato').length
   const inPrepCount = rows.filter(r => r.stato === 'in_preparazione').length
@@ -321,6 +346,12 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
             <Button variant="secondary" size="sm" onClick={() => setShowPicking(true)}>
               <Icon icon={MAGAZZINO_ICONS.stampa} size={16} className="mr-1" />
               Stampa picking
+            </Button>
+          )}
+          {shippingEnabled && rows.some(r => ['approvato', 'in_preparazione'].includes(r.stato)) && (
+            <Button variant="secondary" size="sm" onClick={handleDownloadShippingPDF} loading={generatingShippingPdf}>
+              <Icon icon={DOCUMENTO_ICONS.dossier} size={16} className="mr-1" />
+              Lista materiale
             </Button>
           )}
           {canEdit && !showCatalog && (
@@ -440,6 +471,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                             row={row}
                             availability={availability[row.product_id]}
                             stockLocations={stockLocations[row.product_id] || []}
+                            kitPieces={kitContents[row.product_id] || []}
                             eventZoneId={eventZoneId}
                             collo={colloByMaterialId[row.id]}
                             eventSpedizioneData={event.spedizione_data}

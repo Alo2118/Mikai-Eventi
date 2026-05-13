@@ -164,7 +164,7 @@ function MobileMeta({ stato, row, collo, primaryLocation, richiedente, approvato
 }
 
 export const MaterialListRow = memo(function MaterialListRow({
-  row, availability, stockLocations = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
+  row, availability, stockLocations = [], kitPieces = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
   canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation, onRevert,
   tipoLabels, tipoColors, tipoIcons, shippingEnabled = true,
 }) {
@@ -228,6 +228,12 @@ export const MaterialListRow = memo(function MaterialListRow({
             <span className={`text-xs ${COLOR_TEXT_600[tipoColor] || 'text-gray-500'}`}>{tipoLabel}</span>
             {product?.brand?.nome && <span className="text-xs text-gray-400 hidden md:inline">· {product.brand.nome}</span>}
             {product?.codice && <span className="text-xs text-gray-400 font-mono hidden lg:inline">{product.codice}</span>}
+            {kitPieces.length > 0 && (
+              <span className="text-xs text-mikai-600 inline-flex items-center gap-0.5" title={`${kitPieces.length} ${kitPieces.length === 1 ? 'pezzo' : 'pezzi'} nella distinta`}>
+                <Icon icon={MATERIALE_ICONS.package} size={10} />
+                {kitPieces.length} {kitPieces.length === 1 ? 'pezzo' : 'pezzi'}
+              </span>
+            )}
             {/* Stato-adaptive meta */}
             <CompactMeta
               stato={row.stato}
@@ -307,7 +313,7 @@ export const MaterialListRow = memo(function MaterialListRow({
       {/* ── EXPANDED ── */}
       {expanded && (
         <MaterialRowDetails
-          row={row} availability={avail} stockLocations={stockLocations} eventZoneId={eventZoneId}
+          row={row} availability={avail} stockLocations={stockLocations} kitPieces={kitPieces} eventZoneId={eventZoneId}
           collo={collo} eventSpedizioneData={eventSpedizioneData} eventTracking={eventTracking}
           canEdit={canEdit} canApprove={canApprove} isPending={isPending} isConfirmed={isConfirmed}
           isRejected={isRejected} isInPrep={isInPrep} isShipped={isShipped} isInsufficient={isInsufficient}
@@ -325,7 +331,7 @@ export const MaterialListRow = memo(function MaterialListRow({
 
 // ── Expanded details ──
 function MaterialRowDetails({
-  row, availability, stockLocations, eventZoneId, collo, eventSpedizioneData, eventTracking,
+  row, availability, stockLocations, kitPieces = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
   canEdit, canApprove, isPending, isConfirmed, isRejected, isInPrep, isShipped,
   isInsufficient, rowEditable, onUpdate, onConfirm, onRevert,
   showConfirmForm, setShowConfirmForm, confirmQty, setConfirmQty, confirmNote, setConfirmNote,
@@ -381,6 +387,25 @@ function MaterialRowDetails({
               {row.data_approvazione && <span className="text-gray-400 ml-0.5">{formatDateShort(row.data_approvazione)}</span>}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Distinta (kit contents) */}
+      {kitPieces.length > 0 && (
+        <div className="rounded-lg border border-mikai-100 bg-mikai-50/40 px-3 py-2">
+          <p className="text-xs font-semibold text-mikai-700 mb-1.5 flex items-center gap-1">
+            <Icon icon={MATERIALE_ICONS.package} size={12} />
+            Distinta ({kitPieces.length} {kitPieces.length === 1 ? 'pezzo' : 'pezzi'})
+          </p>
+          <ul className="space-y-0.5">
+            {kitPieces.map(p => (
+              <li key={p.id} className="text-xs text-gray-700 flex items-center gap-2">
+                <span className="text-gray-400 font-mono shrink-0 min-w-[2rem]">×{p.quantity}</span>
+                <span className="text-gray-400 font-mono shrink-0 min-w-[5rem]">{p.piece_code || '—'}</span>
+                <span className="text-gray-700 truncate">{p.piece_name}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

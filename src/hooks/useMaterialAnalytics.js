@@ -26,7 +26,7 @@ export const useMaterialAnalyticsStore = create((set) => ({
         `)
         .in('stato', ['approvato', 'in_preparazione'])
         .order('data_richiesta', { ascending: true })
-        .limit(200),
+        .limit(2000),
       supabase.from('event_types').select('codice, richiede_spedizione'),
     ])
 

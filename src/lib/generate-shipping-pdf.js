@@ -23,60 +23,44 @@ function addCoverPage(doc) {
   const pageWidth = doc.internal.pageSize.getWidth()
 
   doc.setFillColor(PDF_COLORS.primary)
-  doc.rect(0, 0, pageWidth, 40, 'F')
+  doc.rect(0, 0, pageWidth, 8, 'F')
 
-  doc.setFontSize(20)
+  doc.setFontSize(9)
   doc.setTextColor(PDF_COLORS.white)
   doc.setFont('helvetica', 'bold')
-  doc.text('MIKAI', 14, 22)
+  doc.text(`MIKAI · SPEDIZIONI MATERIALE · Generato il ${formatDate(new Date())}`, 14, 5.5)
 
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  doc.text('SPEDIZIONI MATERIALE — RIEPILOGO PER EVENTO', 14, 31)
-
-  doc.setFontSize(10)
-  doc.setTextColor(PDF_COLORS.subtle)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Generato il ${formatDate(new Date())}`, 14, 50)
-
-  return 60
+  return 13
 }
 
 function addEventHeader(doc, group, y) {
   const pageWidth = doc.internal.pageSize.getWidth()
-  y = checkPageBreak(doc, 30, y)
-
-  // Title
-  doc.setFontSize(13)
-  doc.setTextColor(PDF_COLORS.section)
-  doc.setFont('helvetica', 'bold')
-  doc.text(group.evento?.titolo || '—', 14, y, { maxWidth: pageWidth - 28 })
-
-  // Underline
-  doc.setDrawColor(PDF_COLORS.primary)
-  doc.setLineWidth(0.4)
-  doc.line(14, y + 1.5, pageWidth - 14, y + 1.5)
-  y += 6
-
-  // Meta lines
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(PDF_COLORS.text)
+  y = checkPageBreak(doc, 14, y)
 
   const dateRange = formatDateRange(group.evento?.data_inizio, group.evento?.data_fine)
-  doc.text(`Date evento: ${dateRange}`, 14, y); y += 5
+  const shipPart = group.shippingDate ? ` · Sped. ${formatDate(group.shippingDate)}` : ''
+  const titoloLine = `${group.evento?.titolo || '—'}  —  ${dateRange}${shipPart}`
 
-  if (group.shippingDate) {
-    doc.text(`Spedizione prevista: ${formatDate(group.shippingDate)}`, 14, y); y += 5
-  }
+  doc.setFontSize(10)
+  doc.setTextColor(PDF_COLORS.section)
+  doc.setFont('helvetica', 'bold')
+  doc.text(titoloLine, 14, y, { maxWidth: pageWidth - 28 })
+
+  doc.setDrawColor(PDF_COLORS.primary)
+  doc.setLineWidth(0.3)
+  doc.line(14, y + 1.2, pageWidth - 14, y + 1.2)
+  y += 4
 
   if (group.evento?.indirizzo_spedizione) {
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(PDF_COLORS.text)
     const lines = doc.splitTextToSize(`Indirizzo: ${group.evento.indirizzo_spedizione}`, pageWidth - 28)
     doc.text(lines, 14, y)
-    y += lines.length * 5
+    y += lines.length * 3.5
   }
 
-  return y + 2
+  return y + 1
 }
 
 function addMaterialsTable(doc, items, kitContents, y) {
@@ -92,20 +76,33 @@ function addMaterialsTable(doc, items, kitContents, y) {
     ])
     const pieces = kitContents?.[it.product_id]
     if (pieces?.length) {
-      const lines = pieces
-        .map(p => `   • ${p.piece_name}${p.piece_code ? ` [${p.piece_code}]` : ''}  ×${p.quantity}`)
-        .join('\n')
       body.push([{
-        content: `Distinta (${pieces.length} ${pieces.length === 1 ? 'pezzo' : 'pezzi'})\n${lines}`,
+        content: `Distinta (${pieces.length} ${pieces.length === 1 ? 'pezzo' : 'pezzi'})`,
         colSpan: 5,
         styles: {
           fontSize: 7,
           textColor: PDF_COLORS.subtle,
           fillColor: PDF_COLORS.altRow,
           fontStyle: 'italic',
-          cellPadding: { top: 1, right: 4, bottom: 2, left: 8 },
+          cellPadding: { top: 1, right: 4, bottom: 1, left: 8 },
         },
       }])
+      const pieceCellStyle = {
+        fontSize: 7,
+        textColor: PDF_COLORS.subtle,
+        fillColor: PDF_COLORS.altRow,
+        fontStyle: 'italic',
+        cellPadding: { top: 1, right: 4, bottom: 1, left: 4 },
+      }
+      for (const p of pieces) {
+        body.push([
+          { content: '', styles: pieceCellStyle },
+          { content: p.piece_code || '—', styles: pieceCellStyle },
+          { content: `   • ${p.piece_name}`, styles: pieceCellStyle },
+          { content: `×${p.quantity}`, styles: { ...pieceCellStyle, halign: 'center' } },
+          { content: '', styles: pieceCellStyle },
+        ])
+      }
     }
   }
 
@@ -142,18 +139,15 @@ function addMaterialsTable(doc, items, kitContents, y) {
 }
 
 function addTotalsSummary(doc, eventGroups, y) {
-  const pageWidth = doc.internal.pageSize.getWidth()
   const totalEvents = eventGroups.length
   const totalItems = eventGroups.reduce((sum, g) => sum + g.items.length, 0)
 
-  y = checkPageBreak(doc, 20, y)
-  doc.setFillColor(PDF_COLORS.headerBg)
-  doc.rect(14, y, pageWidth - 28, 14, 'F')
+  y = checkPageBreak(doc, 6, y)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
+  doc.setFontSize(8)
   doc.setTextColor(PDF_COLORS.section)
-  doc.text(`Totali: ${totalEvents} eventi · ${totalItems} righe di materiale`, 18, y + 9)
-  return y + 18
+  doc.text(`Totali: ${totalEvents} eventi · ${totalItems} righe di materiale`, 14, y + 3)
+  return y + 6
 }
 
 function addFooter(doc) {
@@ -179,7 +173,9 @@ export async function generateShippingPDF(eventGroups, kitContents = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
   let y = addCoverPage(doc)
-  y = addTotalsSummary(doc, eventGroups, y)
+  if (eventGroups.length > 1) {
+    y = addTotalsSummary(doc, eventGroups, y)
+  }
 
   for (const group of eventGroups) {
     y = addEventHeader(doc, group, y)
