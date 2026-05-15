@@ -15,7 +15,10 @@ export function KitPiecePicker({ value, onChange, excludeProductId }) {
   const products = useAdminStore(s => s.products)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
-  const [manualMode, setManualMode] = useState(false)
+  // Open in manual mode if the value already has manual data (legacy/non-catalog piece)
+  const [manualMode, setManualMode] = useState(() =>
+    !value?.piece_product_id && !!(value?.piece_name || value?.piece_code)
+  )
   const containerRef = useRef(null)
 
   // Close dropdown on outside click
@@ -80,8 +83,23 @@ export function KitPiecePicker({ value, onChange, excludeProductId }) {
     )
   }
 
-  // Manual mode (free-text fallback)
+  // Manual mode (free-text fallback) — auto-link to catalog when codice matches exactly
   if (manualMode) {
+    const handleCodeChange = (e) => {
+      const code = e.target.value
+      const match = code.trim()
+        ? products.find(p => p.attivo !== false && p.id !== excludeProductId && normalize(p.codice) === normalize(code))
+        : null
+      if (match) {
+        onChange({
+          piece_product_id: match.id,
+          piece_name: match.nome,
+          piece_code: match.codice || '',
+        })
+      } else {
+        onChange({ ...value, piece_product_id: null, piece_code: code })
+      }
+    }
     return (
       <div className="space-y-2">
         <div className="flex gap-2">
@@ -95,7 +113,7 @@ export function KitPiecePicker({ value, onChange, excludeProductId }) {
             className={INPUT_STYLE + ' w-32'}
             placeholder="Codice"
             value={value?.piece_code || ''}
-            onChange={(e) => onChange({ ...value, piece_product_id: null, piece_code: e.target.value })}
+            onChange={handleCodeChange}
           />
         </div>
         <button
