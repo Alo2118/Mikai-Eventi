@@ -34,7 +34,7 @@ export function useAdminProdottiHandlers() {
 
   // Kit state
   const [kitContents, setKitContents] = useState([])
-  const [newPiece, setNewPiece] = useState({ piece_name: '', piece_code: '', quantity: 1 })
+  const [newPiece, setNewPiece] = useState({ piece_product_id: null, piece_name: '', piece_code: '', quantity: 1 })
   const [editingPiece, setEditingPiece] = useState(null)
   const [editingPieceData, setEditingPieceData] = useState({})
 
@@ -107,7 +107,7 @@ export function useAdminProdottiHandlers() {
   }, [fetchKitContents, fetchProductSpecimens, fetchProductStock, fetchStockHistory, fetchStockLocations, fetchCommittedStock])
 
   const resetEditState = () => {
-    setNewPiece({ piece_name: '', piece_code: '', quantity: 1 })
+    setNewPiece({ piece_product_id: null, piece_name: '', piece_code: '', quantity: 1 })
     setNewSpecimen({ codice_inventario: '', posizione_attuale: 'in_magazzino', note: '' })
     setEditingSpecimen(null)
   }
@@ -123,13 +123,16 @@ export function useAdminProdottiHandlers() {
   const handleAddPiece = async (productId) => {
     if (!productId || !newPiece.piece_name.trim()) return
     const { error } = await createKitContent({
-      product_id: productId, piece_name: newPiece.piece_name,
-      piece_code: newPiece.piece_code || null, quantity: parseInt(newPiece.quantity) || 1,
+      product_id: productId,
+      piece_product_id: newPiece.piece_product_id || null,
+      piece_name: newPiece.piece_name,
+      piece_code: newPiece.piece_code || null,
+      quantity: parseInt(newPiece.quantity) || 1,
     })
     if (error) { addToast(error, 'error'); return }
     const { data } = await fetchKitContents(productId)
     setKitContents(data || [])
-    setNewPiece({ piece_name: '', piece_code: '', quantity: 1 })
+    setNewPiece({ piece_product_id: null, piece_name: '', piece_code: '', quantity: 1 })
   }
 
   const handleDeletePiece = async (pieceId, productId) => {
@@ -141,13 +144,20 @@ export function useAdminProdottiHandlers() {
 
   const handleStartEditPiece = (kc) => {
     setEditingPiece(kc.id)
-    setEditingPieceData({ piece_name: kc.piece_name, piece_code: kc.piece_code || '', quantity: kc.quantity })
+    setEditingPieceData({
+      piece_product_id: kc.piece_product_id || null,
+      piece_name: kc.piece_name,
+      piece_code: kc.piece_code || '',
+      quantity: kc.quantity,
+    })
   }
 
   const handleSavePiece = async (productId) => {
     if (!editingPiece || !editingPieceData.piece_name?.trim()) return
     const { error } = await updateKitContent(editingPiece, {
-      piece_name: editingPieceData.piece_name, piece_code: editingPieceData.piece_code || null,
+      piece_product_id: editingPieceData.piece_product_id || null,
+      piece_name: editingPieceData.piece_name,
+      piece_code: editingPieceData.piece_code || null,
       quantity: parseInt(editingPieceData.quantity) || 1,
     })
     if (error) { addToast(error, 'error'); return }

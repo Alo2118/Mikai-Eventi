@@ -114,7 +114,11 @@ export const useAdminStore = create((set, get) => ({
 
   // === Kit Contents ===
   fetchKitContents: async (productId) => {
-    const { data, error } = await supabase.from('kit_contents').select('*').eq('product_id', productId).order('piece_name')
+    const { data, error } = await supabase
+      .from('kit_contents')
+      .select('*, piece_product:products!kit_contents_piece_product_id_fkey(id, codice, nome, famiglia, tipo)')
+      .eq('product_id', productId)
+      .order('piece_name')
     return { data: data || [], error: error?.message || null }
   },
 
