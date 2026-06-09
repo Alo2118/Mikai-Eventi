@@ -218,6 +218,8 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
               eventId={event.id}
               canEdit={canEdit}
               availableProducts={products}
+              availableFormatori={availableStaff(tavolo.id)}
+              availableDiscenti={availableDiscenti(tavolo.id)}
             />
           ))}
         </div>

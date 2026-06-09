@@ -62,9 +62,13 @@ function AssignmentSection({ title, items, renderItem, options, optionLabel, opt
   )
 }
 
-export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableProducts, canEdit }) {
+export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableProducts, availableFormatori = [], availableDiscenti = [], canEdit }) {
   const addProduct = useTavoliStore(s => s.addProduct)
   const removeProduct = useTavoliStore(s => s.removeProduct)
+  const addFormatore = useTavoliStore(s => s.addFormatore)
+  const removeFormatore = useTavoliStore(s => s.removeFormatore)
+  const addDiscente = useTavoliStore(s => s.addDiscente)
+  const removeDiscente = useTavoliStore(s => s.removeDiscente)
   const updateTavolo = useTavoliStore(s => s.updateTavolo)
   const removeTavolo = useTavoliStore(s => s.removeTavolo)
 
@@ -153,19 +157,36 @@ export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableP
         canEdit={canEdit}
       />
 
-      {/* Riepilogo persone (read-only) */}
-      {(tavolo.formatori?.length > 0 || tavolo.discenti?.length > 0) && (
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            Persone <span className="font-normal text-gray-400">({(tavolo.formatori?.length || 0) + (tavolo.discenti?.length || 0)})</span>
-          </p>
-          <div className="text-sm text-gray-500">
-            {tavolo.formatori?.length > 0 && <span>{tavolo.formatori.length} formatori</span>}
-            {tavolo.formatori?.length > 0 && tavolo.discenti?.length > 0 && <span> · </span>}
-            {tavolo.discenti?.length > 0 && <span>{tavolo.discenti.length} discenti</span>}
-          </div>
-        </div>
-      )}
+      {/* Formatori */}
+      <AssignmentSection
+        title="Formatori"
+        items={tavolo.formatori ?? []}
+        renderItem={f => `${f.staff?.user?.cognome ?? ''} ${f.staff?.user?.nome ?? ''}`.trim() || '—'}
+        options={availableFormatori}
+        optionValue={s => s.id}
+        optionLabel={s => `${s.user?.cognome ?? ''} ${s.user?.nome ?? ''}`.trim() || '—'}
+        onAdd={staffId => addFormatore(tavolo.id, staffId, eventId)}
+        onRemove={id => removeFormatore(id, eventId)}
+        canEdit={canEdit}
+      />
+
+      {/* Discenti */}
+      <AssignmentSection
+        title="Discenti"
+        items={tavolo.discenti ?? []}
+        renderItem={d => (
+          <span>
+            {`${d.participant?.contact?.cognome ?? ''} ${d.participant?.contact?.nome ?? ''}`.trim() || '—'}
+            {d.participant?.contact?.azienda && <span className="text-gray-400 ml-1">({d.participant.contact.azienda})</span>}
+          </span>
+        )}
+        options={availableDiscenti}
+        optionValue={p => p.id}
+        optionLabel={p => `${`${p.contact?.cognome ?? ''} ${p.contact?.nome ?? ''}`.trim() || '—'}${p.contact?.azienda ? ` (${p.contact.azienda})` : ''}`}
+        onAdd={participantId => addDiscente(tavolo.id, participantId, eventId)}
+        onRemove={id => removeDiscente(id, eventId)}
+        canEdit={canEdit}
+      />
 
       {/* Note */}
       <div className="space-y-1">
