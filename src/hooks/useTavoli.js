@@ -166,9 +166,11 @@ export const useTavoliStore = create((set, get) => ({
   },
 
   addDiscente: async (tavoloId, participantId, eventId) => {
+    // Un discente può stare su un solo tavolo (UNIQUE participant_id).
+    // upsert su participant_id → se già assegnato altrove, lo SPOSTA invece di fallire.
     const { error } = await supabase
       .from('event_tavoli_discenti')
-      .insert({ tavolo_id: tavoloId, participant_id: participantId })
+      .upsert({ tavolo_id: tavoloId, participant_id: participantId }, { onConflict: 'participant_id' })
     if (!error) get().fetchEventTavoli(eventId)
     return { error: error?.message || null }
   },

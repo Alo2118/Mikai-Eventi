@@ -14,8 +14,6 @@ export function TavoloModal({ selectedPeople, eventId, tavoli, onDone, onClose }
   const [loading, setLoading] = useState(false)
   const addFormatore = useTavoliStore(s => s.addFormatore)
   const addDiscente = useTavoliStore(s => s.addDiscente)
-  const removeFormatore = useTavoliStore(s => s.removeFormatore)
-  const removeDiscente = useTavoliStore(s => s.removeDiscente)
   const addToast = useToastStore(s => s.add)
 
   const handleAssign = async () => {
@@ -23,8 +21,8 @@ export function TavoloModal({ selectedPeople, eventId, tavoli, onDone, onClose }
     setLoading(true)
     let ok = 0
     for (const person of selectedPeople) {
-      // Remove from current tavolo first (handled by the caller's getPersonTavoloAssignmentId if needed)
-      // For simplicity, just add — unique constraint will prevent duplicates
+      // addDiscente fa upsert su participant_id → sposta il discente se già su un altro tavolo.
+      // I formatori possono stare su più tavoli (nessun vincolo di unicità).
       if (person.type === 'staff') {
         const { error } = await addFormatore(tavoloId, person.staffId, eventId)
         if (!error) ok++
