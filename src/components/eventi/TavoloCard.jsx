@@ -43,13 +43,13 @@ function AssignmentSection({ title, items, renderItem, options, optionLabel, opt
       {items.length > 0 && (
         <ul className="space-y-1">
           {items.map(item => (
-            <li key={item.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-sm">
-              <span className="flex-1">{renderItem(item)}</span>
+            <li key={item.id} className="flex items-center gap-1 pl-3 pr-1 py-1 bg-gray-50 rounded-lg text-sm">
+              <span className="flex-1 min-w-0 truncate">{renderItem(item)}</span>
               {canEdit && (
                 <button
                   onClick={() => onRemove(item.id)}
                   aria-label="Rimuovi"
-                  className="min-h-[48px] min-w-[48px] flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                  className="shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
                 >
                   <Icon icon={ACTION_ICONS.close} size={16} />
                 </button>
@@ -175,10 +175,10 @@ export const TavoloCard = memo(function TavoloCard({ tavolo, eventId, availableP
         title="Discenti"
         items={tavolo.discenti ?? []}
         renderItem={d => (
-          <span>
+          <>
             {`${d.participant?.contact?.cognome ?? ''} ${d.participant?.contact?.nome ?? ''}`.trim() || '—'}
-            {d.participant?.contact?.azienda && <span className="text-gray-400 ml-1">({d.participant.contact.azienda})</span>}
-          </span>
+            {d.participant?.contact?.azienda && <span className="text-gray-400"> · {d.participant.contact.azienda}</span>}
+          </>
         )}
         options={availableDiscenti}
         optionValue={p => p.id}
