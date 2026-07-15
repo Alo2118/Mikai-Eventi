@@ -44,29 +44,3 @@ export function wouldCreateCycle(itemId, targetId, allItems) {
   }
   return false
 }
-
-export function topologicalSort(items) {
-  const sorted = []
-  const visited = new Set()
-  const itemMap = new Map(items.map(i => [i.id, i]))
-  function visit(item) {
-    if (visited.has(item.id)) return
-    visited.add(item.id)
-    if (item.dipende_da && itemMap.has(item.dipende_da)) {
-      visit(itemMap.get(item.dipende_da))
-    }
-    sorted.push(item)
-  }
-  items.forEach(i => visit(i))
-  return sorted
-}
-
-export function getDepthLevel(item, items, maxDepth = 3) {
-  let depth = 0
-  let current = item
-  while (current.dipende_da && depth < maxDepth) {
-    depth++
-    current = items.find(i => i.id === current.dipende_da) || { dipende_da: null }
-  }
-  return depth
-}

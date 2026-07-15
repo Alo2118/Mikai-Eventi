@@ -15,11 +15,16 @@ con frecce su/giù (ovunque) e drag & drop (solo desktop).
 - La vista Preparazione ha due modalità: Kanban (per stato) e Lista (per categoria).
 
 ## Decisioni
-- **(a)** I template restano guidati dalle dipendenze. Non si aggiunge riordino manuale
-  ai template. Si corregge solo il *seed* dell'evento.
 - **(b)** In evento il riordino manuale è **libero**: si può spostare un task anche sopra
   la sua dipendenza. È solo ordine visivo; il **gate della dipendenza resta attivo**
   (il task non può iniziare finché la dipendenza non è completata).
+- **Template (agg. dopo revisione):** si aggiunge il riordino manuale **anche nel template**
+  (lista piatta, non raggruppata). L'ordine impostato nel template diventa il default di
+  ogni nuovo evento generato. La colonna `template_items.ordine` viene rianimata; il display
+  passa da `topologicalSort` a ordinamento per `ordine`; l'indentazione per profondità di
+  dipendenza viene rimossa (con l'ordine libero non ha più senso). Le dipendenze restano
+  come info ("Dopo: X") e come gate negli eventi. Gli helper `topologicalSort`/`getDepthLevel`
+  diventano codice morto e vengono rimossi.
 
 ## Modello dati — migration
 - `ALTER TABLE event_activities ADD COLUMN IF NOT EXISTS ordine integer`.
@@ -35,8 +40,17 @@ con frecce su/giù (ovunque) e drag & drop (solo desktop).
   (una categoria), update ottimistico in stato + batch update DB; rollback via refetch
   su errore. Usata sia dalle frecce sia dal drag.
 - `addCustomActivity`: imposta `ordine = max(ordine della categoria) + 1` (in coda).
-- `generateActivitiesFromTemplate`: semina `ordine` via `topologicalSort` (dipendenze-aware),
-  numerato per categoria → l'ordine implicito del template arriva nell'evento.
+- `generateActivitiesFromTemplate`: semina `ordine` dall'ordine del template (già ordinato
+  per `ordine`), numerato per categoria → l'ordine del template arriva nell'evento.
+
+## Template (`AdminTemplate` + `useActivityTemplates`)
+- Migration `template_items_ordine_backfill`: backfill `ordine` per le checklist
+  (`tipo='checklist'`), per template, ordinando per `giorni_prima_evento` poi `descrizione`.
+- `createTemplateItem`: `ordine = max(checklist del template) + 1`.
+- `reorderTemplateItems(orderedIds)`: riassegna `ordine = 0..n` in batch.
+- UI: lista piatta ordinata per `ordine` con `ReorderControls` (frecce + drag desktop).
+- `ReorderControls` estratto in `src/components/ui/ReorderControls.jsx`, condiviso tra
+  la lista Preparazione dell'evento e l'editor template.
 
 ## UI — solo vista Lista (`PreparazioneListView`)
 Per ogni card, dentro il gruppo-categoria, strip di controllo a sinistra (solo se `canEdit`):

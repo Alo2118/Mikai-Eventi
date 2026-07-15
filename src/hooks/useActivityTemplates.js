@@ -62,16 +62,39 @@ export const useActivityTemplatesStore = create(() => ({
   },
 
   createTemplateItem: async (templateId, item) => {
+    // In coda: ordine = max(ordine checklist del template) + 1
+    const { data: maxRow } = await supabase
+      .from('template_items')
+      .select('ordine')
+      .eq('template_id', templateId)
+      .eq('tipo', 'checklist')
+      .order('ordine', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const nextOrdine = (maxRow?.ordine ?? -1) + 1
     const { data, error } = await supabase
       .from('template_items')
       .insert({
         template_id: templateId,
         tipo: 'checklist',
+        ordine: nextOrdine,
         ...item,
       })
       .select()
       .single()
     return { data, error }
+  },
+
+  // Riordino manuale della checklist di un template: riassegna ordine = 0..n.
+  reorderTemplateItems: async (orderedIds) => {
+    if (!orderedIds?.length) return { error: null }
+    const results = await Promise.all(
+      orderedIds.map((id, idx) =>
+        supabase.from('template_items').update({ ordine: idx }).eq('id', id)
+      )
+    )
+    const failed = results.find(r => r.error)
+    return { error: failed?.error || null }
   },
 
   updateTemplateItem: async (id, updates) => {

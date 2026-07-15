@@ -18,7 +18,7 @@ import {
   SELECT_STYLE, CARD_HOVER_STYLE,
 } from '../../lib/constants'
 import { useEventTypes } from '../../hooks/useEventTypes'
-import { topologicalSort, getDepthLevel } from '../../lib/admin-template-utils'
+import { ReorderControls } from '../../components/ui/ReorderControls'
 import { AdminTemplateChecklistEditor } from '../../components/admin/AdminTemplateChecklistEditor'
 import { AdminTemplateProgramEditor } from '../../components/admin/AdminTemplateProgramEditor'
 import { AdminTemplateMaterialEditor } from '../../components/admin/AdminTemplateMaterialEditor'
@@ -29,6 +29,7 @@ export function AdminTemplate() {
   const createTemplateItem = useActivityTemplatesStore(s => s.createTemplateItem)
   const updateTemplateItem = useActivityTemplatesStore(s => s.updateTemplateItem)
   const deleteTemplateItem = useActivityTemplatesStore(s => s.deleteTemplateItem)
+  const reorderTemplateItems = useActivityTemplatesStore(s => s.reorderTemplateItems)
   const createTemplate = useActivityTemplatesStore(s => s.createTemplate)
   const deleteTemplate = useActivityTemplatesStore(s => s.deleteTemplate)
   const fetchProgramTemplateItems = useProgramTemplatesStore(s => s.fetchProgramTemplateItems)
@@ -48,6 +49,7 @@ export function AdminTemplate() {
   const [templates, setTemplates] = useState([])
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [items, setItems] = useState([])
+  const [draggingItemId, setDraggingItemId] = useState(null)
   const [programItems, setProgramItems] = useState([])
   const [materialItems, setMaterialItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -144,6 +146,37 @@ export function AdminTemplate() {
     if (error) { addToast(error.message || 'Non è stato possibile rimuovere l\'attività. Riprova.', 'error'); return }
     addToast('Attività rimossa dal template', 'success')
     loadItems(selectedTemplate.id)
+  }
+
+  // Riordino manuale della checklist template: update ottimistico + persistenza.
+  async function reorderChecklist(orderedIds) {
+    const rank = new Map(orderedIds.map((id, i) => [id, i]))
+    setItems(prev => [...prev].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)))
+    const { error } = await reorderTemplateItems(orderedIds)
+    if (error) {
+      addToast('Non siamo riusciti a riordinare. Riprova.', 'error')
+      loadItems(selectedTemplate.id)
+    }
+  }
+
+  function moveChecklist(index, dir) {
+    const target = index + dir
+    if (target < 0 || target >= items.length) return
+    const ids = items.map(i => i.id)
+    ;[ids[index], ids[target]] = [ids[target], ids[index]]
+    reorderChecklist(ids)
+  }
+
+  function dropChecklist(dropIndex) {
+    const dragId = draggingItemId
+    setDraggingItemId(null)
+    if (!dragId) return
+    const fromIndex = items.findIndex(i => i.id === dragId)
+    if (fromIndex === -1 || fromIndex === dropIndex) return
+    const ids = items.map(i => i.id)
+    const [moved] = ids.splice(fromIndex, 1)
+    ids.splice(dropIndex, 0, moved)
+    reorderChecklist(ids)
   }
 
   async function handleSaveProgram(payload) {
@@ -309,13 +342,23 @@ export function AdminTemplate() {
                   <EmptyState title="Nessuna attività" description="Aggiungi la prima attività al template." />
                 ) : (
                   <div className="space-y-2">
-                    {topologicalSort(items).map(item => {
-                      const depth = getDepthLevel(item, items)
-                      return (
+                    {items.map((item, index) => (
+                      <div
+                        key={item.id}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={() => dropChecklist(index)}
+                        className={`flex gap-1.5 items-stretch ${draggingItemId === item.id ? 'opacity-50' : ''}`}
+                      >
+                        <ReorderControls
+                          index={index}
+                          count={items.length}
+                          onMoveUp={() => moveChecklist(index, -1)}
+                          onMoveDown={() => moveChecklist(index, 1)}
+                          onDragStart={() => setDraggingItemId(item.id)}
+                          onDragEnd={() => setDraggingItemId(null)}
+                        />
                         <div
-                          key={item.id}
-                          className={CARD_HOVER_STYLE + ' cursor-pointer'}
-                          style={{ marginLeft: `${depth * 2}rem` }}
+                          className={CARD_HOVER_STYLE + ' cursor-pointer flex-1 min-w-0'}
                           onClick={() => setEditing(item)}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -350,8 +393,8 @@ export function AdminTemplate() {
                             </button>
                           </div>
                         </div>
-                      )
-                    })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

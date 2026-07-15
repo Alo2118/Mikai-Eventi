@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { nowISO, todayISO, calculateDeadline } from '../lib/date-utils'
-import { topologicalSort } from '../lib/admin-template-utils'
 
 export const useActivitiesStore = create((set, get) => ({
   // State — separate keys to avoid collisions between views
@@ -194,10 +193,10 @@ export const useActivitiesStore = create((set, get) => ({
     const eventDate = new Date(dataInizio)
     const templateIdMap = {}
 
-    // Semina l'ordine manuale dell'evento dall'ordine implicito del template
-    // (dipendenze via topologicalSort), numerato per categoria.
+    // Semina l'ordine manuale dell'evento dall'ordine del template (già ordinato
+    // per `ordine` dalla query), numerato per categoria.
     const ordineByCat = {}
-    const activitiesToInsert = topologicalSort(items).map(item => {
+    const activitiesToInsert = items.map(item => {
       const categoria = item.categoria || 'organizzazione'
       const ordine = ordineByCat[categoria] ?? 0
       ordineByCat[categoria] = ordine + 1
