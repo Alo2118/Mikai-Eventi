@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MODALITA_EVENTO, AREA_MANAGER_ROLES, INPUT_STYLE, INPUT_ERROR_STYLE, SELECT_STYLE, TEXTAREA_STYLE, FORM_CONTAINER_STYLE, CARD_STYLE, GROUP_HEADING_STYLE } from '../../lib/constants'
 import { formatDateRange, formatDate } from '../../lib/date-utils'
 import { Button } from '../ui/Button'
+import { Modal } from '../ui/Modal'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, NAV_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { useEventTypes } from '../../hooks/useEventTypes'
@@ -70,19 +72,43 @@ export function EventInfoTab({ event, onUpdate }) {
   const [saving, setSaving] = useState(false)
   const [fields, setFields] = useState({})
   const [touched, setTouched] = useState({})
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const { eventTypes, labels: tipoLabels, icons: tipoIcons } = useEventTypes()
+  const navigate = useNavigate()
 
   const handleBlur = (field) => setTouched(prev => ({ ...prev, [field]: true }))
   const fieldError = (field, value) => !!touched[field] && !value?.toString().trim()
 
   const updateEvent = useEventsStore(s => s.updateEvent)
+  const deleteEvent = useEventsStore(s => s.deleteEvent)
   const users = useAdminStore(s => s.users)
   const fetchUsers = useAdminStore(s => s.fetchUsers)
   const agents = useContactsStore(s => s.agents)
   const fetchAgents = useContactsStore(s => s.fetchAgents)
   const hasPermission = useAuthStore(s => s.hasPermission)
+  const hasRole = useAuthStore(s => s.hasRole)
   const user = useAuthStore(s => s.user)
   const addToast = useToastStore(s => s.add)
+
+  const canDelete = hasRole('admin', 'direzione') && event.stato !== 'concluso'
+  const deleteConfirmed = deleteConfirmText.trim() === (event.titolo || '').trim()
+
+  const handleDelete = async () => {
+    if (!deleteConfirmed) return
+    setDeleting(true)
+    const { error } = await deleteEvent(event.id)
+    setDeleting(false)
+    if (error) {
+      console.warn('Errore eliminazione evento:', error)
+      addToast('Non siamo riusciti a eliminare l\'evento. Riprova.', 'error')
+      return
+    }
+    setDeleteOpen(false)
+    addToast('Evento eliminato', 'success')
+    navigate('/eventi')
+  }
 
   const isReadOnlyState = NON_EDITABLE_STATES.includes(event.stato)
   const canEdit = !isReadOnlyState && (hasPermission('approva_eventi') || event.promotore_id === user?.id)
@@ -355,6 +381,58 @@ export function EventInfoTab({ event, onUpdate }) {
         )}
         </>
       )}
+
+      {!editing && canDelete && (
+        <div className="border border-red-200 rounded-xl p-4 space-y-3">
+          <h3 className="font-semibold text-lg flex items-center gap-2 text-red-700">
+            <Icon icon={ACTION_ICONS.delete} size={18} />
+            Zona pericolosa
+          </h3>
+          <p className="text-sm text-gray-600">
+            L'eliminazione rimuove definitivamente l'evento e tutto ciò che ne dipende
+            (materiali, persone, logistica, costi, attività, documenti). L'operazione è
+            irreversibile. Per annullare senza cancellare usa invece "Annulla evento".
+          </p>
+          <Button variant="danger" onClick={() => { setDeleteConfirmText(''); setDeleteOpen(true) }}>
+            <Icon icon={ACTION_ICONS.delete} size={16} className="mr-2" />
+            Elimina evento definitivamente
+          </Button>
+        </div>
+      )}
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        size="sm"
+        title="Elimina evento definitivamente"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>Annulla</Button>
+            <Button variant="danger" onClick={handleDelete} loading={deleting} disabled={!deleteConfirmed}>
+              Elimina definitivamente
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-base text-gray-600">
+          <p>
+            Verranno eliminati in modo <strong>irreversibile</strong> l'evento
+            <strong> «{event.titolo}»</strong> e tutti i dati collegati: materiali,
+            persone, logistica, costi, attività e documenti.
+          </p>
+          <p className="text-sm">
+            Per confermare, digita il titolo dell'evento:
+          </p>
+          <input
+            className={INPUT_STYLE}
+            value={deleteConfirmText}
+            onChange={e => setDeleteConfirmText(e.target.value)}
+            placeholder={event.titolo}
+            aria-label="Titolo dell'evento per conferma"
+            autoFocus
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

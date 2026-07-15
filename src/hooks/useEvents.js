@@ -222,6 +222,23 @@ export const useEventsStore = create((set, get) => {
     return get().updateEvent(id, { stato: 'cancellato', motivo_cancellazione: motivo })
   },
 
+  // Eliminazione definitiva: la RPC verifica permessi/stato e cancella l'evento con
+  // le sue dipendenze (FK cascade), restituendo i path Storage da purgare.
+  deleteEvent: async (id) => {
+    const { data: paths, error } = await supabase.rpc('delete_event_cascade', { p_event_id: id })
+    if (error) return { error: error.message }
+    // I file Storage non sono coperti dalle cascade DB: rimozione best-effort.
+    if (Array.isArray(paths) && paths.length) {
+      const { error: storageError } = await supabase.storage.from('event-documents').remove(paths)
+      if (storageError) console.warn('deleteEvent: file Storage non rimossi:', storageError.message)
+    }
+    set((s) => ({
+      events: s.events.filter(e => e.id !== id),
+      totalCount: Math.max(0, s.totalCount - 1),
+    }))
+    return { error: null }
+  },
+
   checkGatePronto: async (eventId) => {
     const { data } = await supabase
       .from('event_activities')
