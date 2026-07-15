@@ -54,7 +54,7 @@ Key business rules:
 
 ### GitHub Pages (Deploy)
 - **Base path:** `/Mikai-Eventi/` — **SPA routing:** `public/404.html` redirect trick
-- **CI/CD:** `.github/workflows/deploy.yml` — push to `main` → build → deploy
+- **CI/CD:** `.github/workflows/deploy.yml` — push to `master` → build → deploy (production branch)
 - **Secrets:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` in repository settings
 
 ### Commands
@@ -262,9 +262,9 @@ Components=PascalCase, Hooks=`use*`, Stores=`use*Store`, Utils=kebab-case, Const
 
 ## Git & Workflow
 
-- `main` is protected. Work on `master`/feature branches, PR to `main`.
+- `master` is the production branch: pushing to it triggers the GitHub Pages deploy. Push to `master` only when the change is ready to go live.
 - Concise English commits: `Add/Fix/Update <what> — <why>`.
-- Always `npm run build` before committing. No force push to `main`.
+- Always `npm run build` before committing. No force push to `master`.
 
 ---
 
@@ -283,7 +283,7 @@ The project ships custom skills in `.claude/skills/` and custom agents in `.clau
 | `/verify [scope]` | Before claiming "done" | Build + grep checks (no lucide imports, no inline dates, etc.) + sibling consistency |
 | `/simplify` | After writing a logical chunk of code | Reuse, quality, efficiency check; fixes issues found |
 | `/migrate <intent>` | DB schema change | Drafts migration, never edits existing ones, enum + policy split rules |
-| `/deploy` | Push to production | Pre-flight checks before merging to `main` |
+| `/deploy` | Push to production | Pre-flight checks before pushing to `master` |
 
 ### Custom agents (in `.claude/agents/`)
 
