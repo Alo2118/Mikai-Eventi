@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { nowISO, todayISO, calculateDeadline } from '../lib/date-utils'
+import { topologicalSort } from '../lib/admin-template-utils'
 
 export const useActivitiesStore = create((set, get) => ({
   // State — separate keys to avoid collisions between views
@@ -24,8 +25,9 @@ export const useActivitiesStore = create((set, get) => ({
     set({ eventLoading: true, eventError: null })
     const { data, error } = await supabase
       .from('event_activities')
-      .select('id, event_id, descrizione, stato, deadline, obbligatoria, post_evento, dipende_da, categoria, permesso_responsabile, assegnato_a, tipo_verifica, verifica_automatica, completata_il, completata_da, note, assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome)')
+      .select('id, event_id, descrizione, stato, deadline, ordine, obbligatoria, post_evento, dipende_da, categoria, permesso_responsabile, assegnato_a, tipo_verifica, verifica_automatica, completata_il, completata_da, note, assegnato:users!event_activities_assegnato_a_fkey(id, nome, cognome)')
       .eq('event_id', eventId)
+      .order('ordine', { ascending: true, nullsFirst: false })
       .order('deadline', { ascending: true, nullsFirst: false })
     // Resolve self-referential dependencies in-memory (PostgREST can't self-join)
     const activities = (data || []).map(a => {
@@ -192,19 +194,28 @@ export const useActivitiesStore = create((set, get) => ({
     const eventDate = new Date(dataInizio)
     const templateIdMap = {}
 
-    const activitiesToInsert = items.map(item => ({
-      event_id: eventId,
-      template_item_id: item.id,
-      descrizione: item.descrizione,
-      categoria: item.categoria,
-      permesso_responsabile: item.permesso_responsabile,
-      stato: 'da_fare',
-      deadline: calculateDeadline(eventDate, item.giorni_prima_evento),
-      obbligatoria: item.obbligatorio,
-      post_evento: item.post_evento || false,
-      tipo_verifica: item.tipo_verifica || 'manuale',
-      verifica_automatica: item.verifica_automatica,
-    }))
+    // Semina l'ordine manuale dell'evento dall'ordine implicito del template
+    // (dipendenze via topologicalSort), numerato per categoria.
+    const ordineByCat = {}
+    const activitiesToInsert = topologicalSort(items).map(item => {
+      const categoria = item.categoria || 'organizzazione'
+      const ordine = ordineByCat[categoria] ?? 0
+      ordineByCat[categoria] = ordine + 1
+      return {
+        event_id: eventId,
+        template_item_id: item.id,
+        descrizione: item.descrizione,
+        categoria: item.categoria,
+        permesso_responsabile: item.permesso_responsabile,
+        stato: 'da_fare',
+        deadline: calculateDeadline(eventDate, item.giorni_prima_evento),
+        obbligatoria: item.obbligatorio,
+        post_evento: item.post_evento || false,
+        tipo_verifica: item.tipo_verifica || 'manuale',
+        verifica_automatica: item.verifica_automatica,
+        ordine,
+      }
+    })
 
     const { data: inserted, error } = await supabase
       .from('event_activities')
@@ -275,10 +286,38 @@ export const useActivitiesStore = create((set, get) => ({
 
   disableActivity: async (id) => get().updateActivity(id, { stato: 'disattivata' }),
 
+  // Riordino manuale dentro una categoria: riceve gli id già nell'ordine voluto e
+  // riassegna ordine = 0..n. Update ottimistico + batch DB, rollback via refetch.
+  reorderCategory: async (orderedIds) => {
+    if (!orderedIds?.length) return { error: null }
+    const eventId = get().eventActivities.find(a => a.id === orderedIds[0])?.event_id
+    const orderMap = new Map(orderedIds.map((id, idx) => [id, idx]))
+    set(state => ({
+      eventActivities: state.eventActivities.map(a =>
+        orderMap.has(a.id) ? { ...a, ordine: orderMap.get(a.id) } : a
+      ),
+    }))
+    const results = await Promise.all(
+      orderedIds.map((id, idx) =>
+        supabase.from('event_activities').update({ ordine: idx }).eq('id', id)
+      )
+    )
+    const failed = results.find(r => r.error)
+    if (failed) {
+      if (eventId) await get().fetchEventActivities(eventId)
+      return { error: failed.error.message }
+    }
+    return { error: null }
+  },
+
   addCustomActivity: async (eventId, activity) => {
+    // In coda alla sua categoria: ordine = max(ordine della categoria) + 1
+    const categoria = activity.categoria || 'organizzazione'
+    const sameCat = get().eventActivities.filter(a => (a.categoria || 'organizzazione') === categoria)
+    const nextOrdine = sameCat.reduce((max, a) => Math.max(max, a.ordine ?? -1), -1) + 1
     const { data, error } = await supabase
       .from('event_activities')
-      .insert({ event_id: eventId, ...activity })
+      .insert({ event_id: eventId, ordine: nextOrdine, ...activity })
       .select()
       .single()
     if (!error) await get().fetchEventActivities(eventId)

@@ -36,6 +36,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const runAutoVerifications = useActivitiesStore(s => s.runAutoVerifications)
   const addCustomActivity = useActivitiesStore(s => s.addCustomActivity)
   const updateActivity = useActivitiesStore(s => s.updateActivity)
+  const reorderCategory = useActivitiesStore(s => s.reorderCategory)
   const fetchTemplatePreview = useActivityTemplatesStore(s => s.fetchTemplatePreview)
 
   const fetchEventDocuments = useDocumentsStore(s => s.fetchEventDocuments)
@@ -99,13 +100,21 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     return { total: visible.length, completed: comp, overdue: over, mandatoryIncomplete: mand }
   }, [visible, today])
 
-  // Group by category (for list view) — must be computed before any early return
+  // Group by category (for list view), ordinato per `ordine` manuale (poi deadline).
+  // L'ordinamento qui rende immediato l'update ottimistico del riordino.
   const grouped = useMemo(() => {
     const g = {}
     for (const act of visible) {
       const cat = act.categoria || 'organizzazione'
       if (!g[cat]) g[cat] = []
       g[cat].push(act)
+    }
+    const rank = (a) => (a.ordine ?? Number.MAX_SAFE_INTEGER)
+    for (const cat of Object.keys(g)) {
+      g[cat].sort((a, b) => {
+        if (rank(a) !== rank(b)) return rank(a) - rank(b)
+        return (a.deadline || '9999').localeCompare(b.deadline || '9999')
+      })
     }
     return g
   }, [visible])
@@ -303,6 +312,11 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     canApproveDoc, docByActivity, currentUserId: user?.id, eventStaff,
   }
 
+  const handleReorder = async (orderedIds) => {
+    const { error } = await reorderCategory(orderedIds)
+    if (error) addToast('Non siamo riusciti a riordinare le attività. Riprova.', 'error')
+  }
+
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0
   const barColor = overdue > 0 ? 'bg-red-500' : completed === total ? 'bg-green-500' : 'bg-mikai-400'
   const statusText = overdue > 0 ? `${overdue} in ritardo` : completed === total ? 'Tutto completato' : 'In corso'
@@ -377,7 +391,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
       )}
 
       {viewMode === 'lista' && (
-        <PreparazioneListView grouped={grouped} cardPropsContext={cardPropsContext} />
+        <PreparazioneListView grouped={grouped} cardPropsContext={cardPropsContext} onReorder={handleReorder} />
       )}
 
       {/* Image preview modal */}

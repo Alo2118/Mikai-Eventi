@@ -110,6 +110,7 @@ import {
   ArrowDownWideNarrow,
   ChevronDown,
   ChevronUp,
+  GripVertical,
   Warehouse,
 
   // Phase 4 — persone e logistica
@@ -300,6 +301,7 @@ export const ACTION_ICONS = {
   refresh: RotateCcw,
   chevronDown: ChevronDown,
   chevronUp: ChevronUp,
+  grip: GripVertical,
   manage: ExternalLink,
   more: EllipsisVertical,
 }

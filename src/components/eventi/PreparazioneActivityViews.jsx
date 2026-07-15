@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Icon } from '../ui/Icon'
 import { ActivityCard } from './ActivityCard'
 import { CATEGORIA_ATTIVITA } from '../../lib/constants'
-import { CATEGORIA_ICONS } from '../../lib/icons'
+import { CATEGORIA_ICONS, ACTION_ICONS } from '../../lib/icons'
 
 const KANBAN_COLUMNS = [
   { id: 'da_fare', label: 'Da fare', color: 'border-gray-300', headerBg: 'bg-gray-50', headerText: 'text-gray-700' },
@@ -71,8 +72,68 @@ export function PreparazioneKanbanView({ visible, cardPropsContext }) {
   )
 }
 
-export function PreparazioneListView({ grouped, cardPropsContext }) {
+// Colonna di controllo per il riordino manuale (frecce ovunque, drag su desktop).
+function ReorderControls({ index, count, onMoveUp, onMoveDown, onDragStart, onDragEnd }) {
+  return (
+    <div className="flex flex-col items-center justify-center shrink-0">
+      <button
+        type="button"
+        aria-label="Sposta su"
+        disabled={index === 0}
+        onClick={onMoveUp}
+        title={index === 0 ? 'Già in cima' : 'Sposta su'}
+        className="min-h-[48px] min-w-[48px] flex items-center justify-center text-gray-400 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+      >
+        <Icon icon={ACTION_ICONS.chevronUp} size={20} />
+      </button>
+      <span
+        draggable
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        aria-hidden="true"
+        title="Trascina per riordinare"
+        className="hidden md:flex items-center justify-center text-gray-300 cursor-grab active:cursor-grabbing py-0.5"
+      >
+        <Icon icon={ACTION_ICONS.grip} size={16} />
+      </span>
+      <button
+        type="button"
+        aria-label="Sposta giù"
+        disabled={index === count - 1}
+        onClick={onMoveDown}
+        title={index === count - 1 ? 'Già in fondo' : 'Sposta giù'}
+        className="min-h-[48px] min-w-[48px] flex items-center justify-center text-gray-400 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+      >
+        <Icon icon={ACTION_ICONS.chevronDown} size={20} />
+      </button>
+    </div>
+  )
+}
+
+export function PreparazioneListView({ grouped, cardPropsContext, onReorder }) {
   const getCardProps = useActivityCardProps(cardPropsContext)
+  const canReorder = !!cardPropsContext.canEdit && !!onReorder
+  const [draggingId, setDraggingId] = useState(null)
+
+  const move = (acts, index, dir) => {
+    const target = index + dir
+    if (target < 0 || target >= acts.length) return
+    const ids = acts.map(a => a.id)
+    ;[ids[index], ids[target]] = [ids[target], ids[index]]
+    onReorder(ids)
+  }
+
+  const drop = (acts, dropIndex) => {
+    const dragId = draggingId
+    setDraggingId(null)
+    if (!dragId) return
+    const fromIndex = acts.findIndex(a => a.id === dragId)
+    if (fromIndex === -1 || fromIndex === dropIndex) return // fuori categoria o stessa posizione
+    const ids = acts.map(a => a.id)
+    const [moved] = ids.splice(fromIndex, 1)
+    ids.splice(dropIndex, 0, moved)
+    onReorder(ids)
+  }
 
   return (
     <div className="space-y-6">
@@ -88,8 +149,29 @@ export function PreparazioneListView({ grouped, cardPropsContext }) {
             </span>
           </div>
           <div className="space-y-2">
-            {acts.map(activity => (
-              <ActivityCard key={activity.id} {...getCardProps(activity)} />
+            {acts.map((activity, index) => (
+              canReorder ? (
+                <div
+                  key={activity.id}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => drop(acts, index)}
+                  className={`flex gap-1.5 items-stretch ${draggingId === activity.id ? 'opacity-50' : ''}`}
+                >
+                  <ReorderControls
+                    index={index}
+                    count={acts.length}
+                    onMoveUp={() => move(acts, index, -1)}
+                    onMoveDown={() => move(acts, index, 1)}
+                    onDragStart={() => setDraggingId(activity.id)}
+                    onDragEnd={() => setDraggingId(null)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <ActivityCard {...getCardProps(activity)} />
+                  </div>
+                </div>
+              ) : (
+                <ActivityCard key={activity.id} {...getCardProps(activity)} />
+              )
             ))}
           </div>
         </div>
