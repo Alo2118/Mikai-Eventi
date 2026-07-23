@@ -39,6 +39,7 @@ const SECTION_STYLES = {
 export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showCatalog, setShowCatalog] = useState(false)
   const [showPicking, setShowPicking] = useState(false)
   const [collapsedSections, setCollapsedSections] = useState(new Set())
@@ -95,11 +96,17 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
 
   const loadData = async () => {
     setLoading(true)
+    setError(null)
     const [matRes, movRes, packRes] = await Promise.all([
       fetchEventMaterialList(event.id),
       fetchEventMovements(event.id),
       fetchPackingList(event.id),
     ])
+    if (matRes.error) {
+      setError('Non siamo riusciti a caricare il materiale. Riprova.')
+      setLoading(false)
+      return
+    }
     setRows(matRes.data)
     setMovements(movRes.data)
     setPackingItems(packRes.data || [])
@@ -273,6 +280,18 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   }, [packingItems])
 
   if (loading) return <LoadingSkeleton lines={5} />
+  if (error) {
+    return (
+      <div role="alert" className="space-y-6">
+        <EmptyState
+          icon={FEEDBACK_ICONS.warning}
+          title="Errore nel caricamento"
+          description={error}
+          action={<Button variant="secondary" onClick={loadData}>Riprova</Button>}
+        />
+      </div>
+    )
+  }
   const speditoCount = rows.filter(r => r.stato === 'spedito').length
   const allPrepared = rows.length > 0 && pendingCount === 0 && confirmedCount === 0
 
@@ -296,7 +315,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   ].filter(g => g.rows.length > 0)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* ── Compact header: info + actions unified ── */}
       <div className={SUMMARY_BAR_STYLE + ' space-y-2'}>
         {/* Row 1: Key info */}

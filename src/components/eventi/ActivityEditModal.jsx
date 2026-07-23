@@ -53,7 +53,7 @@ export function ActivityEditModal({ open, activity, onSave, onClose, saving }) {
       footer={
         <div className="flex gap-3 justify-end">
           <Button variant="secondary" onClick={onClose} disabled={saving}>Annulla</Button>
-          <Button onClick={handleSubmit} loading={saving} disabled={!form.descrizione.trim()}>Salva modifiche</Button>
+          <Button onClick={handleSubmit} loading={saving} disabled={!form.descrizione.trim()} title={!form.descrizione.trim() ? 'Inserisci una descrizione' : ''}>Salva modifiche</Button>
         </div>
       }
     >

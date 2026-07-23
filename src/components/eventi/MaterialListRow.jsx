@@ -185,6 +185,14 @@ export const MaterialListRow = memo(function MaterialListRow({
   const [showConfirmForm, setShowConfirmForm] = useState(false)
   const [confirmQty, setConfirmQty] = useState(row.quantita || 1)
   const [confirmNote, setConfirmNote] = useState('')
+  // Blocca i bottoni azione mentre un'operazione è in volo: evita il doppio invio
+  // (doppio tap su mobile lento) che scaricherebbe due volte lo stock.
+  const [busy, setBusy] = useState(false)
+  const runAction = async (fn) => {
+    if (busy) return
+    setBusy(true)
+    try { await fn() } finally { setBusy(false) }
+  }
 
   const tipoCode = product?.tipo || 'demo_kit'
   const tipoLabel = tipoLabels?.[tipoCode] || tipoCode
@@ -280,21 +288,21 @@ export const MaterialListRow = memo(function MaterialListRow({
           <div className="flex items-center gap-0.5 flex-shrink-0">
             {canApprove && isPending && (
               <>
-                <button onClick={(e) => { e.stopPropagation(); onConfirm(row.id, row.quantita || 1, '') }} className={ACT_BTN + ' bg-green-100 hover:bg-green-200'} aria-label={`Conferma ${product?.nome}`}>
+                <button disabled={busy} onClick={(e) => { e.stopPropagation(); runAction(() => onConfirm(row.id, row.quantita || 1, '')) }} className={ACT_BTN + ' bg-green-100 hover:bg-green-200 disabled:opacity-50 disabled:hover:scale-100'} aria-label={`Conferma ${product?.nome}`}>
                   <Icon icon={ACTION_ICONS.approve} size={16} className="text-green-700" />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); onReject(row.id, product?.nome) }} className={ACT_BTN + ' bg-red-100 hover:bg-red-200'} aria-label={`Rifiuta ${product?.nome}`}>
+                <button disabled={busy} onClick={(e) => { e.stopPropagation(); runAction(() => onReject(row.id, product?.nome)) }} className={ACT_BTN + ' bg-red-100 hover:bg-red-200 disabled:opacity-50 disabled:hover:scale-100'} aria-label={`Rifiuta ${product?.nome}`}>
                   <Icon icon={ACTION_ICONS.reject} size={16} className="text-red-700" />
                 </button>
               </>
             )}
             {canApprove && isConfirmed && onStartPreparation && (
-              <button onClick={(e) => { e.stopPropagation(); onStartPreparation(row.id) }} className={ACT_BTN + ' bg-mikai-100 hover:bg-mikai-200'} aria-label="Avvia preparazione">
+              <button disabled={busy} onClick={(e) => { e.stopPropagation(); runAction(() => onStartPreparation(row.id)) }} className={ACT_BTN + ' bg-mikai-100 hover:bg-mikai-200 disabled:opacity-50 disabled:hover:scale-100'} aria-label="Avvia preparazione">
                 <Icon icon={ACTION_ICONS.forward} size={16} className="text-mikai-700" />
               </button>
             )}
             {rowRemovable && (
-              <button onClick={(e) => { e.stopPropagation(); onRemove(row.id) }} className={ACT_BTN + ' bg-gray-100 hover:bg-red-100'} aria-label={`Rimuovi ${product?.nome}`}>
+              <button disabled={busy} onClick={(e) => { e.stopPropagation(); runAction(() => onRemove(row.id)) }} className={ACT_BTN + ' bg-gray-100 hover:bg-red-100 disabled:opacity-50 disabled:hover:scale-100'} aria-label={`Rimuovi ${product?.nome}`}>
                 <Icon icon={ACTION_ICONS.close} size={16} className="text-gray-400" />
               </button>
             )}

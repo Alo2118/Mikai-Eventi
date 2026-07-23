@@ -8,6 +8,7 @@ export const useAuthStore = create((set, get) => ({
   permissions: [],
   loading: true,
   error: null,
+  profileError: null,
   _authSubscription: null,
 
   initialize: async () => {
@@ -46,12 +47,19 @@ export const useAuthStore = create((set, get) => ({
         supabase.from('users').select('*').eq('id', userId).single(),
         supabase.from('user_permissions').select('permission').eq('user_id', userId),
       ])
+      // Non ingoiare l'errore: se il profilo non si carica l'utente resterebbe
+      // autenticato ma "invisibile" (nessun ruolo/permesso) senza spiegazione.
+      if (profileRes.error || !profileRes.data) {
+        set({ profile: null, permissions: [], profileError: 'Non siamo riusciti a caricare il tuo profilo. Riprova.' })
+        return
+      }
       set({
-        profile: profileRes.data || null,
+        profile: profileRes.data,
         permissions: (permsRes.data || []).map(p => p.permission),
+        profileError: null,
       })
     } catch (err) {
-      set({ profile: null, permissions: [] })
+      set({ profile: null, permissions: [], profileError: 'Non siamo riusciti a caricare il tuo profilo. Riprova.' })
     }
   },
 

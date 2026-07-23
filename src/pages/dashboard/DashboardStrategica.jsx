@@ -360,9 +360,14 @@ export function DashboardStrategica() {
         title="Rifiuta evento"
         size="sm"
         footer={
-          <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setRejectingId(null)}>Annulla</Button>
-            <Button variant="danger" onClick={handleReject} disabled={!rejectMotivo.trim()}>Rifiuta evento</Button>
+          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end sm:items-center">
+            {!rejectMotivo.trim() && (
+              <span className="text-sm text-gray-500 sm:mr-auto">Il motivo è obbligatorio</span>
+            )}
+            <div className="flex gap-3 justify-end">
+              <Button variant="secondary" onClick={() => setRejectingId(null)}>Annulla</Button>
+              <Button variant="danger" onClick={handleReject} disabled={!rejectMotivo.trim()} title={!rejectMotivo.trim() ? 'Il motivo è obbligatorio' : ''}>Rifiuta evento</Button>
+            </div>
           </div>
         }
       >

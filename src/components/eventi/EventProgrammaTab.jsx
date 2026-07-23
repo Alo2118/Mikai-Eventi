@@ -23,7 +23,7 @@ function ProgrammaModal({ open, form, setField, types, saving, onSave, onClose, 
       footer={
         <div className="flex items-center justify-between gap-3">
           <div className="flex gap-3">
-            <Button onClick={onSave} loading={saving} disabled={!form.tipo_id}>{editing ? 'Salva' : 'Aggiungi'}</Button>
+            <Button onClick={onSave} loading={saving} disabled={!form.tipo_id} title={!form.tipo_id ? 'Seleziona il tipo di attività' : ''}>{editing ? 'Salva' : 'Aggiungi'}</Button>
             <Button variant="secondary" onClick={onClose}>Annulla</Button>
           </div>
           {editing && onDelete && (

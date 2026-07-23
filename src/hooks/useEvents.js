@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { monthFloorISO } from '../lib/date-utils'
+import { effectiveRientroRichiesto } from '../lib/event-flow'
 
 const EVENTS_PAGE_SIZE = 25
 const EVENTS_SELECT = 'id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, promotore_contact_id, manager_user_id, spedizione_data, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)'
@@ -138,7 +139,8 @@ export const useEventsStore = create((set, get) => {
     set({
       events: rows,
       loading: false,
-      error: error?.message || null,
+      // Messaggio umano in italiano: mai esporre l'errore Postgres grezzo alla UI.
+      error: error ? 'Non siamo riusciti a caricare gli eventi. Riprova.' : null,
       totalCount: count ?? 0,
       hasMore: rows.length === pageSize,
     })
@@ -277,16 +279,18 @@ export const useEventsStore = create((set, get) => {
         return { canAdvance: true, unreturned: [] }
       }
     }
+    // Un item è "non rientrato" quando è uscito (spedito, o in_preparazione per
+    // i tipi senza spedizione) e non ha ancora una data_rientro. Stesso filtro di
+    // fetchPendingReturnsForEvent/fetchOverdueReturns: l'item resta in stato
+    // 'spedito' dopo registerEventShipping, quindi 'approvato' non lo intercetta.
     const { data, error } = await supabase
       .from('event_materials')
-      .select('id, stato, rientro_richiesto, product:products(serializzato)')
+      .select('id, stato, rientro_richiesto, data_rientro, product:products(serializzato)')
       .eq('event_id', eventId)
-      .in('stato', ['approvato', 'in_preparazione'])
+      .in('stato', ['spedito', 'in_preparazione'])
+      .is('data_rientro', null)
     if (error) return failClosed
-    const unreturned = (data || []).filter(m => {
-      if (m.rientro_richiesto !== null && m.rientro_richiesto !== undefined) return m.rientro_richiesto === true
-      return !!m.product?.serializzato
-    })
+    const unreturned = (data || []).filter(m => effectiveRientroRichiesto(m))
     return { canAdvance: unreturned.length === 0, unreturned }
   },
 

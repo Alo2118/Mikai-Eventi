@@ -453,7 +453,7 @@ export function EventLogisticaTab({ event, users = [] }) {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button onClick={handleAddStaff} disabled={!staffForm.userId}>Aggiungi</Button>
+            <Button onClick={handleAddStaff} disabled={!staffForm.userId} title={!staffForm.userId ? 'Seleziona prima una persona' : ''}>Aggiungi</Button>
             <Button variant="ghost" onClick={() => setStaffForm(null)}>Annulla</Button>
           </div>
         </div>
@@ -474,7 +474,7 @@ export function EventLogisticaTab({ event, users = [] }) {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button onClick={handleAddParticipant} disabled={!partForm.contact}>Aggiungi</Button>
+            <Button onClick={handleAddParticipant} disabled={!partForm.contact} title={!partForm.contact ? 'Seleziona prima un contatto' : ''}>Aggiungi</Button>
             <Button variant="ghost" onClick={() => setPartForm(null)}>Annulla</Button>
           </div>
         </div>

@@ -38,11 +38,16 @@ export function RejectMaterialDialog({ open, productName, onConfirm, onCancel })
           aria-label="Motivo del rifiuto"
           required
         />
-        <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={handleCancel}>Annulla</Button>
-          <Button variant="danger" onClick={handleConfirm} disabled={!motivo.trim()}>
-            Rifiuta
-          </Button>
+        <div className="flex flex-col sm:flex-row gap-3 sm:justify-end sm:items-center">
+          {!motivo.trim() && (
+            <span className="text-sm text-gray-500 sm:mr-auto">Scrivi il motivo per poter rifiutare</span>
+          )}
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={handleCancel}>Annulla</Button>
+            <Button variant="danger" onClick={handleConfirm} disabled={!motivo.trim()} title={!motivo.trim() ? 'Scrivi il motivo del rifiuto' : ''}>
+              Rifiuta
+            </Button>
+          </div>
         </div>
       </div>
     </div>

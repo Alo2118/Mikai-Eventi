@@ -86,6 +86,7 @@ export function LogisticaInventario() {
   const inventoryStock = useMaterialsStore(s => s.inventoryStock)
   const loading = useMaterialsStore(s => s.inventoryLoading)
   const error = useMaterialsStore(s => s.inventoryError)
+  const truncated = useMaterialsStore(s => s.inventoryTruncated)
   const fetchInventory = useMaterialsStore(s => s.fetchInventory)
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -168,6 +169,13 @@ export function LogisticaInventario() {
           })}
         </div>
       </div>
+
+      {!error && !loading && truncated && (
+        <div role="status" className="text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 mb-3 flex items-start gap-2">
+          <Icon icon={MATERIALE_ICONS.warehouse} size={16} className="shrink-0 mt-0.5" />
+          <span>L'inventario è molto grande: stiamo mostrando i primi 5000 articoli. Usa la ricerca per trovare quello che ti serve.</span>
+        </div>
+      )}
 
       {!error && !loading && total > 0 && (
         <p className="text-sm text-gray-500 mb-3">

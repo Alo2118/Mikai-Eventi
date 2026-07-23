@@ -44,29 +44,25 @@ export const useParticipantsStore = create((set, get) => ({
   },
 
   bulkAddParticipants: async (eventId, participants) => {
-    // Check which contacts are already assigned to this event
-    const { data: existing } = await supabase
-      .from('event_participants')
-      .select('contact_id')
-      .eq('event_id', eventId)
-    const existingIds = new Set((existing || []).map(e => e.contact_id))
-    const toInsert = participants.filter(p => !existingIds.has(p.contactId))
-    const skipped = participants.length - toInsert.length
+    if (!participants?.length) return { data: { inserted: 0, skipped: 0 }, error: null }
 
-    if (toInsert.length === 0) return { data: { inserted: 0, skipped }, error: null }
-
-    const rows = toInsert.map(p => ({
+    const rows = participants.map(p => ({
       event_id: eventId,
       contact_id: p.contactId,
       tipo: p.tipo,
       note: p.note || null,
       stato_iscrizione: 'invitato',
     }))
+    // Upsert con ignoreDuplicates: i contatti già presenti (UNIQUE event_id,contact_id)
+    // vengono saltati atomicamente dal DB. Un solo conflitto non fa più fallire l'intero
+    // batch (prima il select→filter→insert perdeva la corsa con import concorrenti).
     const { data, error } = await supabase
       .from('event_participants')
-      .insert(rows)
+      .upsert(rows, { onConflict: 'event_id,contact_id', ignoreDuplicates: true })
       .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
-    if (!error) get().fetchEventParticipants(eventId)
-    return { data: { inserted: toInsert.length, skipped }, error: error?.message || null }
+    if (error) return { data: null, error: error.message }
+    const inserted = (data || []).length
+    get().fetchEventParticipants(eventId)
+    return { data: { inserted, skipped: participants.length - inserted }, error: null }
   },
 }))

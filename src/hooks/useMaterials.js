@@ -39,6 +39,7 @@ export const useMaterialsStore = create((set, get) => {
   inventoryStock: [],     // giacenze a quantità (product_stock_locations)
   inventoryLoading: false,
   inventoryError: null,
+  inventoryTruncated: false, // true se il DB supera il limite: la lista è incompleta
   filters: { search: '', tipo: '', posizione: '', brand: '' },
 
   setFilter: (key, value) => {
@@ -87,6 +88,7 @@ export const useMaterialsStore = create((set, get) => {
   // esemplari serializzati (materials) + giacenze a quantità (product_stock_locations)
   fetchInventory: async () => {
     set({ inventoryLoading: true, inventoryError: null })
+    const INVENTORY_LIMIT = 5000
     const [specRes, stockRes] = await Promise.all([
       supabase
         .from('materials')
@@ -95,10 +97,10 @@ export const useMaterialsStore = create((set, get) => {
           product:products(id, nome, codice, foto_url, brand:brands(id, nome)),
           magazzino:magazzini(id, nome),
           agente:users!materials_presso_utente_id_fkey(id, nome, cognome)
-        `)
+        `, { count: 'exact' })
         .eq('attivo', true)
         .order('nome')
-        .limit(5000),
+        .limit(INVENTORY_LIMIT),
       supabase
         .from('product_stock_locations')
         .select(`
@@ -106,15 +108,19 @@ export const useMaterialsStore = create((set, get) => {
           product:products(id, nome, codice, tipo, serializzato),
           magazzino:magazzini(id, nome),
           agent:users(id, nome, cognome)
-        `)
+        `, { count: 'exact' })
         .gt('quantita', 0)
-        .limit(5000),
+        .limit(INVENTORY_LIMIT),
     ])
+    // Se il conteggio totale supera il limite, la lista mostrata è incompleta:
+    // segnaliamo il troncamento alla UI invece di tagliare in silenzio.
+    const truncated = (specRes.count ?? 0) > INVENTORY_LIMIT || (stockRes.count ?? 0) > INVENTORY_LIMIT
     set({
       inventory: specRes.data || [],
       inventoryStock: stockRes.data || [],
       inventoryLoading: false,
       inventoryError: specRes.error?.message || stockRes.error?.message || null,
+      inventoryTruncated: truncated,
     })
     return { error: specRes.error?.message || stockRes.error?.message || null }
   },
@@ -320,13 +326,16 @@ export const useMaterialsStore = create((set, get) => {
   },
 
   confirmMaterialRow: async (id, quantitaApprovata, noteUfficio) => {
-    // Pre-check: verify stock availability for gadgets before confirming
-    const { data: row } = await supabase
+    // Fail-closed: se non riusciamo a leggere la riga non procediamo (un blip di rete
+    // non deve far avanzare la richiesta saltando il decremento stock).
+    const { data: row, error: rowError } = await supabase
       .from('event_materials')
       .select('product_id, event_id, product:products(id, tipo, quantita_disponibile, serializzato), event:events(id, titolo)')
       .eq('id', id)
       .single()
+    if (rowError) return { data: null, error: 'Non siamo riusciti a verificare il materiale. Riprova.' }
 
+    // Pre-check: verify stock availability for gadgets before confirming
     if (row?.product && !row.product.serializzato && row.product.tipo === 'gadget' && row.product.quantita_disponibile != null) {
       if (quantitaApprovata > row.product.quantita_disponibile) {
         return { data: null, error: `Quantità disponibile insufficiente (disponibili: ${row.product.quantita_disponibile})` }
@@ -335,18 +344,9 @@ export const useMaterialsStore = create((set, get) => {
 
     const { data: { user: currentUser } } = await supabase.auth.getUser()
 
-    // Decrement stock FIRST for gadgets — before changing stato. Capture the location so a
-    // rollback hits the same one.
-    const isGadget = row?.product?.tipo === 'gadget' && row?.product?.quantita_disponibile != null
-    let drawMeta = null
-    if (isGadget) {
-      const loc = await get()._topStockLocation(row.product_id)
-      drawMeta = { userId: currentUser?.id, eventId: row.event_id, ...loc }
-      const motivo = row.event?.titolo ? `Consumo materiale — evento "${row.event.titolo}"` : 'Consumo materiale per evento'
-      const stockError = await get()._adjustStock(row.product_id, -quantitaApprovata, { ...drawMeta, motivo })
-      if (stockError) return { data: null, error: stockError }
-    }
-
+    // Claim atomico: cambia lo stato SOLO se è ancora 'richiesto'. Su doppio invio
+    // (doppio tap / race) la seconda chiamata non trova la riga in 'richiesto' e non
+    // scala lo stock una seconda volta. Lo scarico avviene DOPO il claim riuscito.
     const { data, error } = await supabase
       .from('event_materials')
       .update({
@@ -357,25 +357,43 @@ export const useMaterialsStore = create((set, get) => {
         data_approvazione: nowISO(),
       })
       .eq('id', id)
+      .eq('stato', 'richiesto')
       .select('*, product:products(id, tipo, quantita_disponibile)')
-      .single()
-
-    // Rollback stock if status update failed
-    if (error && drawMeta) {
-      await get()._adjustStock(row.product_id, quantitaApprovata, { ...drawMeta, motivo: 'Annullamento consumo — errore salvataggio' })
-      return { data: null, error: error.message }
+      .maybeSingle()
+    if (error) return { data: null, error: error.message }
+    if (!data) {
+      // Nessuna riga in 'richiesto': già confermata (o rifiutata) da un'altra azione.
+      return { data: null, error: 'Questo materiale è già stato confermato.' }
     }
 
-    return { data, error: error?.message || null }
+    // Ora scala lo stock per i gadget. Se fallisce, riporta lo stato a 'richiesto'.
+    const isGadget = row?.product?.tipo === 'gadget' && row?.product?.quantita_disponibile != null
+    if (isGadget) {
+      const loc = await get()._topStockLocation(row.product_id)
+      const drawMeta = { userId: currentUser?.id, eventId: row.event_id, ...loc }
+      const motivo = row.event?.titolo ? `Consumo materiale — evento "${row.event.titolo}"` : 'Consumo materiale per evento'
+      const stockError = await get()._adjustStock(row.product_id, -quantitaApprovata, { ...drawMeta, motivo })
+      if (stockError) {
+        await supabase
+          .from('event_materials')
+          .update({ stato: 'richiesto', quantita_approvata: null, approvato_da: null, data_approvazione: null })
+          .eq('id', id)
+        return { data: null, error: stockError }
+      }
+    }
+
+    return { data, error: null }
   },
 
   rejectMaterialRow: async (id, motivo) => {
     // Fetch full row to restore stock if needed
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('event_materials')
       .select('*, product:products(id, tipo, quantita_disponibile), event:events(id, titolo)')
       .eq('id', id)
       .single()
+    // Fail-closed: senza la riga non sappiamo se/quanto stock ripristinare.
+    if (existingError) return { data: null, error: 'Non siamo riusciti a verificare il materiale. Riprova.' }
 
     // Restore gadget stock before rejecting (only if was approved/in_preparazione)
     const restoring = !!(existing && ['approvato', 'in_preparazione'].includes(existing.stato) && existing.quantita_approvata && existing.product?.tipo === 'gadget')
