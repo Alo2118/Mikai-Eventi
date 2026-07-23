@@ -13,10 +13,12 @@ import { StatusDot } from './StatusDot'
 import { TrasportoCell } from './TrasportoCell'
 
 export function LogisticaPersonCard({
-  person, hotel, andata, ritorno, hasTavoli, tavoli,
-  selected, canEdit, canEditStaff, canEditPart,
-  onToggleSelect, onSetStatoConfirm, onSetSingleEdit, onSetDeleting,
+  person, logistics, hasTavoli, selected, perms, actions,
 }) {
+  // Bundle raggruppati (sotto il limite prop); destrutturati qui, corpo invariato.
+  const { hotel, andata, ritorno, tavoli } = logistics || {}
+  const { canEdit, canEditStaff, canEditPart } = perms || {}
+  const { onToggleSelect, onSetStatoConfirm, onSetSingleEdit, onSetDeleting } = actions || {}
   const key = personKey(person)
   const currentTavolo = hasTavoli ? getPersonTavolo(person, tavoli) : null
 

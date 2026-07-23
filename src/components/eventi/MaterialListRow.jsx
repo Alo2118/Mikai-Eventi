@@ -170,9 +170,12 @@ function MobileMeta({ stato, row, collo, primaryLocation, richiedente, approvato
 
 export const MaterialListRow = memo(function MaterialListRow({
   row, availability, stockLocations = [], kitPieces = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
-  canEdit, canApprove, onUpdate, onRemove, onConfirm, onReject, onStartPreparation, onRevert,
-  tipoLabels, tipoColors, tipoIcons, shippingEnabled = true,
+  canEdit, canApprove, actions, tipoMeta, shippingEnabled = true,
 }) {
+  // Raggruppati per stare sotto il limite prop: destrutturati qui così il resto
+  // del componente resta invariato. actions = handler; tipoMeta = mappe tipo prodotto.
+  const { onUpdate, onRemove, onConfirm, onReject, onStartPreparation, onRevert } = actions || {}
+  const { labels: tipoLabels, colors: tipoColors, icons: tipoIcons } = tipoMeta || {}
   const [expanded, setExpanded] = useState(false)
   const isPending = row.stato === 'richiesto'
   const isConfirmed = row.stato === 'approvato'

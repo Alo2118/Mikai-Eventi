@@ -61,24 +61,18 @@ function ResponsabileBadge({ permesso }) {
 
 export const ActivityCard = memo(function ActivityCard({
   activity,
-  onStart,
-  onComplete,
-  onRevert,
-  onAssign,
-  onDisable,
-  onEdit,
-  onUploadDocument,
-  onToggleDocumento,
-  onPreviewDoc,
-  onApproveDoc,
-  onRejectDoc,
-  onRequestRevisionDoc,
+  actions,
+  docActions,
   canApproveDoc,
   currentUserId,
   linkedDoc,
   eventStaff,
   compact = false,
 }) {
+  // Bundle raggruppati per stare sotto il limite prop; destrutturati qui così il
+  // resto del componente resta invariato.
+  const { onStart, onComplete, onRevert, onAssign, onDisable, onEdit } = actions || {}
+  const { onUploadDocument, onToggleDocumento, onPreviewDoc, onApproveDoc, onRejectDoc, onRequestRevisionDoc } = docActions || {}
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showAssignPicker, setShowAssignPicker] = useState(false)
   const today = todayISO()

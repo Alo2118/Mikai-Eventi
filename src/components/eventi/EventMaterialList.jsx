@@ -233,6 +233,19 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     else { addToast('Riportato in attesa di conferma', 'success'); loadData() }
   }
 
+  // Prop bundles per MaterialListRow (riduce il numero di prop del componente).
+  // tipoMeta è memoizzabile (mappe stabili); le action chiudono su stato mutabile
+  // (rows, loadData) quindi vanno ricostruite ad ogni render — come i prop inline di prima.
+  const tipoMeta = useMemo(() => ({ labels: tipoLabels, colors: tipoColors, icons: tipoIcons }), [tipoLabels, tipoColors, tipoIcons])
+  const materialRowActions = {
+    onUpdate: handleUpdate,
+    onRemove: handleRemove,
+    onConfirm: handleConfirm,
+    onReject: (id, name) => setRejectTarget({ id, productName: name }),
+    onStartPreparation: handleStartPreparation,
+    onRevert: handleRevert,
+  }
+
   const handleDownloadShippingPDF = async () => {
     const shippingItems = rows.filter(r => r.stato === 'approvato' || r.stato === 'in_preparazione')
     if (shippingItems.length === 0) return
@@ -497,16 +510,9 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                             eventTracking={event.spedizione_tracking}
                             canEdit={canEdit}
                             canApprove={canApprove}
-                            tipoLabels={tipoLabels}
-                            tipoColors={tipoColors}
-                            tipoIcons={tipoIcons}
+                            tipoMeta={tipoMeta}
                             shippingEnabled={shippingEnabled}
-                            onUpdate={handleUpdate}
-                            onRemove={handleRemove}
-                            onConfirm={handleConfirm}
-                            onReject={(id, name) => setRejectTarget({ id, productName: name })}
-                            onStartPreparation={handleStartPreparation}
-                            onRevert={handleRevert}
+                            actions={materialRowActions}
                           />
                         </div>
                       </div>

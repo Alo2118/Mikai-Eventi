@@ -222,6 +222,15 @@ export function EventLogisticaTab({ event, users = [] }) {
     else setSelected(new Set(filteredPeople.map(p => personKey(p))))
   }
 
+  // Bundle condivisi da tutte le righe/card persona (permessi + handler)
+  const personPerms = { canEdit, canEditStaff, canEditPart }
+  const personActions = {
+    onToggleSelect: toggleSelect,
+    onSetStatoConfirm: setStatoConfirm,
+    onSetSingleEdit: setSingleEdit,
+    onSetDeleting: setDeleting,
+  }
+
   const groupedPeople = useMemo(() => {
     if (!groupBy) return [{ label: null, people: filteredPeople }]
     if (groupBy === 'tavolo') {
@@ -571,19 +580,11 @@ export function EventLogisticaTab({ event, users = [] }) {
                   <LogisticaPersonRow
                     key={personKey(person)}
                     person={person}
-                    hotel={getHotel(person)}
-                    andata={getAndata(person)}
-                    ritorno={getRitorno(person)}
+                    logistics={{ hotel: getHotel(person), andata: getAndata(person), ritorno: getRitorno(person), tavoli }}
                     hasTavoli={hasTavoli}
-                    tavoli={tavoli}
                     selected={selected.has(personKey(person))}
-                    canEdit={canEdit}
-                    canEditStaff={canEditStaff}
-                    canEditPart={canEditPart}
-                    onToggleSelect={toggleSelect}
-                    onSetStatoConfirm={setStatoConfirm}
-                    onSetSingleEdit={setSingleEdit}
-                    onSetDeleting={setDeleting}
+                    perms={personPerms}
+                    actions={personActions}
                   />
                 ))}
               </tbody>
@@ -602,19 +603,11 @@ export function EventLogisticaTab({ event, users = [] }) {
               <LogisticaPersonCard
                 key={personKey(person)}
                 person={person}
-                hotel={getHotel(person)}
-                andata={getAndata(person)}
-                ritorno={getRitorno(person)}
+                logistics={{ hotel: getHotel(person), andata: getAndata(person), ritorno: getRitorno(person), tavoli }}
                 hasTavoli={hasTavoli}
-                tavoli={tavoli}
                 selected={selected.has(personKey(person))}
-                canEdit={canEdit}
-                canEditStaff={canEditStaff}
-                canEditPart={canEditPart}
-                onToggleSelect={toggleSelect}
-                onSetStatoConfirm={setStatoConfirm}
-                onSetSingleEdit={setSingleEdit}
-                onSetDeleting={setDeleting}
+                perms={personPerms}
+                actions={personActions}
               />
             ))}
           </div>
