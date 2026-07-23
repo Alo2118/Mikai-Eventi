@@ -102,9 +102,10 @@ async function notifyTavoliMaterialChange(eventId, changeType, count) {
 export const useTavoliStore = create((set, get) => ({
   tavoli: [],
   loading: false,
+  error: null,
 
   fetchEventTavoli: async (eventId) => {
-    set({ loading: true })
+    set({ loading: true, error: null })
     const { data, error } = await supabase
       .from('event_tavoli')
       .select(`
@@ -115,7 +116,7 @@ export const useTavoliStore = create((set, get) => ({
       `)
       .eq('event_id', eventId)
       .order('numero')
-    set({ tavoli: data || [], loading: false })
+    set({ tavoli: data || [], loading: false, error: error?.message || null })
     return { data, error }
   },
 

@@ -389,7 +389,7 @@ export function EventiDetail() {
       <div className="hidden md:flex items-center justify-between gap-4 px-6 pt-3 pb-1">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-gray-900 truncate">{event.titolo}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 truncate">{event.titolo}</h1>
             {event.certificato_previsto && (
               <span className="shrink-0 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">Certificato</span>
             )}

@@ -5,6 +5,7 @@ export const useSubActivitiesStore = create((set, get) => ({
   subActivities: [],
   types: [],
   loading: false,
+  error: null,
 
   fetchTypes: async () => {
     const { data, error } = await supabase
@@ -49,13 +50,13 @@ export const useSubActivitiesStore = create((set, get) => ({
 
   // Event sub-activities
   fetchEventSubActivities: async (eventId) => {
-    set({ loading: true })
+    set({ loading: true, error: null })
     const { data, error } = await supabase
       .from('event_sub_activities')
       .select('*, tipo_ref:sub_activity_types(id, nome), fornitore_ref:contacts!event_sub_activities_fornitore_id_fkey(id, nome, cognome)')
       .eq('event_id', eventId)
       .order('data_ora', { ascending: true })
-    set({ subActivities: data || [], loading: false })
+    set({ subActivities: data || [], loading: false, error: error?.message || null })
     return { data, error }
   },
 

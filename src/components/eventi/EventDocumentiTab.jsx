@@ -18,6 +18,7 @@ import { DocumentUploadModal } from './DocumentUploadModal'
 export function EventDocumentiTab({ event, onShowPackingList }) {
   const documents = useDocumentsStore(s => s.documents)
   const loading = useDocumentsStore(s => s.loading)
+  const error = useDocumentsStore(s => s.error)
   const fetchEventDocuments = useDocumentsStore(s => s.fetchEventDocuments)
   const uploadDocument = useDocumentsStore(s => s.uploadDocument)
   const deleteDocument = useDocumentsStore(s => s.deleteDocument)
@@ -230,6 +231,7 @@ export function EventDocumentiTab({ event, onShowPackingList }) {
     : documents
 
   if (loading) return <LoadingSkeleton lines={5} />
+  if (error) return <div role="alert"><EmptyState title="Errore nel caricamento" description="Non siamo riusciti a caricare i documenti. Riprova." /></div>
 
   return (
     <div className="space-y-6">
@@ -296,7 +298,7 @@ export function EventDocumentiTab({ event, onShowPackingList }) {
       )}
 
       {filteredDocs.length === 0 && documents.length > 0 && (
-        <p className="text-center text-gray-500 py-8">Nessun documento di questo tipo.</p>
+        <EmptyState title="Nessun documento" description="Prova a cambiare i filtri." />
       )}
 
       <div className="space-y-3">

@@ -8,7 +8,7 @@ const variants = {
 }
 
 export const Button = forwardRef(function Button({ children, variant = 'primary', size = 'md', disabled, loading, className = '', ...props }, ref) {
-  const sizeClasses = size === 'lg' ? 'px-6 py-3 text-lg' : size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2.5 text-base'
+  const sizeClasses = size === 'lg' ? 'px-6 py-3 text-lg' : size === 'sm' ? 'px-3 py-1.5 text-base' : 'px-4 py-2.5 text-base'
 
   return (
     <button

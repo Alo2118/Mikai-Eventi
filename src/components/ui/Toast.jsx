@@ -51,7 +51,7 @@ export function ToastContainer() {
             <span className="flex-1">{t.message}</span>
             <button
               onClick={() => remove(t.id)}
-              className="ml-1 p-1 rounded opacity-60 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-current min-h-[32px] min-w-[32px] flex items-center justify-center"
+              className="ml-1 p-1 rounded opacity-60 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-current min-h-[48px] min-w-[48px] flex items-center justify-center"
               aria-label="Chiudi notifica"
             >
               <Icon icon={ACTION_ICONS.close} size={16} aria-hidden="true" />

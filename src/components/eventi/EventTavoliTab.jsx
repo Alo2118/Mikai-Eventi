@@ -61,6 +61,7 @@ function ProductPicker({ products, onConfirm, onCancel }) {
 export function EventTavoliTab({ event, staff = [], participants = [] }) {
   const tavoli = useTavoliStore(s => s.tavoli)
   const loading = useTavoliStore(s => s.loading)
+  const error = useTavoliStore(s => s.error)
   const fetchEventTavoli = useTavoliStore(s => s.fetchEventTavoli)
   const createTavoli = useTavoliStore(s => s.createTavoli)
   const assignProductToAllTavoli = useTavoliStore(s => s.assignProductToAllTavoli)
@@ -130,6 +131,7 @@ export function EventTavoliTab({ event, staff = [], participants = [] }) {
   }
 
   if (loading) return <LoadingSkeleton lines={4} />
+  if (error) return <div role="alert"><EmptyState title="Errore nel caricamento" description="Non siamo riusciti a caricare i tavoli. Riprova." /></div>
 
   return (
     <div className="space-y-6">

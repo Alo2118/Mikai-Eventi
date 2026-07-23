@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
 import { NAV_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
+import { PageHeader } from '../../components/ui/PageHeader'
 import { TIPO_EVENTO, STATO_EVENTO } from '../../lib/constants'
 import { useEventTypes } from '../../hooks/useEventTypes'
 import { formatDate, todayISO, monthFloorISO } from '../../lib/date-utils'
@@ -241,48 +242,48 @@ export function EventiList() {
       <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[{ label: 'Eventi' }]} />
       </div>
-      <div className="px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900">Eventi</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{stats.total} eventi · {stats.upcoming} in programma</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link to="/eventi/nuovo">
-            <Button>
-              <Icon icon={ACTION_ICONS.add} size={18} className="mr-1" />
-              <span className="hidden sm:inline">Nuovo</span>
-            </Button>
-          </Link>
-          {/* Overflow menu: Export + Calendar */}
-          <div className="relative">
-            <Button variant="secondary" onClick={() => setShowOverflow(!showOverflow)} aria-label="Altre azioni">
-              <Icon icon={ACTION_ICONS.more} size={18} />
-            </Button>
-            {showOverflow && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowOverflow(false)} />
-                <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-[200px]">
-                  <button
-                    onClick={() => { handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: filteredEvents, filename: 'eventi', sheetName: 'Eventi' }); setShowOverflow(false) }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
-                  >
-                    <Icon icon={ACTION_ICONS.upload} size={16} />
-                    Esporta Excel
-                  </button>
-                  <Link
-                    to="/eventi/calendario"
-                    onClick={() => setShowOverflow(false)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
-                  >
-                    <Icon icon={NAV_ICONS.calendario} size={16} />
-                    Calendario
-                  </Link>
-                </div>
-              </>
-            )}
+      <PageHeader
+        title="Eventi"
+        subtitle={`${stats.total} eventi · ${stats.upcoming} in programma`}
+        actions={
+          <div className="flex items-center gap-2 shrink-0">
+            <Link to="/eventi/nuovo">
+              <Button>
+                <Icon icon={ACTION_ICONS.add} size={18} className="mr-1" />
+                <span className="hidden sm:inline">Nuovo</span>
+              </Button>
+            </Link>
+            {/* Overflow menu: Export + Calendar */}
+            <div className="relative">
+              <Button variant="secondary" onClick={() => setShowOverflow(!showOverflow)} aria-label="Altre azioni">
+                <Icon icon={ACTION_ICONS.more} size={18} />
+              </Button>
+              {showOverflow && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowOverflow(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-[200px]">
+                    <button
+                      onClick={() => { handleExport({ columns: EXPORT_COLUMNS_EVENTI, rows: filteredEvents, filename: 'eventi', sheetName: 'Eventi' }); setShowOverflow(false) }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
+                    >
+                      <Icon icon={ACTION_ICONS.upload} size={16} />
+                      Esporta Excel
+                    </button>
+                    <Link
+                      to="/eventi/calendario"
+                      onClick={() => setShowOverflow(false)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[48px]"
+                    >
+                      <Icon icon={NAV_ICONS.calendario} size={16} />
+                      Calendario
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Row 2: All filters in one row */}
       <EventFilters

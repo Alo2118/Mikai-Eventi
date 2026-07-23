@@ -20,12 +20,13 @@ import { PreparazioneAddActivityForm } from './PreparazioneAddActivityForm'
 import { PreparazioneKanbanView, PreparazioneListView } from './PreparazioneActivityViews'
 import { usePreparazioneDocHandlers } from './usePreparazioneDocHandlers'
 import { todayISO, calculateDeadline } from '../../lib/date-utils'
-import { CATEGORIA_ATTIVITA, PERMESSO_SHORT_LABELS } from '../../lib/constants'
+import { CATEGORIA_ATTIVITA, PERMESSO_SHORT_LABELS, SUMMARY_BAR_STYLE } from '../../lib/constants'
 
 
 export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   const eventActivities = useActivitiesStore(s => s.eventActivities)
   const loading = useActivitiesStore(s => s.eventLoading)
+  const eventError = useActivitiesStore(s => s.eventError)
   const fetchEventActivities = useActivitiesStore(s => s.fetchEventActivities)
   const startActivity = useActivitiesStore(s => s.startActivity)
   const completeActivity = useActivitiesStore(s => s.completeActivity)
@@ -120,6 +121,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
   }, [visible])
 
   if (loading) return <LoadingSkeleton lines={5} />
+  if (eventError) return <div role="alert"><EmptyState title="Errore nel caricamento" description="Non siamo riusciti a caricare lo stato di preparazione. Riprova." /></div>
 
   async function handleStart(activityId) {
     const { error } = await startActivity(activityId)
@@ -324,6 +326,8 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
 
   return (
     <div className="space-y-6">
+      <h3 className="font-semibold text-lg">Preparazione</h3>
+
       {/* Header: packing list + progress + view toggle */}
       <div className="space-y-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -376,7 +380,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
 
       {/* Gate — mandatory pre-evento activity blocker only (advance is in StatusFlow) */}
       {mandatoryIncomplete > 0 && (
-        <div className="bg-mikai-50 border border-mikai-200 rounded-xl px-3 py-2">
+        <div className={SUMMARY_BAR_STYLE}>
           <div className="flex items-center gap-2 min-h-[32px]">
             <Icon icon={FEEDBACK_ICONS.warning} size={16} className="text-yellow-500 shrink-0" />
             <span className="text-sm font-medium text-mikai-700">

@@ -92,7 +92,7 @@ export function ContattiDetail() {
                   <Icon icon={TIPO_CONTATTO_ICONS[contact.tipo_contatto] || TIPO_CONTATTO_ICONS.altro} size={24} className="text-gray-500" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">{contact.cognome} {contact.nome}</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">{contact.cognome} {contact.nome}</h1>
                   <div className="flex items-center gap-2 mt-0.5">
                     <StatusBadge stato={contact.tipo_contatto} labels={TIPO_CONTATTO} colors={TIPO_CONTATTO_COLORE} />
                     {contact.citta && <span className="text-sm text-gray-500">{contact.citta}</span>}

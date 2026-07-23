@@ -83,7 +83,12 @@ function CompactMeta({ stato, row, availability, collo, primaryLocation, richied
               {locationLabel(primaryLocation)}: {primaryLocation.quantita}
             </span>
           )}
-          {approvatore && <span className="text-xs text-gray-400 hidden lg:inline">✓ {approvatore}</span>}
+          {approvatore && (
+            <span className="text-xs text-gray-400 hidden lg:inline-flex items-center gap-0.5">
+              <Icon icon={ACTION_ICONS.check} size={10} />
+              {approvatore}
+            </span>
+          )}
           {noteUfficio && <span className="text-xs text-mikai-600 italic truncate max-w-[180px] hidden md:inline" title={noteUfficio}>"{noteUfficio}"</span>}
         </>
       )

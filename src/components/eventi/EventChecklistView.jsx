@@ -97,7 +97,7 @@ export function EventChecklistView({ event, participants }) {
         <EmptyState title="Nessun partecipante da registrare" />
       )}
       {attendees.length > 0 && filtered.length === 0 && (
-        <p className="text-center text-gray-500 py-8">Nessun partecipante trovato</p>
+        <EmptyState title="Nessun partecipante" description="Prova a cambiare i filtri." />
       )}
     </div>
   )

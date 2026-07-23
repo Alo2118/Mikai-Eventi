@@ -85,11 +85,22 @@ export function EventComplianceTab({ event }) {
   const addToast = useToastStore(s => s.add)
 
   const [showInterazione, setShowInterazione] = useState(false)
+  // Errore locale derivato dai 3 fetch paralleli: il campo `error` dello store è
+  // condiviso tra hcp/tov/interazioni, quindi guidarci un guard causerebbe una race
+  // (l'ultimo fetch sovrascrive l'errore degli altri). Deriviamo dai valori ritornati.
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
-    fetchTovList({ evento_id: event.id })
-    fetchInterazioni({ evento_id: event.id })
-    fetchHcpList()
+    let cancelled = false
+    setLoadError(false)
+    Promise.all([
+      fetchTovList({ evento_id: event.id }),
+      fetchInterazioni({ evento_id: event.id }),
+      fetchHcpList(),
+    ]).then(results => {
+      if (!cancelled && results.some(r => r?.error)) setLoadError(true)
+    })
+    return () => { cancelled = true }
   }, [event.id])
 
   const handleSaveInterazione = async (data) => {
@@ -101,6 +112,8 @@ export function EventComplianceTab({ event }) {
   }
 
   const totaleToV = tovList.reduce((sum, t) => sum + Number(t.importo), 0)
+
+  if (loadError) return <div role="alert"><EmptyState title="Errore nel caricamento" description="Non siamo riusciti a caricare i dati di compliance. Riprova." /></div>
 
   return (
     <div className="space-y-6">

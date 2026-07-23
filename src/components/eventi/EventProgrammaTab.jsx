@@ -81,6 +81,7 @@ export function EventProgrammaTab({ event }) {
   const subActivities = useSubActivitiesStore(s => s.subActivities)
   const types = useSubActivitiesStore(s => s.types)
   const loading = useSubActivitiesStore(s => s.loading)
+  const error = useSubActivitiesStore(s => s.error)
   const fetchEventSubActivities = useSubActivitiesStore(s => s.fetchEventSubActivities)
   const fetchTypes = useSubActivitiesStore(s => s.fetchTypes)
   const createSubActivity = useSubActivitiesStore(s => s.createSubActivity)
@@ -201,6 +202,8 @@ export function EventProgrammaTab({ event }) {
         items: items.sort((a, b) => (a.data_ora || '').localeCompare(b.data_ora || '')),
       }))
   }, [subActivities])
+
+  if (error) return <div role="alert"><EmptyState title="Errore nel caricamento" description="Non siamo riusciti a caricare il programma dell'evento. Riprova." /></div>
 
   return (
     <div className="space-y-6">
