@@ -240,38 +240,49 @@ export const useEventsStore = create((set, get) => {
   },
 
   checkGatePronto: async (eventId) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('event_activities')
       .select('id, descrizione, stato, obbligatoria')
       .eq('event_id', eventId)
       .eq('obbligatoria', true)
       .neq('stato', 'disattivata')
       .neq('stato', 'completata')
+    // Fail-closed: se la verifica non va a buon fine non lasciamo avanzare.
+    if (error) {
+      return { canAdvance: false, blocking: [], errore: 'Non siamo riusciti a verificare i requisiti. Riprova.' }
+    }
     const blocking = data || []
     return { canAdvance: blocking.length === 0, blocking }
   },
 
   checkGateConcluded: async (eventId) => {
-    const { data: event } = await supabase
+    // Fail-closed: qualsiasi errore di query blocca l'avanzamento (i "salti"
+    // legittimi della biforcazione event-flow restano gestiti sotto).
+    const failClosed = { canAdvance: false, unreturned: [], errore: 'Non siamo riusciti a verificare i requisiti. Riprova.' }
+    const { data: event, error: eventError } = await supabase
       .from('events')
       .select('tipo_evento')
       .eq('id', eventId)
       .single()
+    if (eventError) return failClosed
     if (event?.tipo_evento) {
-      const { data: et } = await supabase
+      const { data: et, error: etError } = await supabase
         .from('event_types')
         .select('richiede_spedizione')
         .eq('codice', event.tipo_evento)
         .maybeSingle()
+      if (etError) return failClosed
+      // et null = tipo senza config (legittimo): si prosegue al check materiale.
       if (et && et.richiede_spedizione === false) {
         return { canAdvance: true, unreturned: [] }
       }
     }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('event_materials')
       .select('id, stato, rientro_richiesto, product:products(serializzato)')
       .eq('event_id', eventId)
       .in('stato', ['approvato', 'in_preparazione'])
+    if (error) return failClosed
     const unreturned = (data || []).filter(m => {
       if (m.rientro_richiesto !== null && m.rientro_richiesto !== undefined) return m.rientro_richiesto === true
       return !!m.product?.serializzato

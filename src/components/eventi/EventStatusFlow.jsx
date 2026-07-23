@@ -36,6 +36,7 @@ export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasC
   const [loading, setLoading] = useState(false)
   const [cancelMotivo, setCancelMotivo] = useState('')
   const [unreturnedMaterials, setUnreturnedMaterials] = useState([])
+  const [gateErrore, setGateErrore] = useState(null)
   const advanceEventState = useEventsStore(s => s.advanceEventState)
   const cancelEvent = useEventsStore(s => s.cancelEvent)
   const checkGateConcluded = useEventsStore(s => s.checkGateConcluded)
@@ -71,10 +72,19 @@ export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasC
 
   async function handleClick(type, target) {
     if (type === 'advance' && stato === 'in_corso') {
-      const { canAdvance: matOk, unreturned } = await checkGateConcluded(event.id)
-      if (!matOk) {
-        setUnreturnedMaterials(unreturned)
-        addToast(`${unreturned.length} materiali non ancora rientrati`, 'warning')
+      const { canAdvance: matOk, unreturned, errore } = await checkGateConcluded(event.id)
+      if (errore) {
+        // Query fail-closed (checkGateConcluded): non sappiamo quanti materiali manchino,
+        // non mostrare un conteggio fuorviante — resta soft-gate, ma con messaggio onesto.
+        setUnreturnedMaterials([])
+        setGateErrore(errore)
+        addToast(errore, 'error')
+      } else {
+        setGateErrore(null)
+        if (!matOk) {
+          setUnreturnedMaterials(unreturned)
+          addToast(`${unreturned.length} materiali non ancora rientrati`, 'warning')
+        }
       }
     }
     setConfirmAction({ type, target })
@@ -96,6 +106,7 @@ export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasC
     }
     setConfirmAction(null)
     setUnreturnedMaterials([])
+    setGateErrore(null)
     setCancelMotivo('')
   }
 
@@ -119,6 +130,9 @@ export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasC
     }
     if (confirmAction.type === 'revert') {
       return `Vuoi riportare l'evento a "${SHORT_LABELS[confirmAction.target]}"? Le attività e i dati non verranno persi.`
+    }
+    if (gateErrore) {
+      return `${gateErrore} Vuoi concludere comunque?`
     }
     if (unreturnedMaterials.length > 0) {
       return `${unreturnedMaterials.length} materiali non ancora rientrati. Vuoi concludere comunque?`
@@ -227,9 +241,9 @@ export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasC
         title={getConfirmTitle()}
         message={getConfirmMessage()}
         confirmLabel={confirmAction?.type === 'cancel' ? 'Annulla evento' : 'Conferma'}
-        danger={confirmAction?.type === 'cancel' || confirmAction?.type === 'revert' || unreturnedMaterials.length > 0 || (stato === 'in_preparazione' && hasContent === false)}
+        danger={confirmAction?.type === 'cancel' || confirmAction?.type === 'revert' || unreturnedMaterials.length > 0 || !!gateErrore || (stato === 'in_preparazione' && hasContent === false)}
         onConfirm={handleConfirm}
-        onCancel={() => { setConfirmAction(null); setUnreturnedMaterials([]); setCancelMotivo('') }}
+        onCancel={() => { setConfirmAction(null); setUnreturnedMaterials([]); setGateErrore(null); setCancelMotivo('') }}
       />
     </>
   )

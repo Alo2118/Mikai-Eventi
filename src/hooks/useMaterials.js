@@ -435,6 +435,16 @@ export const useMaterialsStore = create((set, get) => {
     })
   },
 
+  // Internal: turn a Postgres check_violation (23514) from the stock RPCs — raised when a
+  // concurrent confirmation already decremented the same product below zero — into a human
+  // Italian message instead of leaking raw constraint/exception text to the toast.
+  _friendlyStockError: (error) => {
+    if (error?.code === '23514') {
+      return 'Stock insufficiente: qualcun altro ha appena confermato questo materiale. Ricarica e riprova.'
+    }
+    return error?.message || 'Errore aggiornamento stock. Riprova.'
+  },
+
   // Internal: adjust stock with location awareness. Returns error string or null.
   // meta (optional): { userId, motivo, eventId, magazzinoId, agentUserId } — if a location
   // is given it is used, otherwise the location with the most stock; when userId is set the
@@ -463,14 +473,14 @@ export const useMaterialsStore = create((set, get) => {
         p_user_id: agId,
         p_delta: delta,
       })
-      if (error) return error.message
+      if (error) return get()._friendlyStockError(error)
       quantitaDopo = total != null ? total : quantitaPrima + delta
     } else {
       const { data: qty, error } = await supabase.rpc('adjust_product_stock', {
         p_product_id: productId,
         p_delta: delta,
       })
-      if (error) return error.message
+      if (error) return get()._friendlyStockError(error)
       quantitaDopo = qty != null && qty >= 0 ? qty : quantitaPrima + delta
     }
 
