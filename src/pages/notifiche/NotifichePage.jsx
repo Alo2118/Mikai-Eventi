@@ -12,7 +12,7 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { NotificationPreferences } from '../../components/notifiche/NotificationPreferences'
 import { TIPO_NOTIFICA, SELECT_STYLE } from '../../lib/constants'
-import { NAV_ICONS } from '../../lib/icons'
+import { NAV_ICONS, ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
 
 const PAGE_SIZE = 50
 
@@ -57,11 +57,19 @@ export function NotifichePage() {
 
   return (
     <div>
-      <MobileHeader title="Notifiche" />
+      <MobileHeader
+        title="Notifiche"
+        actions={[
+          ...(unreadCount > 0 ? [{ icon: ACTION_ICONS.check, label: 'Segna tutte come lette', onClick: markAllAsRead }] : []),
+          ...(readCount > 0 ? [{ icon: DOCUMENTO_ICONS.delete, label: 'Cancella lette', onClick: () => setShowDeleteConfirm(true) }] : []),
+          { icon: NAV_ICONS.impostazioni, label: 'Preferenze notifiche', onClick: () => setShowPreferences(!showPreferences) },
+        ]}
+      />
       <div className="px-4 md:px-6 pt-4">
         <Breadcrumb items={[{ label: 'Notifiche' }]} />
       </div>
       <PageHeader
+        mobileHidden
         title="Notifiche"
         subtitle={unreadCount > 0 ? `${unreadCount} non lette` : 'Tutto letto'}
         actions={

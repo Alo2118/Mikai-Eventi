@@ -10,7 +10,7 @@ import { Icon } from '../../components/ui/Icon'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
-import { ACTION_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
 import { TopMaterialiChart } from '../../components/report/TopMaterialiChart'
 import { MaterialeFuoriList } from '../../components/report/MaterialeFuoriList'
 import { MetricheMaterialeTable } from '../../components/report/MetricheMaterialeTable'
@@ -80,7 +80,9 @@ export function ReportMaterialePage() {
     ratePuntuale: item.onTimeRate ?? '—',
   }))
 
-  const { handleExport, exporting } = useExportHandler({
+  const { handleExport, exporting } = useExportHandler()
+
+  const runExport = () => handleExport({
     columns: exportColumns,
     rows: exportRows,
     filename: 'report_materiale',
@@ -102,13 +104,20 @@ export function ReportMaterialePage() {
         ]} />
       </div>
       <div className="md:hidden">
-        <MobileHeader title="Report Materiale" backTo="/materiale" />
+        <MobileHeader
+          title="Report Materiale"
+          backTo="/materiale"
+          actions={hasData ? [
+            { icon: DOCUMENTO_ICONS.spreadsheet, label: 'Esporta Excel', onClick: runExport, loading: exporting },
+          ] : []}
+        />
       </div>
       <PageHeader
+        mobileHidden
         title="Report Materiale"
         subtitle="Analisi utilizzo e disponibilità del materiale"
         actions={hasData ? [
-          <ExportButton key="export" onClick={handleExport} loading={exporting} label="Esporta Excel" />,
+          <ExportButton key="export" onClick={runExport} loading={exporting} label="Esporta Excel" />,
         ] : []}
       />
 

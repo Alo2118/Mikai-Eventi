@@ -259,7 +259,12 @@ export function DashboardOperativa({ warehouseOnly = false }) {
         <Breadcrumb items={[{ label: title }]} />
       </div>
       <div className="md:hidden">
-        <MobileHeader title={title} />
+        <MobileHeader
+          title={title}
+          actions={[
+            { icon: ACTION_ICONS.refresh, label: 'Aggiorna', onClick: loadData, loading },
+          ]}
+        />
       </div>
       <PageHeader
         mobileHidden

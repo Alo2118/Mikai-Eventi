@@ -68,8 +68,17 @@ export function TovDetail() {
         { label: 'Trasferimenti', to: '/compliance/tov' },
         { label: formatCurrencyDecimals(tov.importo) },
       ]} />
-      <MobileHeader title={`Trasferimento — ${TIPO_TOV[tov.tipo]}`} subtitle={`${tov.hcp?.contatto?.cognome || ''} ${tov.hcp?.contatto?.nome || ''}`} backTo="/compliance/tov" />
+      <MobileHeader
+        title={`Trasferimento — ${TIPO_TOV[tov.tipo]}`}
+        subtitle={`${tov.hcp?.contatto?.cognome || ''} ${tov.hcp?.contatto?.nome || ''}`}
+        backTo="/compliance/tov"
+        actions={canVerify ? [
+          { icon: COMPLIANCE_ICONS.segnalato, label: 'Segnala', onClick: () => setShowFlag(true) },
+          { icon: COMPLIANCE_ICONS.verificato, label: 'Verifica', onClick: () => setShowVerify(true) },
+        ] : undefined}
+      />
       <PageHeader
+        mobileHidden
         title={`Trasferimento — ${TIPO_TOV[tov.tipo]}`}
         subtitle={`${tov.hcp?.contatto?.cognome || ''} ${tov.hcp?.contatto?.nome || ''}`}
         actions={

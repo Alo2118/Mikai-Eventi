@@ -67,8 +67,14 @@ export function HcpDetail() {
         { label: 'HCP', to: '/compliance/hcp' },
         { label: `${c?.cognome || ''} ${c?.nome || ''}` },
       ]} />
-      <MobileHeader title={`${c?.cognome || ''} ${c?.nome || ''}`} subtitle="Profilo HCP" backTo="/compliance/hcp" />
+      <MobileHeader
+        title={`${c?.cognome || ''} ${c?.nome || ''}`}
+        subtitle="Profilo HCP"
+        backTo="/compliance/hcp"
+        actions={[{ icon: ACTION_ICONS.add, label: 'Registra trasferimento', to: `/compliance/tov/nuovo?hcp_id=${id}` }]}
+      />
       <PageHeader
+        mobileHidden
         title={`${c?.cognome || ''} ${c?.nome || ''}`}
         subtitle={`${TIPO_HCP[hcp.categoria]} — ${c?.azienda || hcp.struttura_appartenenza || ''}`}
         actions={

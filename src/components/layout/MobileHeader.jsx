@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
+import { IconButton } from '../ui/IconButton'
 import { ACTION_ICONS } from '../../lib/icons'
 
-export function MobileHeader({ title, subtitle, showBack = true, backTo }) {
+export function MobileHeader({ title, subtitle, showBack = true, backTo, actions }) {
   const navigate = useNavigate()
 
   return (
@@ -21,6 +22,21 @@ export function MobileHeader({ title, subtitle, showBack = true, backTo }) {
           <h1 className="text-lg font-semibold text-gray-900 truncate">{title}</h1>
           {subtitle && <p className="text-sm text-gray-500 truncate">{subtitle}</p>}
         </div>
+        {actions && actions.length > 0 && (
+          <div className="flex items-center gap-2">
+            {actions.map(({ icon, label, onClick, to, disabled, loading }) => (
+              <IconButton
+                key={label}
+                icon={icon}
+                label={label}
+                onClick={onClick}
+                to={to}
+                disabled={disabled}
+                loading={loading}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </header>
   )

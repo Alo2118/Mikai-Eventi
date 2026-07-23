@@ -90,11 +90,15 @@ export function AdminTipoEvento() {
 
   return (
     <div>
-      <MobileHeader title="Tipologie Evento" />
+      <MobileHeader
+        title="Tipologie Evento"
+        actions={[{ icon: ACTION_ICONS.add, label: 'Nuova tipologia', onClick: handleNew }]}
+      />
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Tipologie Evento' }]} />
       </div>
       <PageHeader
+        mobileHidden
         title="Tipologie Evento"
         subtitle="Gestisci le tipologie di evento disponibili"
         actions={[

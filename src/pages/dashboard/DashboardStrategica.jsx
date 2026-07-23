@@ -190,7 +190,12 @@ export function DashboardStrategica() {
         <Breadcrumb items={[{ label: 'Dashboard Direzione' }]} />
       </div>
       <div className="md:hidden">
-        <MobileHeader title="Dashboard Direzione" />
+        <MobileHeader
+          title="Dashboard Direzione"
+          actions={[
+            { icon: ACTION_ICONS.refresh, label: 'Aggiorna', onClick: loadData, loading },
+          ]}
+        />
       </div>
       <PageHeader
         mobileHidden

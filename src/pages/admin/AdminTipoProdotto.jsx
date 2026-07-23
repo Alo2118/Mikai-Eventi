@@ -77,11 +77,15 @@ export function AdminTipoProdotto() {
 
   return (
     <div>
-      <MobileHeader title="Tipologie Prodotto" />
+      <MobileHeader
+        title="Tipologie Prodotto"
+        actions={[{ icon: ACTION_ICONS.add, label: 'Nuova tipologia', onClick: handleNew }]}
+      />
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Tipologie Prodotto' }]} />
       </div>
       <PageHeader
+        mobileHidden
         title="Tipologie Prodotto"
         subtitle="Gestisci le categorie di prodotto"
         actions={[

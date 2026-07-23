@@ -12,6 +12,7 @@ import { LogisticaFabbisogno } from './LogisticaFabbisogno'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { exportToExcelMultiSheet } from '../../lib/export-utils'
 import { STATO_PRENOTAZIONE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO } from '../../lib/constants'
+import { DOCUMENTO_ICONS } from '../../lib/icons'
 import { formatDate, todayISO } from '../../lib/date-utils'
 import { useToastStore } from '../../components/ui/Toast'
 
@@ -101,9 +102,16 @@ export function LogisticaPage() {
         <Breadcrumb items={[{ label: 'Logistica' }]} />
       </div>
       <div className="md:hidden">
-        <MobileHeader title="Logistica" showBack={false} />
+        <MobileHeader
+          title="Logistica"
+          showBack={false}
+          actions={[
+            { icon: DOCUMENTO_ICONS.spreadsheet, label: 'Esporta Excel', onClick: handleExport, loading: exporting },
+          ]}
+        />
       </div>
       <PageHeader
+        mobileHidden
         title="Logistica"
         subtitle="Gestione spedizioni, rientri e inventario"
         actions={<ExportButton onClick={handleExport} loading={exporting} />}
