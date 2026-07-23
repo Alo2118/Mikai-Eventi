@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
+import { useZonesStore } from '../../hooks/useZones'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
@@ -19,15 +20,15 @@ function generatePassword(nome) {
 }
 
 export function AdminUtenti() {
-  const users = useAdminStore(s => s.users)
-  const zones = useAdminStore(s => s.zones)
-  const fetchUsers = useAdminStore(s => s.fetchUsers)
-  const fetchZones = useAdminStore(s => s.fetchZones)
-  const updateUser = useAdminStore(s => s.updateUser)
-  const fetchUserPermissions = useAdminStore(s => s.fetchUserPermissions)
-  const setUserPermissions = useAdminStore(s => s.setUserPermissions)
-  const createUser = useAdminStore(s => s.createUser)
-  const resetUserPassword = useAdminStore(s => s.resetUserPassword)
+  const users = useUsersStore(s => s.users)
+  const zones = useZonesStore(s => s.zones)
+  const fetchUsers = useUsersStore(s => s.fetchUsers)
+  const fetchZones = useZonesStore(s => s.fetchZones)
+  const updateUser = useUsersStore(s => s.updateUser)
+  const fetchUserPermissions = useUsersStore(s => s.fetchUserPermissions)
+  const setUserPermissions = useUsersStore(s => s.setUserPermissions)
+  const createUser = useUsersStore(s => s.createUser)
+  const resetUserPassword = useUsersStore(s => s.resetUserPassword)
   const addToast = useToastStore(s => s.add)
 
   const [editing, setEditing] = useState(null)

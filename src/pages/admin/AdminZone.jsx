@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useZonesStore } from '../../hooks/useZones'
+import { useCouriersStore } from '../../hooks/useCouriers'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -20,17 +21,17 @@ const PROVINCE = [
 ]
 
 export function AdminZone() {
-  const zones = useAdminStore(s => s.zones)
-  const couriers = useAdminStore(s => s.couriers)
-  const fetchZones = useAdminStore(s => s.fetchZones)
-  const fetchCouriers = useAdminStore(s => s.fetchCouriers)
-  const createZone = useAdminStore(s => s.createZone)
-  const updateZone = useAdminStore(s => s.updateZone)
-  const deleteZone = useAdminStore(s => s.deleteZone)
-  const fetchZoneProvinces = useAdminStore(s => s.fetchZoneProvinces)
-  const setZoneProvinces = useAdminStore(s => s.setZoneProvinces)
-  const fetchZoneCouriers = useAdminStore(s => s.fetchZoneCouriers)
-  const setZoneCourier = useAdminStore(s => s.setZoneCourier)
+  const zones = useZonesStore(s => s.zones)
+  const couriers = useCouriersStore(s => s.couriers)
+  const fetchZones = useZonesStore(s => s.fetchZones)
+  const fetchCouriers = useCouriersStore(s => s.fetchCouriers)
+  const createZone = useZonesStore(s => s.createZone)
+  const updateZone = useZonesStore(s => s.updateZone)
+  const deleteZone = useZonesStore(s => s.deleteZone)
+  const fetchZoneProvinces = useZonesStore(s => s.fetchZoneProvinces)
+  const setZoneProvinces = useZonesStore(s => s.setZoneProvinces)
+  const fetchZoneCouriers = useZonesStore(s => s.fetchZoneCouriers)
+  const setZoneCourier = useZonesStore(s => s.setZoneCourier)
   const addToast = useToastStore(s => s.add)
 
   const [editing, setEditing] = useState(null)

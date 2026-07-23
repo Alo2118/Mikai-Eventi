@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useProductTypesStore } from '../../hooks/useProductTypes'
 import { useToastStore } from '../../components/ui/Toast'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
@@ -11,12 +11,12 @@ import { ACTION_ICONS, ICON_PICKER_OPTIONS } from '../../lib/icons'
 import { CARD_STYLE, FORM_CONTAINER_STYLE, INPUT_STYLE, COLORI_LIST, COLOR_BG_400 } from '../../lib/constants'
 
 export function AdminTipoProdotto() {
-  const productTypes = useAdminStore(s => s.productTypes)
-  const loading = useAdminStore(s => s.productTypesLoading)
-  const fetchProductTypes = useAdminStore(s => s.fetchProductTypes)
-  const createProductType = useAdminStore(s => s.createProductType)
-  const updateProductType = useAdminStore(s => s.updateProductType)
-  const deleteProductType = useAdminStore(s => s.deleteProductType)
+  const productTypes = useProductTypesStore(s => s.productTypes)
+  const loading = useProductTypesStore(s => s.productTypesLoading)
+  const fetchProductTypes = useProductTypesStore(s => s.fetchProductTypes)
+  const createProductType = useProductTypesStore(s => s.createProductType)
+  const updateProductType = useProductTypesStore(s => s.updateProductType)
+  const deleteProductType = useProductTypesStore(s => s.deleteProductType)
   const addToast = useToastStore(s => s.add)
 
   const [editing, setEditing] = useState(null)

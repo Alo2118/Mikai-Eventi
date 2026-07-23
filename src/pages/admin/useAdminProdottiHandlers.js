@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useProductsStore } from '../../hooks/useProducts'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useMaterialsStore } from '../../hooks/useMaterials'
 import { useToastStore } from '../../components/ui/Toast'
@@ -12,21 +12,21 @@ function defaultSerializzato(tipo) {
 }
 
 export function useAdminProdottiHandlers() {
-  const fetchKitContents = useAdminStore(s => s.fetchKitContents)
-  const createKitContent = useAdminStore(s => s.createKitContent)
-  const updateKitContent = useAdminStore(s => s.updateKitContent)
-  const deleteKitContent = useAdminStore(s => s.deleteKitContent)
-  const fetchProductSpecimens = useAdminStore(s => s.fetchProductSpecimens)
-  const createSpecimen = useAdminStore(s => s.createSpecimen)
-  const updateSpecimen = useAdminStore(s => s.updateSpecimen)
-  const deleteSpecimen = useAdminStore(s => s.deleteSpecimen)
-  const fetchProductStock = useAdminStore(s => s.fetchProductStock)
-  const adjustStock = useAdminStore(s => s.adjustStock)
-  const setStockLocationQty = useAdminStore(s => s.setStockLocationQty)
-  const reverseStockAdjustment = useAdminStore(s => s.reverseStockAdjustment)
-  const fetchStockHistory = useAdminStore(s => s.fetchStockHistory)
-  const fetchStockLocations = useAdminStore(s => s.fetchStockLocations)
-  const fetchCommittedStock = useAdminStore(s => s.fetchCommittedStock)
+  const fetchKitContents = useProductsStore(s => s.fetchKitContents)
+  const createKitContent = useProductsStore(s => s.createKitContent)
+  const updateKitContent = useProductsStore(s => s.updateKitContent)
+  const deleteKitContent = useProductsStore(s => s.deleteKitContent)
+  const fetchProductSpecimens = useProductsStore(s => s.fetchProductSpecimens)
+  const createSpecimen = useProductsStore(s => s.createSpecimen)
+  const updateSpecimen = useProductsStore(s => s.updateSpecimen)
+  const deleteSpecimen = useProductsStore(s => s.deleteSpecimen)
+  const fetchProductStock = useProductsStore(s => s.fetchProductStock)
+  const adjustStock = useProductsStore(s => s.adjustStock)
+  const setStockLocationQty = useProductsStore(s => s.setStockLocationQty)
+  const reverseStockAdjustment = useProductsStore(s => s.reverseStockAdjustment)
+  const fetchStockHistory = useProductsStore(s => s.fetchStockHistory)
+  const fetchStockLocations = useProductsStore(s => s.fetchStockLocations)
+  const fetchCommittedStock = useProductsStore(s => s.fetchCommittedStock)
   const addToast = useToastStore(s => s.add)
   const currentUserId = useAuthStore(s => s.user?.id)
   const fetchMagazzini = useMaterialsStore(s => s.fetchMagazzini)

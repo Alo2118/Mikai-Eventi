@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useBrandsStore } from '../../hooks/useBrands'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -11,12 +11,12 @@ import { TIPO_BRAND, INPUT_STYLE, CARD_STYLE, ATTIVO_BADGE } from '../../lib/con
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminBrand() {
-  const brands = useAdminStore(s => s.brands)
-  const loading = useAdminStore(s => s.brandsLoading)
-  const fetchBrands = useAdminStore(s => s.fetchBrands)
-  const createBrand = useAdminStore(s => s.createBrand)
-  const updateBrand = useAdminStore(s => s.updateBrand)
-  const deleteBrand = useAdminStore(s => s.deleteBrand)
+  const brands = useBrandsStore(s => s.brands)
+  const loading = useBrandsStore(s => s.brandsLoading)
+  const fetchBrands = useBrandsStore(s => s.fetchBrands)
+  const createBrand = useBrandsStore(s => s.createBrand)
+  const updateBrand = useBrandsStore(s => s.updateBrand)
+  const deleteBrand = useBrandsStore(s => s.deleteBrand)
   const addToast = useToastStore(s => s.add)
 
   const [editing, setEditing] = useState(null)

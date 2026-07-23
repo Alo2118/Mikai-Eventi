@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
 import { WizardStepIndicator } from '../../components/eventi/WizardStepIndicator'
 import { WizardStepTipo } from '../../components/eventi/WizardStepTipo'
 import { WizardStepDove } from '../../components/eventi/WizardStepDove'
@@ -78,7 +78,7 @@ export function EventiWizard() {
   const createEvent = useEventsStore(s => s.createEvent)
   const user = useAuthStore(s => s.user)
   const profile = useAuthStore(s => s.profile)
-  const users = useAdminStore(s => s.users)
+  const users = useUsersStore(s => s.users)
   const addToast = useToastStore(s => s.add)
 
   const isAgentPromotore = promotore?._type === 'contact'

@@ -8,7 +8,7 @@ import { Tabs } from '../../components/ui/Tabs'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { todayISO, formatDateRange } from '../../lib/date-utils'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
 import { useStaffStore } from '../../hooks/useStaff'
 import { useParticipantsStore } from '../../hooks/useParticipants'
 import { useLogisticsStore } from '../../hooks/useLogistics'
@@ -146,8 +146,8 @@ export function EventiDetail() {
   const profile = useAuthStore(s => s.profile)
   const permissions = useAuthStore(s => s.permissions)
   const hasPermission = useAuthStore(s => s.hasPermission)
-  const users = useAdminStore(s => s.users)
-  const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const users = useUsersStore(s => s.users)
+  const fetchUsers = useUsersStore(s => s.fetchUsers)
   const staff = useStaffStore(s => s.staff)
   const fetchEventStaff = useStaffStore(s => s.fetchEventStaff)
   const participants = useParticipantsStore(s => s.participants)

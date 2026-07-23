@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useProductsStore } from '../../hooks/useProducts'
+import { useBrandsStore } from '../../hooks/useBrands'
+import { useBodySectionsStore } from '../../hooks/useBodySections'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -16,17 +18,17 @@ import { useAdminProdottiHandlers } from './useAdminProdottiHandlers'
 import { Button } from '../../components/ui/Button'
 
 export function AdminProdotti() {
-  const products = useAdminStore(s => s.products)
-  const brands = useAdminStore(s => s.brands)
-  const bodySections = useAdminStore(s => s.bodySections)
-  const fetchProducts = useAdminStore(s => s.fetchProducts)
-  const fetchBrands = useAdminStore(s => s.fetchBrands)
-  const fetchBodySections = useAdminStore(s => s.fetchBodySections)
-  const createProduct = useAdminStore(s => s.createProduct)
-  const updateProduct = useAdminStore(s => s.updateProduct)
-  const deleteProduct = useAdminStore(s => s.deleteProduct)
-  const bulkUpdateProducts = useAdminStore(s => s.bulkUpdateProducts)
-  const setProductBodySections = useAdminStore(s => s.setProductBodySections)
+  const products = useProductsStore(s => s.products)
+  const brands = useBrandsStore(s => s.brands)
+  const bodySections = useBodySectionsStore(s => s.bodySections)
+  const fetchProducts = useProductsStore(s => s.fetchProducts)
+  const fetchBrands = useBrandsStore(s => s.fetchBrands)
+  const fetchBodySections = useBodySectionsStore(s => s.fetchBodySections)
+  const createProduct = useProductsStore(s => s.createProduct)
+  const updateProduct = useProductsStore(s => s.updateProduct)
+  const deleteProduct = useProductsStore(s => s.deleteProduct)
+  const bulkUpdateProducts = useProductsStore(s => s.bulkUpdateProducts)
+  const setProductBodySections = useProductsStore(s => s.setProductBodySections)
   const addToast = useToastStore(s => s.add)
   const { productTypes, labels: tipoLabels } = useProductTypes()
 

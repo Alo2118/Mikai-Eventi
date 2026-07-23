@@ -8,7 +8,7 @@ import { Icon } from '../ui/Icon'
 import { ACTION_ICONS, NAV_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { useEventTypes } from '../../hooks/useEventTypes'
 import { useEventsStore } from '../../hooks/useEvents'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
 import { useContactsStore } from '../../hooks/useContacts'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useToastStore } from '../ui/Toast'
@@ -83,8 +83,8 @@ export function EventInfoTab({ event, onUpdate }) {
 
   const updateEvent = useEventsStore(s => s.updateEvent)
   const deleteEvent = useEventsStore(s => s.deleteEvent)
-  const users = useAdminStore(s => s.users)
-  const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const users = useUsersStore(s => s.users)
+  const fetchUsers = useUsersStore(s => s.fetchUsers)
   const agents = useContactsStore(s => s.agents)
   const fetchAgents = useContactsStore(s => s.fetchAgents)
   const hasPermission = useAuthStore(s => s.hasPermission)

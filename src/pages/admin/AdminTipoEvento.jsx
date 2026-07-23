@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useEventTypesStore } from '../../hooks/useEventTypes'
 import { useToastStore } from '../../components/ui/Toast'
 import { Button } from '../../components/ui/Button'
 import { Icon } from '../../components/ui/Icon'
@@ -11,12 +11,12 @@ import { ACTION_ICONS, ICON_PICKER_OPTIONS } from '../../lib/icons'
 import { CARD_STYLE, FORM_CONTAINER_STYLE, INPUT_STYLE, COLORI_LIST, COLOR_BG_400 } from '../../lib/constants'
 
 export function AdminTipoEvento() {
-  const eventTypes = useAdminStore(s => s.eventTypes)
-  const loading = useAdminStore(s => s.eventTypesLoading)
-  const fetchEventTypes = useAdminStore(s => s.fetchEventTypes)
-  const createEventType = useAdminStore(s => s.createEventType)
-  const updateEventType = useAdminStore(s => s.updateEventType)
-  const deleteEventType = useAdminStore(s => s.deleteEventType)
+  const eventTypes = useEventTypesStore(s => s.eventTypes)
+  const loading = useEventTypesStore(s => s.eventTypesLoading)
+  const fetchEventTypes = useEventTypesStore(s => s.fetchEventTypes)
+  const createEventType = useEventTypesStore(s => s.createEventType)
+  const updateEventType = useEventTypesStore(s => s.updateEventType)
+  const deleteEventType = useEventTypesStore(s => s.deleteEventType)
   const addToast = useToastStore(s => s.add)
 
   const [editing, setEditing] = useState(null)

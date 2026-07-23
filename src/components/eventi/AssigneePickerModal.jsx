@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
 import { Modal } from '../ui/Modal'
 import { SearchInput } from '../ui/SearchInput'
 import { Icon } from '../ui/Icon'
@@ -24,8 +24,8 @@ export function AssigneePickerModal({
   eventStaff,
   activityDescription,
 }) {
-  const users = useAdminStore(s => s.users)
-  const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const users = useUsersStore(s => s.users)
+  const fetchUsers = useUsersStore(s => s.fetchUsers)
   const [search, setSearch] = useState('')
 
   useEffect(() => {

@@ -1,14 +1,45 @@
 import { useEffect, useMemo } from 'react'
-import { useAdminStore } from './useAdmin'
+import { create } from 'zustand'
+import { supabase } from '../lib/supabase'
 import { TIPO_EVENTO_ICONS, ICON_BY_NAME } from '../lib/icons'
+
+export const useEventTypesStore = create((set, get) => ({
+  eventTypes: [],
+  eventTypesLoading: false,
+
+  fetchEventTypes: async () => {
+    set({ eventTypesLoading: true })
+    const { data, error } = await supabase.from('event_types').select('*').order('ordine')
+    set({ eventTypes: data || [], eventTypesLoading: false })
+    return { data: data || [], error: error?.message || null }
+  },
+
+  createEventType: async (et) => {
+    const { data, error } = await supabase.from('event_types').insert(et).select().single()
+    if (!error) get().fetchEventTypes()
+    return { data, error: error?.message || null }
+  },
+
+  updateEventType: async (id, updates) => {
+    const { data, error } = await supabase.from('event_types').update(updates).eq('id', id).select().single()
+    if (!error) get().fetchEventTypes()
+    return { data, error: error?.message || null }
+  },
+
+  deleteEventType: async (id) => {
+    const { error } = await supabase.from('event_types').delete().eq('id', id)
+    if (!error) get().fetchEventTypes()
+    return { error: error?.message || null }
+  },
+}))
 
 /**
  * Hook that loads event types and provides label/color/icon maps.
  * Replaces hardcoded TIPO_EVENTO constants.
  */
 export function useEventTypes() {
-  const eventTypes = useAdminStore(s => s.eventTypes)
-  const fetchEventTypes = useAdminStore(s => s.fetchEventTypes)
+  const eventTypes = useEventTypesStore(s => s.eventTypes)
+  const fetchEventTypes = useEventTypesStore(s => s.fetchEventTypes)
 
   useEffect(() => {
     if (eventTypes.length === 0) fetchEventTypes()

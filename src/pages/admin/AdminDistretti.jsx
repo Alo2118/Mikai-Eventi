@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useBodySectionsStore } from '../../hooks/useBodySections'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -11,12 +11,12 @@ import { INPUT_STYLE, CARD_STYLE, ATTIVO_BADGE } from '../../lib/constants'
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
 
 export function AdminDistretti() {
-  const bodySections = useAdminStore(s => s.bodySections)
-  const loading = useAdminStore(s => s.bodySectionsLoading)
-  const fetchBodySections = useAdminStore(s => s.fetchBodySections)
-  const createBodySection = useAdminStore(s => s.createBodySection)
-  const updateBodySection = useAdminStore(s => s.updateBodySection)
-  const deleteBodySection = useAdminStore(s => s.deleteBodySection)
+  const bodySections = useBodySectionsStore(s => s.bodySections)
+  const loading = useBodySectionsStore(s => s.bodySectionsLoading)
+  const fetchBodySections = useBodySectionsStore(s => s.fetchBodySections)
+  const createBodySection = useBodySectionsStore(s => s.createBodySection)
+  const updateBodySection = useBodySectionsStore(s => s.updateBodySection)
+  const deleteBodySection = useBodySectionsStore(s => s.deleteBodySection)
   const addToast = useToastStore(s => s.add)
 
   const [editing, setEditing] = useState(null)

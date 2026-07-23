@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useContactsStore } from '../../hooks/useContacts'
 import { useAuthStore } from '../../hooks/useAuth'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
+import { useZonesStore } from '../../hooks/useZones'
 import { useExportHandler } from '../../hooks/useExportHandler'
 import { ContactForm } from '../../components/contatti/ContactForm'
 import { Button } from '../../components/ui/Button'
@@ -54,10 +55,10 @@ export function ContattiList() {
   const { exporting, handleExport } = useExportHandler()
   const [searchParams] = useSearchParams()
 
-  const zones = useAdminStore(s => s.zones)
-  const users = useAdminStore(s => s.users)
-  const fetchZones = useAdminStore(s => s.fetchZones)
-  const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const zones = useZonesStore(s => s.zones)
+  const users = useUsersStore(s => s.users)
+  const fetchZones = useZonesStore(s => s.fetchZones)
+  const fetchUsers = useUsersStore(s => s.fetchUsers)
 
   useEffect(() => {
     resetFilters()

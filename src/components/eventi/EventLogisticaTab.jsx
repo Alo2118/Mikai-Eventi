@@ -3,7 +3,7 @@ import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useStaffStore } from '../../hooks/useStaff'
 import { useParticipantsStore } from '../../hooks/useParticipants'
 import { useContactsStore } from '../../hooks/useContacts'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useTavoliStore } from '../../hooks/useTavoli'
 import { Button } from '../ui/Button'
@@ -70,7 +70,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const distributeDiscenti = useTavoliStore(s => s.distributeDiscenti)
 
   const updateContact = useContactsStore(s => s.updateContact)
-  const updateUser = useAdminStore(s => s.updateUser)
+  const updateUser = useUsersStore(s => s.updateUser)
 
   const [selected, setSelected] = useState(new Set())
   const [searchQuery, setSearchQuery] = useState('')

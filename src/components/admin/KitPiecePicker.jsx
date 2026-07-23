@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useProductsStore } from '../../hooks/useProducts'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
 import { INPUT_STYLE } from '../../lib/constants'
@@ -12,7 +12,7 @@ function normalize(s) { return (s || '').toLowerCase().trim() }
 // - Otherwise: shows a search input with autocomplete; selecting a product fills the value.
 // - "Pezzo non a catalogo" link toggles to manual nome+codice inputs.
 export function KitPiecePicker({ value, onChange, excludeProductId }) {
-  const products = useAdminStore(s => s.products)
+  const products = useProductsStore(s => s.products)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   // Open in manual mode if the value already has manual data (legacy/non-catalog piece)

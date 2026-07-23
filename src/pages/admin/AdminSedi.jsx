@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useVenuesStore } from '../../hooks/useVenues'
+import { useCouriersStore } from '../../hooks/useCouriers'
+import { useZonesStore } from '../../hooks/useZones'
+import { useMagazziniStore } from '../../hooks/useMagazzini'
 import { useToastStore } from '../../components/ui/Toast'
 import { AdminTable } from '../../components/ui/AdminTable'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -17,23 +20,23 @@ const TABS = [
 ]
 
 export function AdminSedi() {
-  const venues = useAdminStore(s => s.venues)
-  const couriers = useAdminStore(s => s.couriers)
-  const zones = useAdminStore(s => s.zones)
-  const magazzini = useAdminStore(s => s.magazzini)
-  const fetchVenues = useAdminStore(s => s.fetchVenues)
-  const fetchCouriers = useAdminStore(s => s.fetchCouriers)
-  const fetchZones = useAdminStore(s => s.fetchZones)
-  const fetchMagazzini = useAdminStore(s => s.fetchMagazzini)
-  const createVenue = useAdminStore(s => s.createVenue)
-  const updateVenue = useAdminStore(s => s.updateVenue)
-  const deleteVenue = useAdminStore(s => s.deleteVenue)
-  const createCourier = useAdminStore(s => s.createCourier)
-  const updateCourier = useAdminStore(s => s.updateCourier)
-  const deleteCourier = useAdminStore(s => s.deleteCourier)
-  const createMagazzino = useAdminStore(s => s.createMagazzino)
-  const updateMagazzino = useAdminStore(s => s.updateMagazzino)
-  const deleteMagazzino = useAdminStore(s => s.deleteMagazzino)
+  const venues = useVenuesStore(s => s.venues)
+  const couriers = useCouriersStore(s => s.couriers)
+  const zones = useZonesStore(s => s.zones)
+  const magazzini = useMagazziniStore(s => s.magazzini)
+  const fetchVenues = useVenuesStore(s => s.fetchVenues)
+  const fetchCouriers = useCouriersStore(s => s.fetchCouriers)
+  const fetchZones = useZonesStore(s => s.fetchZones)
+  const fetchMagazzini = useMagazziniStore(s => s.fetchMagazzini)
+  const createVenue = useVenuesStore(s => s.createVenue)
+  const updateVenue = useVenuesStore(s => s.updateVenue)
+  const deleteVenue = useVenuesStore(s => s.deleteVenue)
+  const createCourier = useCouriersStore(s => s.createCourier)
+  const updateCourier = useCouriersStore(s => s.updateCourier)
+  const deleteCourier = useCouriersStore(s => s.deleteCourier)
+  const createMagazzino = useMagazziniStore(s => s.createMagazzino)
+  const updateMagazzino = useMagazziniStore(s => s.updateMagazzino)
+  const deleteMagazzino = useMagazziniStore(s => s.deleteMagazzino)
   const addToast = useToastStore(s => s.add)
 
   const [tab, setTab] = useState('sedi')

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAdminStore } from '../../hooks/useAdmin'
+import { useUsersStore } from '../../hooks/useUsers'
 import { useContactsStore } from '../../hooks/useContacts'
 import { FormField } from '../ui/FormField'
 import { SELECT_STYLE } from '../../lib/constants'
@@ -28,8 +28,8 @@ function groupUsersByRole(users) {
 }
 
 export function PromoterePicker({ value, onChange, currentUserId, error, onBlur }) {
-  const users = useAdminStore(s => s.users)
-  const fetchUsers = useAdminStore(s => s.fetchUsers)
+  const users = useUsersStore(s => s.users)
+  const fetchUsers = useUsersStore(s => s.fetchUsers)
   const agents = useContactsStore(s => s.agents)
   const fetchAgents = useContactsStore(s => s.fetchAgents)
 
