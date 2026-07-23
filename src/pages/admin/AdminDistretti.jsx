@@ -65,7 +65,7 @@ export function AdminDistretti() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Distretti anatomici' }]} />
       </div>
-      <PageHeader title="Distretti anatomici" subtitle="Gestisci i distretti anatomici" />
+      <PageHeader mobileHidden title="Distretti anatomici" subtitle="Gestisci i distretti anatomici" />
 
       <div className="px-4 md:px-8 pb-8">
         {editing ? (

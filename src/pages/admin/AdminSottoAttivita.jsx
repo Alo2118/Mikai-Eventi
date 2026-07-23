@@ -54,7 +54,7 @@ export function AdminSottoAttivita() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Tipi sotto-attività' }]} />
       </div>
-      <PageHeader title="Tipi sotto-attività" subtitle="Gestisci i tipi di sotto-attività del programma evento" />
+      <PageHeader mobileHidden title="Tipi sotto-attività" subtitle="Gestisci i tipi di sotto-attività del programma evento" />
 
       <div className="px-4 md:px-8 pb-8">
         {editing !== null ? (

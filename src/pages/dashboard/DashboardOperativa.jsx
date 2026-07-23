@@ -262,6 +262,7 @@ export function DashboardOperativa({ warehouseOnly = false }) {
         <MobileHeader title={title} />
       </div>
       <PageHeader
+        mobileHidden
         title={`Ciao, ${profile?.nome || ''}`}
         subtitle={`${title} — ${totalOpen} attività ${viewMode === 'mine' ? 'assegnate a te' : 'in corso'}`}
         actions={

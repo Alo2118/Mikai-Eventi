@@ -65,7 +65,7 @@ export function AdminBrand() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Brand' }]} />
       </div>
-      <PageHeader title="Brand" subtitle="Gestisci i brand del catalogo" />
+      <PageHeader mobileHidden title="Brand" subtitle="Gestisci i brand del catalogo" />
 
       <div className="px-4 md:px-8 pb-8">
         {editing ? (

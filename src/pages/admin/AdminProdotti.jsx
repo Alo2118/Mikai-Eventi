@@ -239,7 +239,7 @@ export function AdminProdotti() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Prodotti & Kit' }]} />
       </div>
-      <PageHeader title="Prodotti & Kit" subtitle={`${filteredProducts.length} prodotti${filteredProducts.length !== products.length ? ` di ${products.length}` : ''}`} />
+      <PageHeader mobileHidden title="Prodotti & Kit" subtitle={`${filteredProducts.length} prodotti${filteredProducts.length !== products.length ? ` di ${products.length}` : ''}`} />
 
       <div className="px-4 md:px-8 pb-8">
         {!editing && (

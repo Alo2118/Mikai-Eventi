@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Icon } from '../ui/Icon'
 import { ACTION_ICONS } from '../../lib/icons'
 
-export function MobileHeader({ title, subtitle, showBack = true }) {
+export function MobileHeader({ title, subtitle, showBack = true, backTo }) {
   const navigate = useNavigate()
 
   return (
@@ -10,7 +10,7 @@ export function MobileHeader({ title, subtitle, showBack = true }) {
       <div className="flex items-center gap-3">
         {showBack && (
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(backTo ?? -1)}
             className="min-h-[48px] min-w-[48px] flex items-center justify-center text-gray-600 hover:text-gray-900 -ml-2"
             aria-label="Torna indietro"
           >

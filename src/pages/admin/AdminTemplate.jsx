@@ -227,7 +227,7 @@ export function AdminTemplate() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Template attività' }]} />
       </div>
-      <PageHeader title="Template attività" subtitle="Configura checklist e programma per tipo evento" />
+      <PageHeader mobileHidden title="Template attività" subtitle="Configura checklist e programma per tipo evento" />
 
       <div className="px-4 md:px-8 pb-8 space-y-6">
         <div className="space-y-3">

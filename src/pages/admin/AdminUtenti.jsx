@@ -187,7 +187,7 @@ export function AdminUtenti() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Utenti & Permessi' }]} />
       </div>
-      <PageHeader title="Utenti & Permessi" subtitle={`${users.length} utenti`} />
+      <PageHeader mobileHidden title="Utenti & Permessi" subtitle={`${users.length} utenti`} />
 
       <div className="px-4 md:px-8 pb-8">
         {createdPassword && (

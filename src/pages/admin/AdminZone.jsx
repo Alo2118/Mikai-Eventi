@@ -124,7 +124,7 @@ export function AdminZone() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Zone' }]} />
       </div>
-      <PageHeader title="Zone" subtitle="Gestisci le zone geografiche" />
+      <PageHeader mobileHidden title="Zone" subtitle="Gestisci le zone geografiche" />
 
       <div className="px-4 md:px-8 pb-8">
         {editing ? (

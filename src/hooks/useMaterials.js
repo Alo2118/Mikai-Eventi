@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { nowISO, todayISO, toISO, addDaysToToday, daysSince } from '../lib/date-utils'
+import { friendlyStockError } from '../lib/stock-errors'
 
 function buildMaterialQuery(filters, from, to) {
   let query = supabase.from('materials').select(`
@@ -435,15 +436,11 @@ export const useMaterialsStore = create((set, get) => {
     })
   },
 
-  // Internal: turn a Postgres check_violation (23514) from the stock RPCs — raised when a
-  // concurrent confirmation already decremented the same product below zero — into a human
-  // Italian message instead of leaking raw constraint/exception text to the toast.
-  _friendlyStockError: (error) => {
-    if (error?.code === '23514') {
-      return 'Stock insufficiente: qualcun altro ha appena confermato questo materiale. Ricarica e riprova.'
-    }
-    return error?.message || 'Errore aggiornamento stock. Riprova.'
-  },
+  // Internal: turn a Postgres check_violation (23514, concurrent confirmation dropped stock
+  // below zero) or unique_violation (23505, concurrent insert on the same new stock location)
+  // from the stock RPCs into a human Italian message instead of leaking raw constraint/exception
+  // text to the toast. Shared with the admin store via src/lib/stock-errors.js — don't duplicate.
+  _friendlyStockError: (error) => friendlyStockError(error),
 
   // Internal: adjust stock with location awareness. Returns error string or null.
   // meta (optional): { userId, motivo, eventId, magazzinoId, agentUserId } — if a location
@@ -615,7 +612,7 @@ export const useMaterialsStore = create((set, get) => {
         p_user_id: userId,
         p_delta: remainder,
       })
-      if (rpcErr) return { error: rpcErr.message }
+      if (rpcErr) return { error: friendlyStockError(rpcErr) }
       await supabase.rpc('log_stock_adjustment', {
         p_product_id: productId,
         p_user_id: userId,

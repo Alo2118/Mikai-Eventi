@@ -45,6 +45,7 @@ export function DashboardCommerciale() {
         <MobileHeader title="Dashboard" showBack={false} />
       </div>
       <PageHeader
+        mobileHidden
         title={`Ciao, ${profile?.nome || ''}`}
         subtitle="La tua area di lavoro"
       />

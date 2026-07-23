@@ -193,6 +193,7 @@ export function DashboardStrategica() {
         <MobileHeader title="Dashboard Direzione" />
       </div>
       <PageHeader
+        mobileHidden
         title={`Ciao, ${profile?.nome || ''}`}
         subtitle="Panoramica strategica degli eventi"
         actions={

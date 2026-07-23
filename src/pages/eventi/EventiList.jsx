@@ -239,7 +239,7 @@ export function EventiList() {
   return (
     <div>
       {/* Row 1: Title + primary actions */}
-      <div className="px-4 md:px-6 pt-4">
+      <div className="px-6 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Eventi' }]} />
       </div>
       <PageHeader
@@ -285,20 +285,24 @@ export function EventiList() {
         }
       />
 
-      {/* Row 2: All filters in one row */}
-      <EventFilters
-        promotori={promotori}
-        filterPromotore={filters.promotore}
-        onFilterPromotore={(v) => setFilter('promotore', v)}
-        viewMode={filters.periodo}
-        onViewMode={(v) => setFilter('periodo', v)}
-        onlyMine={filters.onlyMine}
-        onToggleMine={() => setFilter('onlyMine', !filters.onlyMine)}
-      />
+      {/* Row 2: All filters in one row — extra px-2 compensates EventFilters' own px-4 md:px-6
+          so its left edge lines up with PageHeader's px-6 md:px-8 (shared with EventiCalendar,
+          not changed globally to avoid moving that page's alignment out of scope here). */}
+      <div className="px-2">
+        <EventFilters
+          promotori={promotori}
+          filterPromotore={filters.promotore}
+          onFilterPromotore={(v) => setFilter('promotore', v)}
+          viewMode={filters.periodo}
+          onViewMode={(v) => setFilter('periodo', v)}
+          onlyMine={filters.onlyMine}
+          onToggleMine={() => setFilter('onlyMine', !filters.onlyMine)}
+        />
+      </div>
 
       {/* Row 3: Active filter chips + count + alert summary */}
       {!loading && (
-        <div className="px-4 md:px-6 pb-2 flex flex-wrap items-center gap-2">
+        <div className="px-6 md:px-8 pb-2 flex flex-wrap items-center gap-2">
           <span className="text-sm text-gray-500">
             {filteredEvents.length === 0
               ? 'Nessun evento trovato'
@@ -360,7 +364,7 @@ export function EventiList() {
         </div>
       )}
 
-      <div className="px-4 md:px-6 py-4">
+      <div className="px-6 md:px-8 py-4">
         {loading ? (
           <LoadingSkeleton lines={5} />
         ) : error ? (

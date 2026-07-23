@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase, supabaseAdmin } from '../lib/supabase'
+import { friendlyStockError } from '../lib/stock-errors'
 
 export const useAdminStore = create((set, get) => ({
   // === Brands ===
@@ -238,7 +239,7 @@ export const useAdminStore = create((set, get) => ({
         p_user_id: agentUserId || null,
         p_delta: delta,
       })
-      if (rpcErr) return { error: rpcErr.message }
+      if (rpcErr) return { error: friendlyStockError(rpcErr) }
       quantitaDopo = newTotal
     } else {
       quantitaDopo = quantitaPrima + delta
@@ -247,7 +248,7 @@ export const useAdminStore = create((set, get) => ({
         p_product_id: productId,
         p_delta: delta,
       })
-      if (updateErr) return { error: updateErr.message }
+      if (updateErr) return { error: friendlyStockError(updateErr) }
     }
 
     // Log the adjustment via the SECURITY DEFINER RPC (bypasses RLS so it works for

@@ -166,6 +166,7 @@ export function MieAttivitaPage() {
         <MobileHeader title="Le mie attività" />
       </div>
       <PageHeader
+        mobileHidden
         title="Le mie attività"
         subtitle={`${myActivities.length} assegnate a te${totalUnclaimed > 0 ? ` · ${totalUnclaimed} da prendere in carico` : ''}`}
       />

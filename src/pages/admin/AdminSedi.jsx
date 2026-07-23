@@ -145,7 +145,7 @@ export function AdminSedi() {
       <div className="px-4 md:px-8 pt-4">
         <Breadcrumb items={[{ label: 'Amministrazione' }, { label: 'Sedi, Corrieri & Magazzini' }]} />
       </div>
-      <PageHeader title="Sedi, Corrieri & Magazzini" subtitle="Gestisci sedi, corrieri e magazzini" />
+      <PageHeader mobileHidden title="Sedi, Corrieri & Magazzini" subtitle="Gestisci sedi, corrieri e magazzini" />
 
       <div className="px-4 md:px-8 pb-8 space-y-4">
         <Tabs tabs={TABS} activeTab={tab} onChange={handleTabChange} />
