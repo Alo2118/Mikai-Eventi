@@ -9,6 +9,7 @@ import { LogisticaMatrice } from './LogisticaMatrice'
 import { LogisticaRientri } from './LogisticaRientri'
 import { LogisticaInventario } from './LogisticaInventario'
 import { LogisticaFabbisogno } from './LogisticaFabbisogno'
+import { LogisticaPrenotazioni } from './LogisticaPrenotazioni'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { exportToExcelMultiSheet } from '../../lib/export-utils'
 import { STATO_PRENOTAZIONE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO } from '../../lib/constants'
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'timeline', label: 'Spedizioni' },
   { id: 'matrice', label: 'Matrice' },
   { id: 'rientri', label: 'Rientri' },
+  { id: 'prenotazioni', label: 'Hotel & Trasporti' },
   { id: 'inventario', label: 'Inventario' },
 ]
 
@@ -123,6 +125,7 @@ export function LogisticaPage() {
       {activeTab === 'timeline' && <LogisticaTimeline />}
       {activeTab === 'matrice' && <LogisticaMatrice />}
       {activeTab === 'rientri' && <LogisticaRientri />}
+      {activeTab === 'prenotazioni' && <LogisticaPrenotazioni />}
       {activeTab === 'inventario' && <LogisticaInventario />}
     </div>
   )
