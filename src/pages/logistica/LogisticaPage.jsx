@@ -9,6 +9,7 @@ import { LogisticaMatrice } from './LogisticaMatrice'
 import { LogisticaRientri } from './LogisticaRientri'
 import { LogisticaInventario } from './LogisticaInventario'
 import { LogisticaFabbisogno } from './LogisticaFabbisogno'
+import { LogisticaPrenotazioni } from './LogisticaPrenotazioni'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { exportToExcelMultiSheet } from '../../lib/export-utils'
 import { STATO_PRENOTAZIONE, DIREZIONE_TRASPORTO, MEZZO_TRASPORTO } from '../../lib/constants'
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'timeline', label: 'Spedizioni' },
   { id: 'matrice', label: 'Matrice' },
   { id: 'rientri', label: 'Rientri' },
+  { id: 'prenotazioni', label: 'Hotel & Trasporti' },
   { id: 'inventario', label: 'Inventario' },
 ]
 
@@ -31,6 +33,7 @@ const EXPORT_COLUMNS_HOTEL = [
   { key: 'check_in', label: 'Check-in', format: v => v ? formatDate(v) : '' },
   { key: 'check_out', label: 'Check-out', format: v => v ? formatDate(v) : '' },
   { key: 'stato', label: 'Stato', format: v => STATO_PRENOTAZIONE[v] || v },
+  { key: 'costo', label: 'Costo €', format: v => v ?? '' },
   { key: 'note', label: 'Note', width: 30 },
 ]
 
@@ -123,6 +126,7 @@ export function LogisticaPage() {
       {activeTab === 'timeline' && <LogisticaTimeline />}
       {activeTab === 'matrice' && <LogisticaMatrice />}
       {activeTab === 'rientri' && <LogisticaRientri />}
+      {activeTab === 'prenotazioni' && <LogisticaPrenotazioni />}
       {activeTab === 'inventario' && <LogisticaInventario />}
     </div>
   )

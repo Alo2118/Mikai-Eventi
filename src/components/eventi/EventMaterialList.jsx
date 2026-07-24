@@ -17,6 +17,7 @@ import { PickingPrintView } from '../materiale/PickingPrintView'
 import { MAGAZZINO_ICONS } from '../../lib/icons'
 import { MaterialListRow } from './MaterialListRow'
 import { RejectMaterialDialog } from './RejectMaterialDialog'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EventMaterialShipping } from './EventMaterialShipping'
 import { SUMMARY_BAR_STYLE, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
 import { formatDate, subtractDays, todayISO } from '../../lib/date-utils'
@@ -51,6 +52,10 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const [packingItems, setPackingItems] = useState([])
   const [generatingShippingPdf, setGeneratingShippingPdf] = useState(false)
   const [kitContents, setKitContents] = useState({})
+  const [conflicts, setConflicts] = useState({})
+  // Gate conferma: quando un prodotto è già impegnato altrove chiediamo conferma
+  // esplicita (non blocchiamo). { info, args:[id, qty, note] }
+  const [conflictGate, setConflictGate] = useState(null)
   const updateEvent = useEventsStore(s => s.updateEvent)
   const fetchKitContentsBatch = useCatalogStore(s => s.fetchKitContentsBatch)
 
@@ -66,6 +71,8 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
   const removeMaterialListRow = useMaterialsStore(s => s.removeMaterialListRow)
   const confirmMaterialRow = useMaterialsStore(s => s.confirmMaterialRow)
   const rejectMaterialRow = useMaterialsStore(s => s.rejectMaterialRow)
+  const fetchProductConflicts = useMaterialsStore(s => s.fetchProductConflicts)
+  const checkProductConflict = useMaterialsStore(s => s.checkProductConflict)
   const restoreGadgetStock = useMaterialsStore(s => s.restoreGadgetStock)
   const reportConsumption = useMaterialsStore(s => s.reportConsumption)
   const registerEventShipping = useMaterialsStore(s => s.registerEventShipping)
@@ -119,6 +126,15 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     setAvailability(avail)
     setStockLocations(stockLocs.data || {})
     setKitContents(kitRes.data || {})
+    // Conflitti giacenza date-aware: quanto è già impegnato altrove nella finestra evento
+    const productMeta = {}
+    for (const r of (matRes.data || [])) {
+      if (r.product_id && r.product) {
+        productMeta[r.product_id] = { nome: r.product.nome, tipo: r.product.tipo, quantita_disponibile: r.product.quantita_disponibile }
+      }
+    }
+    const conflictMap = await fetchProductConflicts(productIds, { start: event.data_inizio, end: event.data_fine }, event.id, productMeta)
+    setConflicts(conflictMap || {})
     // Fetch venue zone_id if event has a venue
     if (event.venue_id) {
       const zoneId = await fetchVenueZone(event.venue_id)
@@ -202,10 +218,38 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
     else { addToast('Rimosso dalla lista', 'success'); loadData() }
   }
 
-  const handleConfirm = async (id, quantitaApprovata, noteUfficio) => {
+  const doConfirm = async (id, quantitaApprovata, noteUfficio) => {
     const { error } = await confirmMaterialRow(id, quantitaApprovata, noteUfficio)
     if (error) addToast(error, 'error')
     else { addToast('Confermato!', 'success'); loadData() }
+  }
+
+  const handleConfirm = async (id, quantitaApprovata, noteUfficio) => {
+    const row = rows.find(r => r.id === id)
+    // Gate conflitti: se il prodotto è già impegnato altrove nella finestra evento,
+    // chiediamo conferma esplicita invece di procedere alla cieca (rischio doppia
+    // prenotazione fisica). La notifica 'conflitto_materiale' viene registrata dallo store.
+    if (row?.product_id) {
+      const usageWindow = {
+        start: row.data_inizio_utilizzo || event.data_inizio,
+        end: row.data_fine_utilizzo || event.data_fine,
+      }
+      const productMeta = row.product
+        ? { [row.product_id]: { nome: row.product.nome, tipo: row.product.tipo, quantita_disponibile: row.product.quantita_disponibile } }
+        : undefined
+      const { data: info } = await checkProductConflict({
+        productId: row.product_id,
+        quantitaRichiesta: quantitaApprovata,
+        window: usageWindow,
+        excludeEventId: event.id,
+        productMeta,
+      })
+      if (info?.hasConflict) {
+        setConflictGate({ info, args: [id, quantitaApprovata, noteUfficio] })
+        return
+      }
+    }
+    doConfirm(id, quantitaApprovata, noteUfficio)
   }
 
   const handleReject = async (motivo) => {
@@ -502,6 +546,7 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
                           <MaterialListRow
                             row={row}
                             availability={availability[row.product_id]}
+                            conflict={conflicts[row.product_id]}
                             stockLocations={stockLocations[row.product_id] || []}
                             kitPieces={kitContents[row.product_id] || []}
                             eventZoneId={eventZoneId}
@@ -530,6 +575,26 @@ export function EventMaterialList({ event, onShowPackingList, onUpdate }) {
         productName={rejectTarget?.productName}
         onConfirm={handleReject}
         onCancel={() => setRejectTarget(null)}
+      />
+
+      {/* Gate conflitti materiale: conferma esplicita quando il prodotto è già impegnato altrove */}
+      <ConfirmDialog
+        open={!!conflictGate}
+        title="Materiale già impegnato"
+        message={conflictGate ? (
+          <span>
+            <strong>{conflictGate.info.nome}</strong> è già impegnato su{' '}
+            <strong>{conflictGate.info.eventi.map(e => e.titolo).join(', ') || 'altri eventi'}</strong>.{' '}
+            {conflictGate.info.resta <= 0
+              ? 'Non risultano pezzi liberi nel periodo.'
+              : `${conflictGate.info.resta === 1 ? 'Resta 1 pezzo' : `Restano ${conflictGate.info.resta} pezzi`} su ${conflictGate.info.disponibile}.`}
+            {' '}Vuoi confermare lo stesso?
+          </span>
+        ) : ''}
+        confirmLabel="Conferma comunque"
+        cancelLabel="Annulla"
+        onConfirm={() => { const g = conflictGate; setConflictGate(null); if (g) doConfirm(...g.args) }}
+        onCancel={() => setConflictGate(null)}
       />
 
       {/* Bulk action bar + reject dialog */}

@@ -5,6 +5,10 @@ import { nowISO } from '../lib/date-utils'
 export const useCostsStore = create((set, get) => ({
   preventivi: [],
   costs: [],
+  // Righe hotel/trasporti con il solo campo costo, per la ripartizione a read-time
+  // del budget effettivo (non persistiamo doppioni in event_costs).
+  hotelCosti: [],
+  trasportiCosti: [],
   loading: false,
   error: null,
 
@@ -139,5 +143,38 @@ export const useCostsStore = create((set, get) => ({
       .single()
     if (!error) set(s => ({ costs: [...s.costs, data] }))
     return { data, error: error?.message || null }
+  },
+
+  editCost: async (id, updates) => {
+    const { data, error } = await supabase
+      .from('event_costs')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    if (!error) set(s => ({ costs: s.costs.map(c => c.id === id ? data : c) }))
+    return { data, error: error?.message || null }
+  },
+
+  removeCost: async (id) => {
+    const { error } = await supabase.from('event_costs').delete().eq('id', id)
+    if (!error) set(s => ({ costs: s.costs.filter(c => c.id !== id) }))
+    return { error: error?.message || null }
+  },
+
+  // Costi trasferta (hotel + trasporti) dell'evento, per la ripartizione a read-time.
+  fetchEventTrasferte: async (eventId) => {
+    set({ hotelCosti: [], trasportiCosti: [] })
+    const [hotelRes, trasportiRes] = await Promise.all([
+      supabase.from('event_hotel').select('id, stato, costo').eq('event_id', eventId),
+      supabase.from('event_trasporti').select('id, stato, costo').eq('event_id', eventId),
+    ])
+    const error = hotelRes.error || trasportiRes.error
+    set({
+      hotelCosti: hotelRes.data || [],
+      trasportiCosti: trasportiRes.data || [],
+      error: error?.message || null,
+    })
+    return { error: error?.message || null }
   },
 }))

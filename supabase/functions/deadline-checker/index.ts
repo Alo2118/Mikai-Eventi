@@ -44,6 +44,109 @@ async function getUsersWithPermission(
   return (data || []).map((u: { user_id: string }) => u.user_id)
 }
 
+type Row = Record<string, unknown>
+
+/** ISO date (YYYY-MM-DD) for `base` + `days`, in UTC (coerente con todayStr). */
+function isoPlusDays(base: Date, days: number): string {
+  const d = new Date(base)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function groupByEvent(rows: Row[]): Map<string, Row[]> {
+  const map = new Map<string, Row[]>()
+  for (const r of rows) {
+    const key = r.event_id as string
+    const arr = map.get(key)
+    if (arr) arr.push(r)
+    else map.set(key, [r])
+  }
+  return map
+}
+
+interface EventTypeFlags {
+  spedizione: boolean
+  hotel: boolean
+  trasporti: boolean
+}
+
+interface GapOpts {
+  flags: EventTypeFlags
+  modalita: unknown
+  activities: Row[]
+  preventivi: Row[]
+  materials: Row[]
+  staff: Row[]
+  participants: Row[]
+  hotels: Row[]
+  trasporti: Row[]
+}
+
+/**
+ * Elenco (in italiano) dei buchi di prontezza di un evento imminente, rispettando
+ * il branching per tipo evento (equivalente a src/lib/event-flow.js):
+ * salta hotel/trasporti se il tipo non li richiede, salta la spedizione se il tipo
+ * non la richiede o se l'evento è a contributo.
+ */
+function buildReadinessGaps(o: GapOpts): string[] {
+  const gaps: string[] = []
+
+  // Attività obbligatorie pre-evento non completate
+  const attOpen = o.activities.filter(a =>
+    a.obbligatoria === true && a.post_evento !== true &&
+    a.stato !== 'completata' && a.stato !== 'disattivata'
+  ).length
+  if (attOpen > 0) gaps.push(`${attOpen} attività obbligatori${attOpen === 1 ? 'a' : 'e'} da completare`)
+
+  // Preventivi non ancora approvati
+  const prevOpen = o.preventivi.filter(p => p.stato !== 'approvato').length
+  if (prevOpen > 0) gaps.push(`${prevOpen} preventiv${prevOpen === 1 ? 'o' : 'i'} da approvare`)
+
+  // Materiali non ancora spediti (solo se il tipo richiede spedizione e non è a contributo)
+  if (o.flags.spedizione && o.modalita !== 'contributo') {
+    const matOpen = o.materials.filter(m =>
+      m.stato !== 'spedito' && m.stato !== 'rifiutato' && m.stato !== 'chiuso_in_custodia'
+    ).length
+    if (matOpen > 0) gaps.push(`${matOpen} material${matOpen === 1 ? 'e' : 'i'} da spedire`)
+  }
+
+  // Persone confermate (staff confermato + partecipanti confermato/presente)
+  const confirmed = new Set<string>()
+  for (const s of o.staff) if (s.confermato === true && s.user_id) confirmed.add(s.user_id as string)
+  for (const p of o.participants) {
+    if ((p.stato_iscrizione === 'confermato' || p.stato_iscrizione === 'presente') && p.contact_id) {
+      confirmed.add(p.contact_id as string)
+    }
+  }
+
+  if (o.flags.hotel && confirmed.size > 0) {
+    const ok = new Set<string>()
+    for (const h of o.hotels) {
+      if (h.stato !== 'confermato' && h.stato !== 'non_necessario') continue
+      const pid = (h.user_id || h.contact_id) as string | null
+      if (pid) ok.add(pid)
+    }
+    const missing = [...confirmed].filter(id => !ok.has(id)).length
+    if (missing > 0) gaps.push(`${missing} person${missing === 1 ? 'a' : 'e'} senza hotel`)
+  }
+
+  if (o.flags.trasporti && confirmed.size > 0) {
+    const andata = new Set<string>()
+    const ritorno = new Set<string>()
+    for (const t of o.trasporti) {
+      if (t.stato !== 'confermato' && t.stato !== 'non_necessario') continue
+      const pid = (t.user_id || t.contact_id) as string | null
+      if (!pid) continue
+      if (t.direzione === 'andata') andata.add(pid)
+      else if (t.direzione === 'ritorno') ritorno.add(pid)
+    }
+    const missing = [...confirmed].filter(id => !(andata.has(id) && ritorno.has(id))).length
+    if (missing > 0) gaps.push(`${missing} person${missing === 1 ? 'a' : 'e'} senza trasporto`)
+  }
+
+  return gaps
+}
+
 Deno.serve(async (_req) => {
   try {
     const supabase = createClient(
@@ -58,6 +161,7 @@ Deno.serve(async (_req) => {
     let escalationNotifications = 0
     let unassignedNotifications = 0
     let approvalReminders = 0
+    let imminentNotifications = 0
 
     // 1. Fetch open activities with deadlines
     const { data: activities } = await supabase
@@ -285,6 +389,97 @@ Deno.serve(async (_req) => {
       }
     }
 
+    // 4. Eventi imminenti — reminder di prontezza a promotore + staff quando
+    // data_inizio è a 7/3/1 giorni e l'evento è confermato/in preparazione/pronto.
+    const dateToGiorni = new Map<string, number>()
+    for (const g of [1, 3, 7]) dateToGiorni.set(isoPlusDays(today, g), g)
+
+    const { data: imminentEvents } = await supabase
+      .from('events')
+      .select('id, titolo, data_inizio, tipo_evento, modalita, promotore_id')
+      .in('stato', ['confermato', 'in_preparazione', 'pronto'])
+      .in('data_inizio', [...dateToGiorni.keys()])
+
+    const imminentIds = (imminentEvents || []).map((e: Row) => e.id as string)
+
+    if (imminentIds.length > 0) {
+      const [etRes, actRes, prevRes, matRes, staffRes, partRes, hotelRes, trasRes] = await Promise.all([
+        supabase.from('event_types').select('codice, richiede_spedizione, richiede_hotel, richiede_trasporti'),
+        supabase.from('event_activities').select('event_id, obbligatoria, post_evento, stato').in('event_id', imminentIds),
+        supabase.from('event_preventivi').select('event_id, stato').in('event_id', imminentIds),
+        supabase.from('event_materials').select('event_id, stato').in('event_id', imminentIds),
+        supabase.from('event_staff').select('event_id, user_id, confermato').in('event_id', imminentIds),
+        supabase.from('event_participants').select('event_id, contact_id, stato_iscrizione').in('event_id', imminentIds),
+        supabase.from('event_hotel').select('event_id, user_id, contact_id, stato').in('event_id', imminentIds),
+        supabase.from('event_trasporti').select('event_id, user_id, contact_id, direzione, stato').in('event_id', imminentIds),
+      ])
+
+      const flagsByType = new Map<string, EventTypeFlags>()
+      for (const et of (etRes.data || []) as Row[]) {
+        flagsByType.set(et.codice as string, {
+          spedizione: et.richiede_spedizione !== false,
+          hotel: et.richiede_hotel !== false,
+          trasporti: et.richiede_trasporti !== false,
+        })
+      }
+      const defaultFlags: EventTypeFlags = { spedizione: true, hotel: true, trasporti: true }
+
+      const actByEvent = groupByEvent((actRes.data || []) as Row[])
+      const prevByEvent = groupByEvent((prevRes.data || []) as Row[])
+      const matByEvent = groupByEvent((matRes.data || []) as Row[])
+      const staffByEvent = groupByEvent((staffRes.data || []) as Row[])
+      const partByEvent = groupByEvent((partRes.data || []) as Row[])
+      const hotelByEvent = groupByEvent((hotelRes.data || []) as Row[])
+      const trasByEvent = groupByEvent((trasRes.data || []) as Row[])
+
+      for (const event of (imminentEvents || []) as Row[]) {
+        const giorni = dateToGiorni.get(event.data_inizio as string)
+        if (!giorni) continue
+
+        const gruppo = `evento_imminente_${event.id}_${giorni}`
+        const exists = await dedupCheck(supabase, gruppo)
+        if (exists) continue
+
+        const eventId = event.id as string
+        const staff = staffByEvent.get(eventId) || []
+        const gaps = buildReadinessGaps({
+          flags: flagsByType.get(event.tipo_evento as string) || defaultFlags,
+          modalita: event.modalita,
+          activities: actByEvent.get(eventId) || [],
+          preventivi: prevByEvent.get(eventId) || [],
+          materials: matByEvent.get(eventId) || [],
+          staff,
+          participants: partByEvent.get(eventId) || [],
+          hotels: hotelByEvent.get(eventId) || [],
+          trasporti: trasByEvent.get(eventId) || [],
+        })
+
+        const recipients = new Set<string>()
+        if (event.promotore_id) recipients.add(event.promotore_id as string)
+        for (const s of staff) if (s.user_id) recipients.add(s.user_id as string)
+
+        const quando = giorni === 1 ? 'domani' : `tra ${giorni} giorni`
+        const messaggio = gaps.length > 0
+          ? `Da completare: ${gaps.join('; ')}.`
+          : 'Tutto pronto per l\'evento.'
+
+        for (const userId of recipients) {
+          await insertNotification(supabase, {
+            user_id: userId,
+            tipo: 'evento_imminente',
+            titolo: `Evento ${quando}: ${event.titolo}`,
+            messaggio,
+            link: `/eventi/${eventId}`,
+            link_label: 'Vai all\'evento',
+            entity_type: 'event',
+            entity_id: eventId,
+            gruppo,
+          })
+          imminentNotifications++
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -294,6 +489,7 @@ Deno.serve(async (_req) => {
           escalationNotifications,
           unassignedNotifications,
           approvalReminders,
+          imminentNotifications,
           activitiesChecked: activeActivities.length,
         },
       }),

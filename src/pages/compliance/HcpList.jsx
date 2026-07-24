@@ -13,8 +13,8 @@ import { SearchInput } from '../../components/ui/SearchInput'
 import { ExportButton } from '../../components/ui/ExportButton'
 import { Modal } from '../../components/ui/Modal'
 import { useToastStore } from '../../components/ui/Toast'
-import { TIPO_HCP, SELECT_STYLE, INPUT_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
-import { COMPLIANCE_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { TIPO_HCP, SELECT_STYLE, INPUT_STYLE, CARD_HOVER_STYLE, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
+import { COMPLIANCE_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { nowISO } from '../../lib/date-utils'
 import { useExportHandler } from '../../hooks/useExportHandler'
 import { useContactsStore } from '../../hooks/useContacts'
@@ -217,6 +217,12 @@ export function HcpList() {
                       {hcp.contatto?.azienda || hcp.struttura_appartenenza || '—'}
                       {hcp.specializzazione && <span> — {hcp.specializzazione}</span>}
                     </p>
+                    {!hcp.consenso_privacy && (
+                      <span className={BADGE_BASE + ' ' + COLOR_BADGE.yellow + ' inline-flex items-center gap-1 mt-1.5'}>
+                        <Icon icon={FEEDBACK_ICONS.warning} size={12} />
+                        Senza consenso
+                      </span>
+                    )}
                   </div>
                 </div>
                 <StatusBadge stato={hcp.categoria} labels={TIPO_HCP} colors={TIPO_HCP_COLORE} />

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
-import { useActivitiesStore } from '../../hooks/useActivities'
+import { useActivitiesStore, notifyTemplateInstantiation } from '../../hooks/useActivities'
 import { useAnalyticsStore } from '../../hooks/useAnalytics'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
@@ -20,8 +20,10 @@ import { BudgetBreakdownChart } from '../../components/dashboard/BudgetBreakdown
 import { ConfermaPartecipantiKpi } from '../../components/dashboard/ConfermaPartecipantiKpi'
 import { AttivitaInRitardoKpi } from '../../components/dashboard/AttivitaInRitardoKpi'
 import { MaterialeFuoriKpi } from '../../components/dashboard/MaterialeFuoriKpi'
+import { BusinessMetricsSection } from '../../components/dashboard/BusinessMetricsSection'
 import { STATO_EVENTO, STATO_EVENTO_COLORE, TEXTAREA_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
-import { ACTION_ICONS } from '../../lib/icons'
+import { ACTION_ICONS, DOCUMENTO_ICONS } from '../../lib/icons'
+import { generateDirezioneReport } from '../../lib/generate-direzione-report'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { QuickActions, QUICK_ACTIONS_STRATEGICA } from '../../components/dashboard/QuickActions'
 import { useAuthStore } from '../../hooks/useAuth'
@@ -57,6 +59,8 @@ function KpiCharts({ timeRange }) {
   const confermaRate = useAnalyticsStore(s => s.confermaRate)
   const attivitaInRitardo = useAnalyticsStore(s => s.attivitaInRitardo)
   const materialeFuori = useAnalyticsStore(s => s.materialeFuori)
+  const costMetrics = useAnalyticsStore(s => s.costMetrics)
+  const confrontoYoY = useAnalyticsStore(s => s.confrontoYoY)
   const analyticsLoading = useAnalyticsStore(s => s.loading)
   const analyticsError = useAnalyticsStore(s => s.error)
   const fetchKpiData = useAnalyticsStore(s => s.fetchKpiData)
@@ -72,6 +76,7 @@ function KpiCharts({ timeRange }) {
 
   return (
     <>
+      <BusinessMetricsSection costMetrics={costMetrics} confrontoYoY={confrontoYoY} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <EventiPerStatoChart data={eventiPerStato} />
         <EventiPerTipoChart data={eventiPerTipo} />
@@ -94,6 +99,7 @@ export function DashboardStrategica() {
   const [semaphores, setSemaphores] = useState({})
   const approveEvent = useEventsStore(s => s.approveEvent)
   const rejectEvent = useEventsStore(s => s.rejectEvent)
+  const instantiateTemplate = useActivitiesStore(s => s.instantiateTemplate)
   const permissions = useAuthStore(s => s.permissions)
   const profile = useAuthStore(s => s.profile)
   const addToast = useToastStore(s => s.add)
@@ -105,8 +111,37 @@ export function DashboardStrategica() {
   const [rejectMotivo, setRejectMotivo] = useState('')
   const [timeRange, setTimeRange] = useState(defaultTimeRange)
   const [searchApproval, setSearchApproval] = useState('')
+  const [exportingReport, setExportingReport] = useState(false)
+  const analyticsLoading = useAnalyticsStore(s => s.loading)
 
   const canApprove = permissions?.includes('approva_eventi')
+
+  // Genera il PDF direzionale con i KPI del periodo selezionato.
+  const handleExportReport = async () => {
+    const a = useAnalyticsStore.getState()
+    if (a.loading) { addToast('Attendi il caricamento dei dati', 'warning'); return }
+    setExportingReport(true)
+    try {
+      const doc = await generateDirezioneReport({
+        periodoLabel: formatDateRange(timeRange.start, timeRange.end),
+        eventiPerStato: a.eventiPerStato,
+        eventiPerTipo: a.eventiPerTipo,
+        budgetBreakdown: a.budgetBreakdown,
+        confermaRate: a.confermaRate,
+        attivitaInRitardo: a.attivitaInRitardo,
+        materialeFuori: a.materialeFuori,
+        costMetrics: a.costMetrics,
+        perZona: a.perZona,
+        perPromotore: a.perPromotore,
+        confrontoYoY: a.confrontoYoY,
+      })
+      doc.save(`report_direzionale_${todayISO()}.pdf`)
+      addToast('Report generato', 'success')
+    } catch {
+      addToast('Errore nella generazione del report', 'error')
+    }
+    setExportingReport(false)
+  }
 
   const loadData = useCallback(() => { fetchEvents() }, [])
 
@@ -168,11 +203,25 @@ export function DashboardStrategica() {
   // Actions
   const handleApprove = async () => {
     setApproving(true)
+    // Cattura i dati evento prima di azzerare approvingId: servono per il modello.
+    const target = proposti.find(e => e.id === approvingId)
     const { error } = await approveEvent(approvingId)
+    if (error) {
+      setApproving(false)
+      setApprovingId(null)
+      addToast('Errore nell\'approvazione. Riprova.', 'error')
+      return
+    }
+    // Istanzia la checklist dal modello (non-bloccante): l'evento è già approvato.
+    if (target) {
+      const { error: tmplError, noTemplate, added } = await instantiateTemplate(
+        target.id, target.tipo_evento, target.modalita, target.data_inizio
+      )
+      notifyTemplateInstantiation(addToast, { noTemplate, tmplError, added })
+    }
     setApproving(false)
     setApprovingId(null)
-    if (error) addToast('Errore nell\'approvazione. Riprova.', 'error')
-    else addToast('Evento approvato!', 'success')
+    addToast('Evento approvato!', 'success')
   }
 
   const handleReject = async () => {
@@ -260,6 +309,20 @@ export function DashboardStrategica() {
             </div>
 
             {/* Analytics charts */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="font-semibold text-lg">Analisi del periodo</h3>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExportReport}
+                loading={exportingReport}
+                disabled={exportingReport || analyticsLoading}
+                title={analyticsLoading ? 'Attendi il caricamento dei dati' : 'Esporta il report direzionale in PDF'}
+              >
+                <Icon icon={DOCUMENTO_ICONS.dossier} size={18} className="mr-2" />
+                Esporta report
+              </Button>
+            </div>
             <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
             <KpiCharts timeRange={timeRange} />
 

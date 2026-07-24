@@ -58,6 +58,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const addParticipant = useParticipantsStore(s => s.addParticipant)
   const updateParticipant = useParticipantsStore(s => s.updateParticipant)
   const removeParticipant = useParticipantsStore(s => s.removeParticipant)
+  const bulkUpdateStatoIscrizione = useParticipantsStore(s => s.bulkUpdateStatoIscrizione)
 
   const hasPermission = useAuthStore(s => s.hasPermission)
   const canEdit = hasPermission('gestione_logistica')
@@ -87,6 +88,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const [viewMode, setViewMode] = useState('lista')
   const [exporting, setExporting] = useState(false)
   const [statoConfirm, setStatoConfirm] = useState(null)
+  const [bulkStatoConfirm, setBulkStatoConfirm] = useState(null)
 
   const { eventTypes } = useEventTypes()
   const eventType = useMemo(() => eventTypes.find(t => t.codice === event.tipo_evento) || null, [eventTypes, event.tipo_evento])
@@ -312,6 +314,36 @@ export function EventLogisticaTab({ event, users = [] }) {
     if (hasTavoli) fetchEventTavoli(event.id)
   }
 
+  const requestBulkStato = (nuovoStato) => {
+    const partIds = selectedPeople
+      .filter(p => p.type === 'participant')
+      .map(p => p.participantId)
+    if (partIds.length === 0) {
+      addToast('Seleziona almeno un partecipante (lo staff non ha iscrizione)', 'error')
+      return
+    }
+    const hasStaff = selectedPeople.some(p => p.type === 'staff')
+    setBulkStatoConfirm({ nuovoStato, partIds, hasStaff })
+  }
+
+  const handleBulkStato = async () => {
+    if (!bulkStatoConfirm) return
+    const { nuovoStato, partIds, hasStaff } = bulkStatoConfirm
+    const { error, updated, requested } = await bulkUpdateStatoIscrizione(partIds, nuovoStato)
+    setBulkStatoConfirm(null)
+    if (error) { addToast('Non è stato possibile aggiornare lo stato. Riprova.', 'error'); return }
+    if (updated < requested) {
+      addToast(`Aggiornati ${updated} di ${requested} — alcuni non modificabili con i tuoi permessi`, 'warning')
+    } else {
+      const parola = nuovoStato === 'confermato'
+        ? (updated === 1 ? 'confermato' : 'confermati')
+        : (updated === 1 ? 'segnato come invitato' : 'segnati come invitati')
+      const nota = hasStaff ? ' (lo staff selezionato non è coinvolto)' : ''
+      addToast(`${updated} ${updated === 1 ? 'partecipante' : 'partecipanti'} ${parola}${nota}`, 'success')
+    }
+    setSelected(new Set())
+  }
+
   const handleDistribuisci = async () => {
     const { error } = await distributeDiscenti(event.id)
     if (error) addToast(error, 'error')
@@ -502,6 +534,18 @@ export function EventLogisticaTab({ event, users = [] }) {
         <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap'}>
           <span className="text-sm font-medium text-mikai-700">{selected.size} selezionati</span>
           <div className="flex gap-3 ml-auto flex-wrap">
+            {selectedPeople.some(p => p.type === 'participant') && (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => requestBulkStato('confermato')}>
+                  <Icon icon={ACTION_ICONS.check} size={16} className="mr-1" />
+                  Conferma selezionati
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => requestBulkStato('invitato')}>
+                  <Icon icon={ACTION_ICONS.refresh} size={16} className="mr-1" />
+                  Segna come invitati
+                </Button>
+              </>
+            )}
             {hasTavoli && tavoli.length > 0 && (
               <Button variant="secondary" size="sm" onClick={() => setActiveModal('tavolo')}>
                 <Icon icon={TAVOLI_ICONS.tavoli} size={16} className="mr-1" />
@@ -679,6 +723,17 @@ export function EventLogisticaTab({ event, users = [] }) {
           if (error) addToast('Non è stato possibile aggiornare lo stato. Riprova.', 'error')
         }}
         onCancel={() => setStatoConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={!!bulkStatoConfirm}
+        title="Cambia stato conferma"
+        message={bulkStatoConfirm
+          ? `Confermi ${bulkStatoConfirm.partIds.length} ${bulkStatoConfirm.partIds.length === 1 ? 'partecipante' : 'partecipanti'} come "${STATO_ISCRIZIONE[bulkStatoConfirm.nuovoStato]}"?`
+          : ''}
+        confirmLabel={bulkStatoConfirm ? STATO_ISCRIZIONE[bulkStatoConfirm.nuovoStato] : 'Conferma'}
+        onConfirm={handleBulkStato}
+        onCancel={() => setBulkStatoConfirm(null)}
       />
     </div>
   )

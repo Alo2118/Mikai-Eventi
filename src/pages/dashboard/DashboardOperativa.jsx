@@ -4,6 +4,7 @@ import { useActivitiesStore } from '../../hooks/useActivities'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useMaterialAnalyticsStore } from '../../hooks/useMaterialAnalytics'
 import { useCostsStore } from '../../hooks/useCosts'
+import { useEventsStore } from '../../hooks/useEvents'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -15,6 +16,7 @@ import { useToastStore } from '../../components/ui/Toast'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { MyWorkEventsSection } from '../../components/dashboard/MyWorkEventsSection'
+import { EventiDaChiudereSection } from '../../components/dashboard/EventiDaChiudereSection'
 import { OperativaMaterialSection } from '../../components/dashboard/OperativaMaterialSection'
 import { OperativaPreventiviSection } from '../../components/dashboard/OperativaPreventiviSection'
 import { ActivityCard } from '../../components/dashboard/ActivityCard'
@@ -105,6 +107,9 @@ export function DashboardOperativa({ warehouseOnly = false }) {
   // Cost store
   const fetchPendingPreventivi = useCostsStore(s => s.fetchPendingPreventivi)
 
+  // Events store — eventi da chiudere (data_fine passata, non conclusi)
+  const fetchEventsDaChiudere = useEventsStore(s => s.fetchEventsDaChiudere)
+
   const addToast = useToastStore(s => s.add)
   const navigate = useNavigate()
 
@@ -117,10 +122,14 @@ export function DashboardOperativa({ warehouseOnly = false }) {
   const [eventSemaphores, setEventSemaphores] = useState({})
   const [activityStatus, setActivityStatus] = useState({})
   const [pendingPreventivi, setPendingPreventivi] = useState([])
+  const [eventiDaChiudere, setEventiDaChiudere] = useState([])
 
   // Permission checks
   const showMaterial = hasPermission('gestione_magazzino') || hasPermission('gestione_spedizioni')
   const showCosts = hasPermission('gestione_costi')
+  // "Eventi da chiudere" interessa chi gestisce logistica/magazzino e l'organizzazione:
+  // finché l'evento resta aperto il materiale spedito risulta perennemente fuori.
+  const showDaChiudere = showMaterial || hasPermission('gestione_organizzazione')
 
   const loadData = useCallback(async () => {
     if (!permissions || permissions.length === 0) return
@@ -160,8 +169,15 @@ export function DashboardOperativa({ warehouseOnly = false }) {
           .catch(() => null)
       )
     }
+    if (showDaChiudere) {
+      promises.push(
+        fetchEventsDaChiudere()
+          .then(r => setEventiDaChiudere(r.data || []))
+          .catch(() => null)
+      )
+    }
     await Promise.all(promises)
-  }, [warehouseOnly, permissions, user?.id, showMaterial, showCosts])
+  }, [warehouseOnly, permissions, user?.id, showMaterial, showCosts, showDaChiudere])
 
   // Initial fetch
   useEffect(() => { loadData() }, [loadData])
@@ -470,6 +486,11 @@ export function DashboardOperativa({ warehouseOnly = false }) {
                 upcomingBookings={upcomingBookings}
                 overdueReturns={overdueReturns}
               />
+            )}
+
+            {/* 7b. Eventi da chiudere (permission-gated) — sana i falsi overdue */}
+            {showDaChiudere && (
+              <EventiDaChiudereSection events={eventiDaChiudere} />
             )}
 
             {/* 8. Preventivi (permission-gated) */}

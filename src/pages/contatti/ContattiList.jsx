@@ -18,6 +18,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { useToastStore } from '../../components/ui/Toast'
 import { TIPO_CONTATTO, SELECT_STYLE, CARD_STYLE, CARD_HOVER_STYLE } from '../../lib/constants'
 import { CONTATTI_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { normalizeWhatsappNumber } from '../../lib/format-utils'
 import { BulkImportModal } from '../../components/contatti/BulkImportModal'
 
 const EXPORT_COLUMNS_CONTATTI = [
@@ -203,50 +204,89 @@ export function ContattiList() {
         />
       ) : (
         <div className="space-y-3">
-          {contacts.map(c => (
-            <button
-              key={c.id}
-              onClick={() => navigate(`/contatti/${c.id}`)}
-              className={'w-full ' + CARD_HOVER_STYLE + ' text-left'}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-base">{c.cognome} {c.nome}</p>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-sm text-gray-500">
-                    {c.azienda && <span>{c.azienda}</span>}
-                    {c.citta && <span>{c.citta}</span>}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm text-gray-400">
-                    {c.email && (
-                      <span className="flex items-center gap-1">
-                        <Icon icon={CONTATTI_ICONS.email} size={12} />
-                        <span className="truncate max-w-[200px]">{c.email}</span>
-                      </span>
-                    )}
-                    {c.telefono && (
-                      <span className="flex items-center gap-1">
-                        <Icon icon={CONTATTI_ICONS.telefono} size={12} />
-                        {c.telefono}
-                      </span>
-                    )}
-                    {c.proprietario && (
-                      <span className="flex items-center gap-1">
-                        <Icon icon={CONTATTI_ICONS.contatti} size={12} />
-                        {c.proprietario.cognome} {c.proprietario.nome}
-                      </span>
-                    )}
-                    {c.zona && (
-                      <span className="flex items-center gap-1">
-                        <Icon icon={CONTATTI_ICONS.zona} size={12} />
-                        {c.zona.nome}
-                      </span>
-                    )}
-                  </div>
+          {contacts.map(c => {
+            const waNumber = normalizeWhatsappNumber(c.telefono)
+            return (
+            <div key={c.id} className={CARD_HOVER_STYLE + ' flex items-start justify-between gap-3'}>
+              <button
+                onClick={() => navigate(`/contatti/${c.id}`)}
+                className="flex-1 min-w-0 text-left flex flex-col justify-center min-h-[48px]"
+                aria-label={`Apri contatto ${c.cognome} ${c.nome}`}
+              >
+                <p className="font-semibold text-base">{c.cognome} {c.nome}</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-sm text-gray-500">
+                  {c.azienda && <span>{c.azienda}</span>}
+                  {c.citta && <span>{c.citta}</span>}
                 </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm text-gray-400">
+                  {c.email && (
+                    <span className="flex items-center gap-1">
+                      <Icon icon={CONTATTI_ICONS.email} size={12} />
+                      <span className="truncate max-w-[200px]">{c.email}</span>
+                    </span>
+                  )}
+                  {c.telefono && (
+                    <span className="flex items-center gap-1">
+                      <Icon icon={CONTATTI_ICONS.telefono} size={12} />
+                      {c.telefono}
+                    </span>
+                  )}
+                  {c.proprietario && (
+                    <span className="flex items-center gap-1">
+                      <Icon icon={CONTATTI_ICONS.contatti} size={12} />
+                      {c.proprietario.cognome} {c.proprietario.nome}
+                    </span>
+                  )}
+                  {c.zona && (
+                    <span className="flex items-center gap-1">
+                      <Icon icon={CONTATTI_ICONS.zona} size={12} />
+                      {c.zona.nome}
+                    </span>
+                  )}
+                </div>
+              </button>
+              <div className="flex flex-col items-end gap-2 shrink-0">
                 <StatusBadge stato={c.tipo_contatto} labels={TIPO_CONTATTO} />
+                {(c.telefono || c.email) && (
+                  <div className="flex items-center gap-1">
+                    {c.telefono && (
+                      <a
+                        href={`tel:${c.telefono.replace(/\s/g, '')}`}
+                        onClick={e => e.stopPropagation()}
+                        className="inline-flex items-center justify-center min-h-[48px] min-w-[48px] rounded-lg text-mikai-600 hover:bg-mikai-50"
+                        aria-label={`Chiama ${c.cognome} ${c.nome}`}
+                      >
+                        <Icon icon={CONTATTI_ICONS.telefono} size={20} />
+                      </a>
+                    )}
+                    {waNumber && (
+                      <a
+                        href={`https://wa.me/${waNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="inline-flex items-center justify-center min-h-[48px] min-w-[48px] rounded-lg text-green-600 hover:bg-green-50"
+                        aria-label={`Scrivi su WhatsApp a ${c.cognome} ${c.nome}`}
+                      >
+                        <Icon icon={CONTATTI_ICONS.whatsapp} size={20} />
+                      </a>
+                    )}
+                    {c.email && (
+                      <a
+                        href={`mailto:${c.email}`}
+                        onClick={e => e.stopPropagation()}
+                        className="inline-flex items-center justify-center min-h-[48px] min-w-[48px] rounded-lg text-mikai-600 hover:bg-mikai-50"
+                        aria-label={`Invia email a ${c.cognome} ${c.nome}`}
+                      >
+                        <Icon icon={CONTATTI_ICONS.email} size={20} />
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
-            </button>
-          ))}
+            </div>
+            )
+          })}
           {hasMore && (
             <div className="flex justify-center pt-2">
               <Button variant="secondary" onClick={loadMore} loading={loadingMore}>

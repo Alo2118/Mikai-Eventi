@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { exportToExcel } from '../lib/export-utils'
+import { exportToExcel, exportToExcelMultiSheet } from '../lib/export-utils'
 import { useToastStore } from '../components/ui/Toast'
 import { todayISO } from '../lib/date-utils'
 
@@ -25,5 +25,18 @@ export function useExportHandler() {
     setExporting(false)
   }
 
-  return { exporting, handleExport }
+  const handleExportMultiSheet = async ({ sheets, filename }) => {
+    const hasRows = (sheets || []).some(s => s.rows && s.rows.length > 0)
+    if (!hasRows) { addToast('Nessun dato da esportare', 'warning'); return }
+    setExporting(true)
+    try {
+      await exportToExcelMultiSheet({ sheets, filename: `${filename}_${todayISO()}.xlsx` })
+      addToast('File esportato', 'success')
+    } catch {
+      addToast('Errore durante l\'esportazione', 'error')
+    }
+    setExporting(false)
+  }
+
+  return { exporting, handleExport, handleExportMultiSheet }
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { STATO_EVENTO_ICONS, ACTION_ICONS, FEEDBACK_ICONS } from '../../lib/icons'
 import { TEXTAREA_STYLE } from '../../lib/constants'
+import { todayISO, isOnOrBefore } from '../../lib/date-utils'
 import { Icon } from '../ui/Icon'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useEventsStore } from '../../hooks/useEvents'
@@ -31,7 +32,7 @@ const REVERT_MAP = {
   in_corso: 'pronto',
 }
 
-export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasContent }) {
+export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasContent, noActivities }) {
   const [confirmAction, setConfirmAction] = useState(null) // { type: 'advance'|'revert'|'cancel', target }
   const [loading, setLoading] = useState(false)
   const [cancelMotivo, setCancelMotivo] = useState('')
@@ -140,11 +141,45 @@ export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasC
     if (stato === 'in_preparazione' && hasContent === false) {
       return 'Questo evento non ha attività, materiale o persone. Vuoi procedere senza preparazione?'
     }
+    // Zero attività (nessun modello per il tipo evento): non lasciar passare in
+    // silenzio, chiedi conferma esplicita che non c'è una checklist da completare.
+    if (stato === 'in_preparazione' && noActivities) {
+      return 'Questo evento non ha attività di preparazione da completare. Vuoi procedere comunque?'
+    }
     return `Confermi di voler passare l'evento a "${SHORT_LABELS[confirmAction.target]}"?`
   }
 
+  // Nudge consapevole delle date: non forza la transizione (la direzione vuole
+  // conferma manuale), ma suggerisce il passo quando le date lo indicano. Il click
+  // riusa handleClick('advance') → stessa conferma e stesso gate rientri di uno step.
+  const oggi = todayISO()
+  let nudge = null
+  if (isAdvanceable) {
+    if (stato === 'pronto' && event?.data_inizio && isOnOrBefore(event.data_inizio, oggi)) {
+      nudge = { text: "L'evento è iniziato: passa a In corso", target: 'in_corso', tone: 'mikai' }
+    } else if (stato === 'in_corso' && event?.data_fine && !isOnOrBefore(oggi, event.data_fine)) {
+      nudge = { text: "L'evento è concluso: chiudilo per liberare il materiale", target: 'concluso', tone: 'amber' }
+    }
+  }
+  const nudgeTone = nudge?.tone === 'amber'
+    ? 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100'
+    : 'bg-mikai-50 border-mikai-200 text-mikai-700 hover:bg-mikai-100'
+  const nudgeIconColor = nudge?.tone === 'amber' ? 'text-amber-500' : 'text-mikai-500'
+
   return (
     <>
+      {nudge && (
+        <button
+          type="button"
+          onClick={() => handleClick('advance', nudge.target)}
+          className={`w-full flex items-center gap-3 min-h-[48px] px-4 py-3 rounded-xl border mb-2 text-left transition-colors ${nudgeTone}`}
+          aria-label={nudge.text}
+        >
+          <Icon icon={FEEDBACK_ICONS.info} size={20} className={`shrink-0 ${nudgeIconColor}`} />
+          <span className="flex-1 text-base font-medium">{nudge.text}</span>
+          <Icon name="forward" size={18} className="shrink-0 opacity-60" />
+        </button>
+      )}
       <div className="space-y-1">
         <div className="flex items-center gap-0.5 py-1 overflow-x-auto">
           {steps.map((step, i) => {
@@ -241,7 +276,7 @@ export function EventStatusFlow({ event, onUpdate, canAdvance, blockerText, hasC
         title={getConfirmTitle()}
         message={getConfirmMessage()}
         confirmLabel={confirmAction?.type === 'cancel' ? 'Annulla evento' : 'Conferma'}
-        danger={confirmAction?.type === 'cancel' || confirmAction?.type === 'revert' || unreturnedMaterials.length > 0 || !!gateErrore || (stato === 'in_preparazione' && hasContent === false)}
+        danger={confirmAction?.type === 'cancel' || confirmAction?.type === 'revert' || unreturnedMaterials.length > 0 || !!gateErrore || (stato === 'in_preparazione' && (hasContent === false || noActivities))}
         onConfirm={handleConfirm}
         onCancel={() => { setConfirmAction(null); setUnreturnedMaterials([]); setGateErrore(null); setCancelMotivo('') }}
       />

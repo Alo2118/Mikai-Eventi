@@ -158,39 +158,111 @@ export const useMaterialsStore = create((set, get) => {
       .eq('id', id).select().single()
     return { data, error: error?.message || null }
   },
-  checkConflict: async (materialId, startDate, endDate, excludeRequestId) => {
-    let query = supabase
+  // Giacenza date-aware. Per una lista di prodotti tracciati a quantità calcola quanto
+  // è già impegnato su ALTRI eventi con date sovrapposte alla finestra data, così da
+  // segnalare il rischio di doppia prenotazione fisica (la giacenza mostrata altrove è
+  // solo una fotografia). productMeta: map product_id -> { nome, tipo, quantita_disponibile }.
+  // Ritorna map product_id -> { impegnato, disponibile, resta, eventi:[{id,titolo,qty}] }.
+  fetchProductConflicts: async (productIds, window, excludeEventId, productMeta = {}) => {
+    // Solo prodotti a quantità (quantita_disponibile != null): per gli esemplari
+    // serializzati la disponibilità è per-specimen e non si valuta qui.
+    const ids = [...new Set((productIds || []).filter(Boolean))]
+      .filter(pid => productMeta[pid]?.quantita_disponibile != null)
+    if (ids.length === 0) return {}
+
+    const { data, error } = await supabase
       .from('event_materials')
-      .select('*, event:events(titolo, data_inizio, data_fine)')
-      .eq('material_id', materialId)
+      .select('event_id, product_id, quantita, quantita_approvata, stato, data_inizio_utilizzo, data_fine_utilizzo, evento:events!event_materials_event_id_fkey(id, titolo, data_inizio, data_fine, stato)')
+      .in('product_id', ids)
       .neq('stato', 'rifiutato')
-      .lte('data_inizio_utilizzo', endDate)
-      .gte('data_fine_utilizzo', startDate)
+    if (error) return {}
 
-    if (excludeRequestId) query = query.neq('id', excludeRequestId)
+    const closed = ['concluso', 'cancellato', 'rifiutato']
+    const winStart = window?.start || null
+    const winEnd = window?.end || null
+    const acc = {} // product_id -> { eventi: {eventId: {...}}, impegnato }
 
-    const { data, error } = await query
-
-    if (data && data.length > 0) {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const conflictEvents = data.map(c => c.event?.titolo).filter(Boolean).join(', ')
-        const { error: notifError } = await supabase.from('notifications').insert({
-          user_id: user.id,
-          tipo: 'conflitto_materiale',
-          titolo: 'Conflitto materiale rilevato',
-          messaggio: `Già assegnato a: ${conflictEvents}`,
-          link: `/materiale/${materialId}`,
-          link_label: 'Vai al materiale',
-          entity_type: 'material',
-          entity_id: materialId,
-          gruppo: `conflict_${materialId}_${todayISO()}`,
-        })
-        if (notifError) console.error('Notification insert failed:', notifError)
-      }
+    for (const r of (data || [])) {
+      if (excludeEventId && r.event_id === excludeEventId) continue
+      if (closed.includes(r.evento?.stato)) continue
+      const meta = productMeta[r.product_id]
+      if (!meta) continue
+      // Per i gadget lo stock viene già scalato alla conferma: le righe confermate sono
+      // già riflesse in quantita_disponibile, quindi contiamo solo le pendenti (no doppio conteggio).
+      if (meta.tipo === 'gadget' && r.stato !== 'richiesto') continue
+      const rStart = r.data_inizio_utilizzo || r.evento?.data_inizio || null
+      const rEnd = r.data_fine_utilizzo || r.evento?.data_fine || null
+      // Sovrapposizione date. Se mancano date su un lato non possiamo escludere il conflitto:
+      // consideriamo impegnato (warning conservativo, comunque non bloccante).
+      const overlaps = (!winStart || !winEnd || !rStart || !rEnd)
+        ? true
+        : (winStart <= rEnd && rStart <= winEnd)
+      if (!overlaps) continue
+      const qty = r.quantita_approvata ?? r.quantita ?? 1
+      if (!acc[r.product_id]) acc[r.product_id] = { eventi: {}, impegnato: 0 }
+      acc[r.product_id].impegnato += qty
+      const ev = acc[r.product_id].eventi
+      if (!ev[r.event_id]) ev[r.event_id] = { id: r.event_id, titolo: r.evento?.titolo || 'Evento', qty: 0 }
+      ev[r.event_id].qty += qty
     }
 
-    return { data: data || [], error: error?.message || null }
+    const map = {}
+    for (const pid of ids) {
+      const meta = productMeta[pid]
+      const a = acc[pid]
+      const impegnato = a?.impegnato || 0
+      map[pid] = {
+        impegnato,
+        disponibile: meta.quantita_disponibile,
+        resta: meta.quantita_disponibile - impegnato,
+        eventi: a ? Object.values(a.eventi) : [],
+      }
+    }
+    return map
+  },
+
+  // Gate non bloccante alla conferma / all'aggiunta: verifica se un singolo prodotto è già
+  // impegnato altrove nella finestra dell'evento. Se impegnato+richiesto > disponibile
+  // registra la notifica 'conflitto_materiale' e ritorna hasConflict=true (il chiamante
+  // mostra un ConfirmDialog e decide se procedere). productMeta opzionale evita una query.
+  checkProductConflict: async ({ productId, quantitaRichiesta = 1, window, excludeEventId, productMeta }) => {
+    if (!productId) return { data: { hasConflict: false }, error: null }
+    let meta = productMeta
+    if (!meta || !meta[productId]) {
+      const { data: prod, error: prodErr } = await supabase
+        .from('products')
+        .select('id, nome, tipo, quantita_disponibile')
+        .eq('id', productId)
+        .single()
+      if (prodErr) return { data: { hasConflict: false }, error: prodErr.message }
+      meta = { [productId]: { nome: prod.nome, tipo: prod.tipo, quantita_disponibile: prod.quantita_disponibile } }
+    }
+    if (meta[productId]?.quantita_disponibile == null) return { data: { hasConflict: false }, error: null }
+
+    const map = await get().fetchProductConflicts([productId], window, excludeEventId, meta)
+    const info = map[productId]
+    if (!info) return { data: { hasConflict: false }, error: null }
+
+    const hasConflict = info.impegnato + quantitaRichiesta > info.disponibile
+    const result = { ...info, richiesto: quantitaRichiesta, hasConflict, nome: meta[productId]?.nome || 'Materiale' }
+    if (!hasConflict) return { data: result, error: null }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const restaSafe = Math.max(0, info.resta)
+      const eventiTxt = info.eventi.map(e => e.titolo).join(', ') || 'altri eventi'
+      const { error: notifError } = await supabase.from('notifications').insert({
+        user_id: user.id,
+        tipo: 'conflitto_materiale',
+        titolo: 'Materiale già impegnato',
+        messaggio: `${result.nome}: già impegnato su ${eventiTxt}. ${restaSafe === 1 ? 'Resta 1 pezzo' : `Restano ${restaSafe} pezzi`} su ${info.disponibile}.`,
+        entity_type: 'product',
+        entity_id: productId,
+        gruppo: `conflict_prod_${productId}_${todayISO()}`,
+      })
+      if (notifError) console.error('Notification insert failed:', notifError)
+    }
+    return { data: result, error: null }
   },
 
   fetchMovements: async (materialId) => {
@@ -656,6 +728,35 @@ export const useMaterialsStore = create((set, get) => {
     if (!error) set({ agentMaterials: data || [] })
     return { data: data || [], error: error?.message || null }
   },
+
+  // ── Self-service agente sul proprio esemplare (Intervento 3) ──
+  // Le scritture dirette su materials/notifications sono vietate ai commerciali dalle RLS:
+  // passiamo dalla RPC SECURITY DEFINER agent_flag_material, che valida la proprieta'
+  // (materials.presso_utente_id = auth.uid()) prima di scrivere e di notificare il magazzino.
+  // L'esemplare NON cambia posizione: la chiusura del rientro resta al back-office
+  // (registerBulkReturn). Le segnalazioni servono a togliere i kit dal limbo "fuori da 60gg".
+  _flagAgentMaterial: async (materialId, azione, note, fotoUrl) => {
+    const { error } = await supabase.rpc('agent_flag_material', {
+      p_material_id: materialId,
+      p_azione: azione,
+      p_note: note || null,
+      p_foto_url: fotoUrl || null,
+    })
+    if (error) return { error: error.message }
+    // Riflette subito il nuovo segnale nella lista locale (feedback immediato).
+    const stamp = nowISO()
+    const patch = azione === 'rientro' ? { rientro_richiesto_at: stamp }
+      : azione === 'perso' ? { segnalato_perso_at: stamp }
+      : { possesso_confermato_at: stamp }
+    set((s) => ({
+      agentMaterials: s.agentMaterials.map(m => (m.id === materialId ? { ...m, ...patch } : m)),
+    }))
+    return { error: null }
+  },
+
+  requestReturnFromAgent: (materialId) => get()._flagAgentMaterial(materialId, 'rientro'),
+  ackAgentPossession: (materialId) => get()._flagAgentMaterial(materialId, 'ack'),
+  reportAgentMaterialLoss: (materialId, note, fotoUrl) => get()._flagAgentMaterial(materialId, 'perso', note, fotoUrl),
 
   // ── Magazzino Oggi (dashboard Ivan) ──
 

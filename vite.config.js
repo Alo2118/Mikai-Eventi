@@ -11,6 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{css,html,svg,png,woff2}'],
+        // Handler Web Push (push + notificationclick) iniettati nel SW generato.
+        // public/push-sw.js viene copiato in dist e importato a runtime dal SW.
+        importScripts: ['push-sw.js'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api/],
         // Precache only critical JS chunks, lazy-load the rest at runtime

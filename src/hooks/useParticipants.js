@@ -43,6 +43,20 @@ export const useParticipantsStore = create((set, get) => ({
     return { error: error?.message || null }
   },
 
+  bulkUpdateStatoIscrizione: async (ids, nuovoStato) => {
+    if (!ids?.length) return { data: [], error: null, updated: 0, requested: 0 }
+    const { data, error } = await supabase
+      .from('event_participants')
+      .update({ stato_iscrizione: nuovoStato })
+      .in('id', ids)
+      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
+    if (error) return { data: null, error: error.message, updated: 0, requested: ids.length }
+    const rows = data || []
+    const byId = new Map(rows.map(r => [r.id, r]))
+    set(s => ({ participants: s.participants.map(r => byId.get(r.id) || r) }))
+    return { data: rows, error: null, updated: rows.length, requested: ids.length }
+  },
+
   bulkAddParticipants: async (eventId, participants) => {
     if (!participants?.length) return { data: { inserted: 0, skipped: 0 }, error: null }
 

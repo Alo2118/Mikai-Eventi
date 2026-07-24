@@ -5,8 +5,10 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { Button } from '../../components/ui/Button'
+import { Icon } from '../../components/ui/Icon'
 import { useToastStore } from '../../components/ui/Toast'
 import { TIPO_TOV, INPUT_STYLE, SELECT_STYLE, TEXTAREA_STYLE, CARD_STYLE } from '../../lib/constants'
+import { FEEDBACK_ICONS } from '../../lib/icons'
 import { todayISO } from '../../lib/date-utils'
 
 export function TovForm() {
@@ -19,20 +21,26 @@ export function TovForm() {
   const addToast = useToastStore(s => s.add)
 
   const [saving, setSaving] = useState(false)
+  // Precompilazione da "ToV suggeriti" (ponte ospitalità HCP): i parametri sono
+  // proposte modificabili — l'utente conferma prima di registrare (materia legale).
   const [form, setForm] = useState({
     hcp_id: searchParams.get('hcp_id') || '',
     evento_id: searchParams.get('evento_id') || '',
-    tipo: '',
-    importo: '',
-    data_trasferimento: todayISO(),
-    descrizione: '',
-    giustificazione: '',
-    periodo_riferimento: '',
+    tipo: searchParams.get('tipo') || '',
+    importo: searchParams.get('importo') || '',
+    data_trasferimento: searchParams.get('data_trasferimento') || todayISO(),
+    descrizione: searchParams.get('descrizione') || '',
+    giustificazione: searchParams.get('giustificazione') || '',
+    periodo_riferimento: searchParams.get('periodo_riferimento') || '',
   })
+  const prefilled = !!searchParams.get('tipo')
 
   useEffect(() => { fetchHcpList() }, [])
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+
+  const selectedHcp = hcpList.find(h => h.id === form.hcp_id)
+  const senzaConsenso = selectedHcp && !selectedHcp.consenso_privacy
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -68,6 +76,11 @@ export function TovForm() {
     { value: `${year}-S2`, label: `${year} — 2° semestre` },
     { value: `${year}`, label: `${year} (intero anno)` },
   ]
+  // Se la bozza suggerisce un periodo non presente (es. evento di un altro anno),
+  // aggiungilo così la select ne conserva il valore.
+  if (form.periodo_riferimento && !periodi.some(p => p.value === form.periodo_riferimento)) {
+    periodi.push({ value: form.periodo_riferimento, label: form.periodo_riferimento })
+  }
 
   return (
     <div className="px-4 md:px-8 py-6 space-y-6">
@@ -77,6 +90,15 @@ export function TovForm() {
         { label: 'Nuovo trasferimento' },
       ]} />
       <PageHeader title="Nuovo trasferimento di valore" />
+
+      {prefilled && (
+        <div className="flex items-start gap-2 bg-mikai-50 border border-mikai-200 rounded-lg px-4 py-3 max-w-2xl" role="status">
+          <Icon icon={FEEDBACK_ICONS.info} size={18} className="text-mikai-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-mikai-800">
+            Bozza precompilata dai costi di ospitalità dell'evento. Controlla importo e dati, poi registra.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className={`${CARD_STYLE} space-y-5 max-w-2xl`}>
         <div>
@@ -96,6 +118,14 @@ export function TovForm() {
               </option>
             ))}
           </select>
+          {senzaConsenso && (
+            <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 mt-3" role="alert">
+              <Icon icon={FEEDBACK_ICONS.warning} size={18} className="text-yellow-600 mt-0.5 shrink-0" />
+              <p className="text-sm font-medium text-yellow-800">
+                Questo professionista non ha dato il consenso privacy: il trasferimento sarà pubblicabile solo in forma aggregata.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

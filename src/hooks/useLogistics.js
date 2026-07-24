@@ -186,7 +186,7 @@ export const useLogisticsStore = create((set, get) => ({
   fetchAllPendingHotels: async () => {
     const { data, error } = await supabase
       .from('event_hotel')
-      .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome), evento:events(id, titolo, data_inizio)')
+      .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome), evento:events(id, titolo, data_inizio, tipo_evento)')
       .in('stato', ['da_prenotare', 'prenotato'])
       .order('created_at')
     return { data: data || [], error }
@@ -195,7 +195,7 @@ export const useLogisticsStore = create((set, get) => ({
   fetchAllPendingTrasporti: async () => {
     const { data, error } = await supabase
       .from('event_trasporti')
-      .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome), evento:events(id, titolo, data_inizio)')
+      .select('*, user:users(id, nome, cognome), contact:contacts(id, nome, cognome), evento:events(id, titolo, data_inizio, tipo_evento)')
       .in('stato', ['da_prenotare', 'prenotato'])
       .order('ordine')
       .order('created_at')

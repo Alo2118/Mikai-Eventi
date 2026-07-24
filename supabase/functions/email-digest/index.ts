@@ -83,12 +83,36 @@ function buildEmailHtml(
 </html>`
 }
 
+async function logDelivery(
+  supabase: ReturnType<typeof createClient>,
+  record: {
+    user_id: string
+    mode: string
+    subject: string
+    status: 'inviata' | 'errore' | 'saltata'
+    error?: string | null
+  }
+): Promise<void> {
+  try {
+    await supabase.from('email_deliveries').insert(record)
+  } catch (err) {
+    // Non bloccare il job se il logging fallisce
+    console.error(
+      `[email-digest] impossibile registrare l'invio: ${(err as Error).message}`
+    )
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
+
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+    const RESEND_FROM =
+      Deno.env.get('RESEND_FROM') || 'Eventi Mikai <eventi@mikai.it>'
 
     const body = await req.json().catch(() => ({}))
     const mode: string = body.mode || 'daily'
@@ -125,6 +149,7 @@ Deno.serve(async (req) => {
 
     let emailsSent = 0
     let emailsSkipped = 0
+    let emailsErrors = 0
 
     for (const user of (users || []) as UserRow[]) {
       if (!user.attivo || !user.email) {
@@ -451,33 +476,67 @@ Deno.serve(async (req) => {
           ? `[Mikai Eventi] Riepilogo giornaliero`
           : `[Mikai Eventi] Riepilogo settimanale`
 
-      // Log digest content (actual email sending via Resend/SendGrid to be added later)
-      console.log(`[email-digest] ${mode} digest for ${user.email}:`)
-      console.log(`  Subject: ${subject}`)
-      console.log(`  Sections: ${sections.map((s) => s.title).join(', ')}`)
-      console.log(
-        `  Total items: ${sections.reduce((sum, s) => sum + s.items.length, 0)}`
-      )
+      // Se la chiave Resend non è configurata la funzione resta INERTE:
+      // non invia nulla, logga soltanto e registra lo skip.
+      if (!RESEND_API_KEY) {
+        console.log(
+          `[email-digest] ${mode} digest per ${user.email} (INVIO DISATTIVATO: RESEND_API_KEY assente)`
+        )
+        console.log(`  Oggetto: ${subject}`)
+        console.log(`  Sezioni: ${sections.map((s) => s.title).join(', ')}`)
+        emailsSkipped++
+        await logDelivery(supabase, {
+          user_id: user.id,
+          mode,
+          subject,
+          status: 'saltata',
+          error: 'RESEND_API_KEY non configurata',
+        })
+        continue
+      }
 
-      // TODO: Uncomment when email provider is configured
-      // const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-      // if (RESEND_API_KEY) {
-      //   await fetch('https://api.resend.com/emails', {
-      //     method: 'POST',
-      //     headers: {
-      //       'Authorization': `Bearer ${RESEND_API_KEY}`,
-      //       'Content-Type': 'application/json',
-      //     },
-      //     body: JSON.stringify({
-      //       from: 'Mikai Eventi <noreply@mikai.it>',
-      //       to: [user.email],
-      //       subject,
-      //       html,
-      //     }),
-      //   })
-      // }
+      // Invio reale via Resend, isolato per destinatario:
+      // un errore su un utente non deve interrompere l'intero job.
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: RESEND_FROM,
+            to: [user.email],
+            subject,
+            html,
+          }),
+        })
 
-      emailsSent++
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '')
+          throw new Error(`Resend ${res.status}: ${detail}`)
+        }
+
+        emailsSent++
+        await logDelivery(supabase, {
+          user_id: user.id,
+          mode,
+          subject,
+          status: 'inviata',
+        })
+      } catch (sendErr) {
+        console.error(
+          `[email-digest] invio fallito per ${user.email}: ${(sendErr as Error).message}`
+        )
+        emailsErrors++
+        await logDelivery(supabase, {
+          user_id: user.id,
+          mode,
+          subject,
+          status: 'errore',
+          error: (sendErr as Error).message,
+        })
+      }
     }
 
     return new Response(
@@ -486,6 +545,7 @@ Deno.serve(async (req) => {
         mode,
         emailsSent,
         emailsSkipped,
+        emailsErrors,
       }),
       {
         status: 200,

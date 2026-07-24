@@ -169,7 +169,7 @@ function MobileMeta({ stato, row, collo, primaryLocation, richiedente, approvato
 }
 
 export const MaterialListRow = memo(function MaterialListRow({
-  row, availability, stockLocations = [], kitPieces = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
+  row, availability, conflict, stockLocations = [], kitPieces = [], eventZoneId, collo, eventSpedizioneData, eventTracking,
   canEdit, canApprove, actions, tipoMeta, shippingEnabled = true,
 }) {
   // Raggruppati per stare sotto il limite prop: destrutturati qui così il resto
@@ -217,6 +217,16 @@ export const MaterialListRow = memo(function MaterialListRow({
 
   const primaryLocation = useMemo(() => pickPrimaryLocation(stockLocations, eventZoneId), [stockLocations, eventZoneId])
 
+  // "Impegnato altrove": il prodotto è già prenotato su altri eventi con date sovrapposte
+  // e non restano abbastanza pezzi per questa richiesta. Solo per righe non ancora spedite.
+  const conflictEventi = conflict?.eventi || []
+  const conflictShortfall = conflictEventi.length > 0
+    && !isShipped && !isRejected
+    && conflict.resta < (row.quantita_approvata || row.quantita || 1)
+  const conflictTitle = conflictShortfall
+    ? `Già impegnato su: ${conflictEventi.map(e => e.titolo).join(', ')} — ${conflict.resta <= 0 ? 'nessun pezzo libero' : `restano ${conflict.resta} su ${conflict.disponibile}`}`
+    : undefined
+
   const commitQty = (val) => {
     const qty = Math.max(1, parseInt(val) || 1)
     setLocalQty(qty)
@@ -262,6 +272,12 @@ export const MaterialListRow = memo(function MaterialListRow({
               eventSpedizioneData={eventSpedizioneData}
               eventTracking={eventTracking}
             />
+            {conflictShortfall && (
+              <span className={`inline-flex items-center gap-0.5 ${BADGE_BASE} ${COLOR_BADGE.orange}`} title={conflictTitle}>
+                <Icon icon={FEEDBACK_ICONS.warning} size={10} />
+                Impegnato altrove
+              </span>
+            )}
           </div>
 
           {/* Quantity */}
@@ -339,6 +355,7 @@ export const MaterialListRow = memo(function MaterialListRow({
           confirmNote={confirmNote} setConfirmNote={setConfirmNote}
           richiedente={richiedente} approvatore={approvatore}
           shippingEnabled={shippingEnabled}
+          conflict={conflictShortfall ? conflict : null}
         />
       )}
     </div>
@@ -351,7 +368,7 @@ function MaterialRowDetails({
   canEdit, canApprove, isPending, isConfirmed, isRejected, isInPrep, isShipped,
   isInsufficient, rowEditable, onUpdate, onConfirm, onRevert,
   showConfirmForm, setShowConfirmForm, confirmQty, setConfirmQty, confirmNote, setConfirmNote,
-  richiedente, approvatore, shippingEnabled = true,
+  richiedente, approvatore, shippingEnabled = true, conflict = null,
 }) {
   const qtyRequested = row.quantita || 1
   const inMagazzino = availability?.inMagazzino ?? null
@@ -422,6 +439,17 @@ function MaterialRowDetails({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Conflitto: già impegnato altrove nel periodo (mostrato esplicitamente per mobile) */}
+      {conflict && (
+        <div className="flex items-start gap-2 text-xs rounded-lg px-3 py-1.5 bg-orange-50 text-orange-800" role="status">
+          <Icon icon={FEEDBACK_ICONS.warning} size={14} className="flex-shrink-0 mt-0.5" />
+          <span>
+            Già impegnato su <strong>{conflict.eventi.map(e => e.titolo).join(', ')}</strong>.{' '}
+            {conflict.resta <= 0 ? 'Nessun pezzo libero nel periodo.' : `Restano ${conflict.resta} su ${conflict.disponibile} nel periodo.`}
+          </span>
         </div>
       )}
 

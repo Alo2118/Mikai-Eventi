@@ -1,6 +1,15 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { nowISO } from '../lib/date-utils'
+import { nowISO, todayISO } from '../lib/date-utils'
+
+// Deriva il periodo di riferimento (semestre) da una data ISO (YYYY-MM-DD).
+// Sunshine Act: la reportistica ToV è tipicamente semestrale.
+function periodoFromDate(dataISO) {
+  const iso = dataISO || todayISO()
+  const anno = iso.slice(0, 4)
+  const mese = Number(iso.slice(5, 7))
+  return `${anno}-S${mese <= 6 ? 1 : 2}`
+}
 
 export const useComplianceStore = create((set, get) => ({
   // HCP
@@ -324,5 +333,136 @@ export const useComplianceStore = create((set, get) => ({
 
     set({ stats, statsLoading: false })
     return { data: stats }
+  },
+
+  // ═══════════════════════════════════════════
+  // Ponte ospitalità HCP → ToV (bozze suggerite)
+  // ═══════════════════════════════════════════
+
+  // Sola lettura: incrocia i partecipanti HCP dell'evento con hotel/trasporti
+  // (e relativi costi) e propone bozze di trasferimenti di valore precompilate.
+  // NON registra nulla in autonomia: l'utente conferma/modifica nel form ToV.
+  // Materia legale → nessuna auto-registrazione silenziosa.
+  suggestTovFromEvent: async (event) => {
+    const eventId = event?.id
+    if (!eventId) return { data: [], error: null }
+
+    const [partRes, hotelRes, transpRes, existingRes] = await Promise.all([
+      supabase
+        .from('event_participants')
+        .select('contact_id, tipo, contatto:contacts!event_participants_contact_id_fkey(id, nome, cognome, azienda)')
+        .eq('event_id', eventId),
+      supabase
+        .from('event_hotel')
+        .select('contact_id, costo, numero_notti, stato')
+        .eq('event_id', eventId)
+        .not('contact_id', 'is', null),
+      supabase
+        .from('event_trasporti')
+        .select('contact_id, costo, direzione, stato')
+        .eq('event_id', eventId)
+        .not('contact_id', 'is', null),
+      supabase
+        .from('trasferimenti_valore')
+        .select('hcp_id, tipo')
+        .eq('evento_id', eventId),
+    ])
+
+    const err = partRes.error || hotelRes.error || transpRes.error || existingRes.error
+    if (err) return { data: null, error: err.message || null }
+
+    const participants = partRes.data || []
+    const contactIds = participants.map(p => p.contact_id)
+    if (contactIds.length === 0) return { data: [], error: null }
+
+    const { data: hcps, error: hcpErr } = await supabase
+      .from('hcp_professionisti')
+      .select('id, contatto_id, categoria, consenso_privacy')
+      .in('contatto_id', contactIds)
+    if (hcpErr) return { data: null, error: hcpErr.message || null }
+
+    const hcpByContact = new Map((hcps || []).map(h => [h.contatto_id, h]))
+    // ToV già registrati per questo evento: chiave hcp_id|tipo per evitare duplicati
+    const existing = new Set((existingRes.data || []).map(t => `${t.hcp_id}|${t.tipo}`))
+
+    // Aggrega i costi per contatto (un HCP può avere più righe hotel/trasporto)
+    const sumByContact = (rows) => {
+      const m = new Map()
+      for (const r of (rows || [])) {
+        if (r.costo == null) continue
+        m.set(r.contact_id, (m.get(r.contact_id) || 0) + Number(r.costo))
+      }
+      return m
+    }
+    const hotelByContact = sumByContact(hotelRes.data)
+    const transpByContact = sumByContact(transpRes.data)
+
+    const dataInizio = event.data_inizio || todayISO()
+    const periodo = periodoFromDate(dataInizio)
+    const titolo = event.titolo || 'evento'
+
+    const suggestions = []
+    for (const p of participants) {
+      const hcp = hcpByContact.get(p.contact_id)
+      if (!hcp) continue
+      const nome = `${p.contatto?.cognome || ''} ${p.contatto?.nome || ''}`.trim()
+      const base = {
+        hcp_id: hcp.id,
+        hcp_nome: nome,
+        hcp_azienda: p.contatto?.azienda || null,
+        categoria: hcp.categoria,
+        consenso_privacy: !!hcp.consenso_privacy,
+        evento_id: eventId,
+        data_trasferimento: dataInizio,
+        periodo_riferimento: periodo,
+      }
+
+      const hotelCosto = hotelByContact.get(p.contact_id)
+      if (hotelCosto != null && hotelCosto > 0) {
+        suggestions.push({
+          ...base,
+          key: `${hcp.id}-ospitalita`,
+          tipo: 'ospitalita',
+          importo: hotelCosto,
+          descrizione: `Ospitalità (hotel) — ${titolo}`,
+          giustificazione: `Pernottamento per partecipazione all'evento "${titolo}"`,
+          giaRegistrato: existing.has(`${hcp.id}|ospitalita`),
+        })
+      }
+
+      const transpCosto = transpByContact.get(p.contact_id)
+      if (transpCosto != null && transpCosto > 0) {
+        suggestions.push({
+          ...base,
+          key: `${hcp.id}-viaggio`,
+          tipo: 'viaggio',
+          importo: transpCosto,
+          descrizione: `Viaggio/trasferimento — ${titolo}`,
+          giustificazione: `Trasporto per partecipazione all'evento "${titolo}"`,
+          giaRegistrato: existing.has(`${hcp.id}|viaggio`),
+        })
+      }
+    }
+
+    return { data: suggestions, error: null }
+  },
+
+  // Sola lettura: righe ToV con consenso HCP, per la reportistica disclosure.
+  fetchDisclosureRows: async (periodo) => {
+    let query = supabase
+      .from('trasferimenti_valore')
+      .select(`
+        tipo, importo, periodo_riferimento, data_trasferimento, stato,
+        hcp:hcp_professionisti!trasferimenti_valore_hcp_id_fkey(
+          id, categoria, consenso_privacy,
+          contatto:contacts!hcp_professionisti_contatto_id_fkey(nome, cognome, azienda)
+        )
+      `)
+      .order('data_trasferimento', { ascending: false })
+
+    if (periodo) query = query.eq('periodo_riferimento', periodo)
+
+    const { data, error } = await query.limit(2000)
+    return { data: data || [], error: error?.message || null }
   },
 }))

@@ -221,6 +221,38 @@ export const DIREZIONE_TRASPORTO = {
   ritorno: 'Ritorno',
 }
 
+// Categorie della ripartizione costi effettivi (vedi cost-breakdown.js)
+export const COSTO_CATEGORIA = {
+  preventivi: 'Preventivi',
+  ospitalita: 'Ospitalità',
+  trasporti: 'Trasporti',
+  materiale: 'Materiale',
+  catering: 'Catering',
+  altro: 'Altro',
+}
+
+export const COSTO_CATEGORIA_COLORE = {
+  preventivi: 'mikai',
+  ospitalita: 'purple',
+  trasporti: 'sky',
+  materiale: 'amber',
+  catering: 'green',
+  altro: 'gray',
+}
+
+// Voci di costo manuali (event_costs.source_tipo) — etichette naturali per il form.
+// La chiave è il valore dell'enum cost_source in DB.
+export const COSTO_MANUALE_SOURCE = {
+  materiale: 'Materiale',
+  sub_activity: 'Catering / attività',
+  logistics: 'Ospitalità e trasferte',
+  sponsorizzazione: 'Sponsorizzazione',
+  iscrizioni: 'Iscrizioni',
+  desk: 'Desk',
+  gadget: 'Gadget',
+  altro: 'Altro',
+}
+
 // Mezzo trasporto
 export const MEZZO_TRASPORTO = {
   treno: 'Treno',
@@ -485,6 +517,7 @@ export const TIPO_NOTIFICA = {
   rientro_scaduto: 'Rientro materiale scaduto',
   preventivo_stato: 'Stato preventivo cambiato',
   evento_stato_cambiato: 'Stato evento cambiato',
+  evento_imminente: 'Evento imminente',
   escalation: 'Escalation',
   materiale_approvato: 'Materiale approvato',
   materiale_rifiutato: 'Materiale rifiutato',
@@ -506,6 +539,7 @@ export const TIPO_NOTIFICA_COLORE = {
   rientro_scaduto: 'red',
   preventivo_stato: 'blue',
   evento_stato_cambiato: 'mikai',
+  evento_imminente: 'yellow',
   escalation: 'red',
   materiale_approvato: 'green',
   materiale_rifiutato: 'red',

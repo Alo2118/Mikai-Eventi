@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { monthFloorISO } from '../lib/date-utils'
-import { effectiveRientroRichiesto } from '../lib/event-flow'
+import { monthFloorISO, todayISO } from '../lib/date-utils'
+import { effectiveRientroRichiesto, richiedeSpedizione } from '../lib/event-flow'
 
 const EVENTS_PAGE_SIZE = 25
 const EVENTS_SELECT = 'id, titolo, data_inizio, data_fine, stato, tipo_evento, modalita, luogo, budget_previsto, promotore_id, promotore_contact_id, manager_user_id, spedizione_data, created_at, promotore:users!events_promotore_id_fkey(id, nome, cognome), promotore_agente:contacts!events_promotore_contact_id_fkey(id, nome, cognome), manager:users!events_manager_user_id_fkey(id, nome, cognome)'
@@ -57,6 +57,35 @@ function buildEventQuery(filters, roleFilter, involvedIds, from, to) {
   // periodo === 'past' → no time constraint
 
   return query.range(from, to)
+}
+
+// Gate UNICO in_preparazione → pronto — calcolo SINCRONO PURO sui dati già in
+// memoria (nessuna query). Due requisiti:
+//  1) nessuna attività obbligatoria pre-evento incompleta (le 'disattivata' non contano);
+//  2) se il tipo evento richiede spedizione (e non è a contributo) e c'è materiale
+//     non rifiutato, la spedizione dev'essere registrata.
+// Ritorna hasActivities per gestire il caso "zero attività" (il chiamante chiede
+// conferma esplicita invece di lasciar passare in silenzio) e blockerText, che è
+// SEMPRE valorizzato quando canAdvance è false (mai un disabled senza spiegazione).
+export function computeGatePronto({ event, activities, materials, eventType }) {
+  const visible = (activities || []).filter(a => a.stato !== 'disattivata')
+  const blocking = visible.filter(a => a.obbligatoria && !a.post_evento && a.stato !== 'completata')
+
+  const shippingRequired = event?.modalita !== 'contributo' && richiedeSpedizione(eventType)
+  const hasMaterial = (materials || []).some(m => m.stato !== 'rifiutato')
+  const needsShipping = shippingRequired && !event?.spedizione_data && hasMaterial
+
+  const nMand = blocking.length
+  let blockerText = null
+  if (nMand > 0 && needsShipping) blockerText = 'Completa le attività e registra la spedizione'
+  else if (nMand > 0) blockerText = 'Completa le attività obbligatorie'
+  else if (needsShipping) blockerText = 'Registra la spedizione del materiale'
+
+  return {
+    canAdvance: nMand === 0 && !needsShipping,
+    blockerText,
+    hasActivities: visible.length > 0,
+  }
 }
 
 export const useEventsStore = create((set, get) => {
@@ -241,22 +270,6 @@ export const useEventsStore = create((set, get) => {
     return { error: null }
   },
 
-  checkGatePronto: async (eventId) => {
-    const { data, error } = await supabase
-      .from('event_activities')
-      .select('id, descrizione, stato, obbligatoria')
-      .eq('event_id', eventId)
-      .eq('obbligatoria', true)
-      .neq('stato', 'disattivata')
-      .neq('stato', 'completata')
-    // Fail-closed: se la verifica non va a buon fine non lasciamo avanzare.
-    if (error) {
-      return { canAdvance: false, blocking: [], errore: 'Non siamo riusciti a verificare i requisiti. Riprova.' }
-    }
-    const blocking = data || []
-    return { canAdvance: blocking.length === 0, blocking }
-  },
-
   checkGateConcluded: async (eventId) => {
     // Fail-closed: qualsiasi errore di query blocca l'avanzamento (i "salti"
     // legittimi della biforcazione event-flow restano gestiti sotto).
@@ -292,6 +305,22 @@ export const useEventsStore = create((set, get) => {
     if (error) return failClosed
     const unreturned = (data || []).filter(m => effectiveRientroRichiesto(m))
     return { canAdvance: unreturned.length === 0, unreturned }
+  },
+
+  // Eventi con data_fine passata ma non ancora chiusi: finché restano aperti il
+  // materiale spedito risulta "fuori"/in ritardo per sempre (fetchOverdueReturns e
+  // la timeline logistica escludono solo gli eventi già conclusi). Questa lista sana
+  // il circolo vizioso dei falsi solleciti. Esclude gli stati terminali.
+  fetchEventsDaChiudere: async () => {
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento')
+      .lt('data_fine', todayISO())
+      .not('stato', 'in', '(concluso,cancellato,rifiutato)')
+      .order('data_fine', { ascending: true })
+      .limit(100)
+    if (error) return { data: [], error: 'Non siamo riusciti a caricare gli eventi da chiudere. Riprova.' }
+    return { data: data || [], error: null }
   },
 
   advanceEventState: async (eventId, newStato) => {

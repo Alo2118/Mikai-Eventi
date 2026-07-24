@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { nowISO } from '../lib/date-utils'
 
 export const useNotificationsStore = create((set, get) => ({
   notifications: [],
@@ -215,5 +216,41 @@ export const useNotificationsStore = create((set, get) => ({
 
     if (!error) set({ preferences: data })
     return { data, error: error?.message || null }
+  },
+
+  // ── Web Push ──────────────────────────────────────────────
+  // Salva/aggiorna una subscription push (upsert per endpoint univoco).
+  // `sub` = { endpoint, p256dh, auth, user_agent } prodotto da push-notifications.js.
+  savePushSubscription: async (sub) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: null, error: 'Sessione scaduta' }
+
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .upsert(
+        {
+          user_id: user.id,
+          endpoint: sub.endpoint,
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+          user_agent: sub.user_agent || null,
+          updated_at: nowISO(),
+        },
+        { onConflict: 'endpoint' }
+      )
+      .select()
+      .single()
+
+    return { data, error: error?.message || null }
+  },
+
+  // Rimuove la subscription di questo dispositivo dal DB (dopo unsubscribe).
+  deletePushSubscription: async (endpoint) => {
+    if (!endpoint) return { error: null }
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint)
+    return { error: error?.message || null }
   },
 }))
