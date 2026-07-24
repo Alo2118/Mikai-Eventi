@@ -55,8 +55,8 @@ export function TavoloModal({ selectedPeople, eventId, tavoli, onDone, onClose }
 // ─── Hotel Modal ────────────────────────────────────────────────
 export function HotelModal({ selectedPeople, eventId, initialData, onDone, onClose }) {
   const [form, setForm] = useState(initialData
-    ? { nome_hotel: initialData.nome_hotel || '', indirizzo_hotel: initialData.indirizzo_hotel || '', check_in: initialData.check_in || '', check_out: initialData.check_out || '', stato: initialData.stato || 'da_prenotare', note: initialData.note || '' }
-    : { nome_hotel: '', indirizzo_hotel: '', check_in: '', check_out: '', stato: 'da_prenotare', note: '' }
+    ? { nome_hotel: initialData.nome_hotel || '', indirizzo_hotel: initialData.indirizzo_hotel || '', check_in: initialData.check_in || '', check_out: initialData.check_out || '', tipo_camera: initialData.tipo_camera || '', numero_notti: initialData.numero_notti ?? '', codice_prenotazione: initialData.codice_prenotazione || '', costo: initialData.costo ?? '', stato: initialData.stato || 'da_prenotare', note: initialData.note || '' }
+    : { nome_hotel: '', indirizzo_hotel: '', check_in: '', check_out: '', tipo_camera: '', numero_notti: '', codice_prenotazione: '', costo: '', stato: 'da_prenotare', note: '' }
   )
   const [loading, setLoading] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
@@ -94,6 +94,10 @@ export function HotelModal({ selectedPeople, eventId, initialData, onDone, onClo
       indirizzo_hotel: isNN ? null : (form.indirizzo_hotel.trim() || null),
       check_in: isNN ? null : (form.check_in || null),
       check_out: isNN ? null : (form.check_out || null),
+      tipo_camera: isNN ? null : (form.tipo_camera.trim() || null),
+      numero_notti: isNN ? null : (form.numero_notti !== '' ? parseInt(form.numero_notti, 10) : null),
+      codice_prenotazione: isNN ? null : (form.codice_prenotazione.trim() || null),
+      costo: isNN ? null : (form.costo !== '' ? parseFloat(form.costo) : null),
       stato: form.stato,
       note: isNN ? null : (form.note.trim() || null),
     }
@@ -157,6 +161,24 @@ export function HotelModal({ selectedPeople, eventId, initialData, onDone, onClo
                 <input type="date" className={INPUT_STYLE} value={form.check_out} onChange={e => set('check_out', e.target.value)} />
               </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo camera</label>
+                <input className={INPUT_STYLE} value={form.tipo_camera} onChange={e => set('tipo_camera', e.target.value)} placeholder="Singola, doppia..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Numero notti</label>
+                <input type="number" min="0" className={INPUT_STYLE} value={form.numero_notti} onChange={e => set('numero_notti', e.target.value)} placeholder="Es: 2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Codice prenotazione</label>
+                <input className={INPUT_STYLE} value={form.codice_prenotazione} onChange={e => set('codice_prenotazione', e.target.value)} placeholder="Es: BK-12345" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Costo (€)</label>
+                <input type="number" step="0.01" min="0" className={INPUT_STYLE} value={form.costo} onChange={e => set('costo', e.target.value)} placeholder="Costo a persona" />
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
               <textarea className={INPUT_STYLE + ' min-h-[64px]'} value={form.note} onChange={e => set('note', e.target.value)} placeholder="Es: no hotel per Margherita Valerio" rows={2} />
@@ -182,8 +204,8 @@ export function HotelModal({ selectedPeople, eventId, initialData, onDone, onClo
 
 export function TrasportoModal({ selectedPeople, eventId, direzione, initialData, newOrdine, existingLegCount = 0, onDone, onClose }) {
   const [form, setForm] = useState(initialData
-    ? { mezzo: initialData.mezzo || '', codice: initialData.codice || '', luogo_partenza: initialData.luogo_partenza || '', luogo_arrivo: initialData.luogo_arrivo || '', orario: initialData.orario ? toLocalDateTime(initialData.orario) : '', orario_arrivo: initialData.orario_arrivo ? toLocalDateTime(initialData.orario_arrivo) : '', stato: initialData.stato || 'da_prenotare', note: initialData.note || '' }
-    : { mezzo: '', codice: '', luogo_partenza: '', luogo_arrivo: '', orario: '', orario_arrivo: '', stato: 'da_prenotare', note: '' }
+    ? { mezzo: initialData.mezzo || '', codice: initialData.codice || '', luogo_partenza: initialData.luogo_partenza || '', luogo_arrivo: initialData.luogo_arrivo || '', orario: initialData.orario ? toLocalDateTime(initialData.orario) : '', orario_arrivo: initialData.orario_arrivo ? toLocalDateTime(initialData.orario_arrivo) : '', costo: initialData.costo ?? '', stato: initialData.stato || 'da_prenotare', note: initialData.note || '' }
+    : { mezzo: '', codice: '', luogo_partenza: '', luogo_arrivo: '', orario: '', orario_arrivo: '', costo: '', stato: 'da_prenotare', note: '' }
   )
   const [loading, setLoading] = useState(false)
   const [applyToAll, setApplyToAll] = useState(false)
@@ -217,6 +239,7 @@ export function TrasportoModal({ selectedPeople, eventId, direzione, initialData
       luogo_arrivo: isNN ? null : (form.luogo_arrivo.trim() || null),
       orario: isNN ? null : toISO(form.orario),
       orario_arrivo: isNN ? null : toISO(form.orario_arrivo),
+      costo: isNN ? null : (form.costo !== '' ? parseFloat(form.costo) : null),
       autista: null,
       orario_pickup: null,
       stato: form.stato,
@@ -325,6 +348,13 @@ export function TrasportoModal({ selectedPeople, eventId, direzione, initialData
                   </div>
                 </>
               )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Costo (€)</label>
+                <input type="number" step="0.01" min="0" className={INPUT_STYLE} value={form.costo} onChange={e => set('costo', e.target.value)} placeholder="Costo della tratta" />
+              </div>
             </div>
 
             <div>

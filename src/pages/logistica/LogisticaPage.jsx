@@ -33,6 +33,7 @@ const EXPORT_COLUMNS_HOTEL = [
   { key: 'check_in', label: 'Check-in', format: v => v ? formatDate(v) : '' },
   { key: 'check_out', label: 'Check-out', format: v => v ? formatDate(v) : '' },
   { key: 'stato', label: 'Stato', format: v => STATO_PRENOTAZIONE[v] || v },
+  { key: 'costo', label: 'Costo €', format: v => v ?? '' },
   { key: 'note', label: 'Note', width: 30 },
 ]
 

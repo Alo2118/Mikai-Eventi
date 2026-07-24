@@ -516,7 +516,7 @@ export function EventiDetail() {
               {activeTab === 'programma' && <EventProgrammaTab event={event} />}
               {activeTab === 'materiale' && <EventMaterialList event={event} onShowPackingList={() => setShowPackingList(true)} onUpdate={refreshEvent} />}
               {activeTab === 'logistica' && <EventLogisticaTab event={event} users={users} />}
-              {activeTab === 'costi' && <EventCostiTab event={event} />}
+              {activeTab === 'costi' && <EventCostiTab event={event} eventType={eventType} />}
               {activeTab === 'documenti' && <EventDocumentiTab event={event} onShowPackingList={() => setShowPackingList(true)} />}
               {activeTab === 'compliance' && <EventComplianceTab event={event} />}
               {activeTab === 'preparazione' && <EventPreparazioneTab event={event} onShowPackingList={() => setShowPackingList(true)} onUpdate={refreshEvent} />}

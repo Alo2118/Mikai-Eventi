@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { richiedeHotel, richiedeTrasporti } from '../lib/event-flow'
 
 /**
  * Calcola scostamento e semaforo del consuntivo di un evento.
@@ -22,8 +23,14 @@ export function computeScostamento({ budget = 0, approvato = 0, effettivo = 0, h
   return { scostamento, scostamentoPct, semaforo, riferimento }
 }
 
-/** Aggrega righe preventivo per evento: budget, approvato, effettivo + scostamento. */
-export function aggregateByEvento(rows) {
+/**
+ * Aggrega righe preventivo per evento: budget, approvato, effettivo + scostamento.
+ * `trasferte` (opzionale) = { costs, hotels, trasporti, eventTypesByCodice } per includere
+ * nel "costo effettivo" anche le voci manuali (event_costs) e le trasferte (hotel/trasporti),
+ * coerentemente con la ripartizione del budget effettivo mostrata nel tab Costi.
+ * Il branching per tipo evento (richiedeHotel/richiedeTrasporti) è applicato via eventTypesByCodice.
+ */
+export function aggregateByEvento(rows, trasferte = null) {
   const map = new Map()
   for (const r of rows) {
     const ev = r.evento
@@ -45,12 +52,34 @@ export function aggregateByEvento(rows) {
     agg.count += 1
     if (r.stato === 'approvato') {
       agg.approvato += r.importo || 0
-      if (r.importo_effettivo != null) {
-        agg.effettivo += r.importo_effettivo || 0
-        agg.filled += 1
-      }
+      // "Effettivo" valorizza i preventivi approvati come il tab Costi (cost-breakdown.js):
+      // consuntivo se presente, altrimenti l'importo approvato. Così un preventivo approvato
+      // senza consuntivo pesa comunque nell'effettivo invece di valere 0.
+      agg.effettivo += r.importo_effettivo != null ? r.importo_effettivo : (r.importo || 0)
+      agg.filled += 1
     }
   }
+
+  if (trasferte) {
+    const { costs = [], hotels = [], trasporti = [], eventTypesByCodice = {} } = trasferte
+    for (const c of costs) {
+      const agg = map.get(c.event_id)
+      if (!agg) continue
+      const imp = c.importo_effettivo != null ? c.importo_effettivo : (c.importo_previsto || 0)
+      if (imp) { agg.effettivo += imp; agg.filled += 1 }
+    }
+    for (const h of hotels) {
+      const agg = map.get(h.event_id)
+      if (!agg || h.stato === 'non_necessario' || !h.costo) continue
+      if (richiedeHotel(eventTypesByCodice[agg.tipo_evento])) { agg.effettivo += h.costo; agg.filled += 1 }
+    }
+    for (const t of trasporti) {
+      const agg = map.get(t.event_id)
+      if (!agg || t.stato === 'non_necessario' || !t.costo) continue
+      if (richiedeTrasporti(eventTypesByCodice[agg.tipo_evento])) { agg.effettivo += t.costo; agg.filled += 1 }
+    }
+  }
+
   return Array.from(map.values()).map(a => ({
     ...a,
     ...computeScostamento({
@@ -94,11 +123,28 @@ export const useConsuntivoStore = create(() => ({
     const { data: eventRows, error: eventsError } = await eventsQuery
     if (eventsError) return { data: [], error: eventsError.message }
     const ids = (eventRows || []).map(e => e.id)
-    if (ids.length === 0) return { data: [], error: null }
-    const { data, error } = await supabase
-      .from('event_preventivi')
-      .select('importo, importo_effettivo, stato, fornitore_nome, fornitore_ref:contacts!event_preventivi_fornitore_id_fkey(nome, cognome), evento:events!event_preventivi_event_id_fkey(id, titolo, tipo_evento, data_inizio, budget_previsto)')
-      .in('event_id', ids)
-    return { data: data || [], error: error?.message || null }
+    if (ids.length === 0) return { data: [], trasferte: { costs: [], hotels: [], trasporti: [] }, error: null }
+    // Preventivi + voci di costo manuali + trasferte (hotel/trasporti), tutti filtrati
+    // server-side sugli id degli eventi nel periodo. Le trasferte alimentano il "costo
+    // effettivo" del report, coerentemente col tab Costi.
+    const [prevRes, costsRes, hotelRes, trasportiRes] = await Promise.all([
+      supabase
+        .from('event_preventivi')
+        .select('importo, importo_effettivo, stato, fornitore_nome, fornitore_ref:contacts!event_preventivi_fornitore_id_fkey(nome, cognome), evento:events!event_preventivi_event_id_fkey(id, titolo, tipo_evento, data_inizio, budget_previsto)')
+        .in('event_id', ids),
+      supabase.from('event_costs').select('event_id, source_tipo, importo_previsto, importo_effettivo').in('event_id', ids),
+      supabase.from('event_hotel').select('event_id, stato, costo').in('event_id', ids),
+      supabase.from('event_trasporti').select('event_id, stato, costo').in('event_id', ids),
+    ])
+    const error = prevRes.error || costsRes.error || hotelRes.error || trasportiRes.error
+    return {
+      data: prevRes.data || [],
+      trasferte: {
+        costs: costsRes.data || [],
+        hotels: hotelRes.data || [],
+        trasporti: trasportiRes.data || [],
+      },
+      error: error?.message || null,
+    }
   },
 }))

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useCostsStore } from '../../hooks/useCosts'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
@@ -6,23 +6,29 @@ import { Icon } from '../ui/Icon'
 import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
-import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
-import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE, CARD_STYLE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE, COLOR_TEXT_600, COLOR_BG_400 } from '../../lib/constants'
+import { ACTION_ICONS } from '../../lib/icons'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE, CARD_STYLE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
-import { formatCurrency, formatPercentage } from '../../lib/format-utils'
-import { computeScostamento } from '../../hooks/useConsuntivo'
+import { formatCurrency } from '../../lib/format-utils'
+import { richiedeHotel, richiedeTrasporti } from '../../lib/event-flow'
+import { computeCostBreakdown } from '../../lib/cost-breakdown'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { ConsuntivoSection } from './ConsuntivoSection'
+import { CostiRiepilogo } from './CostiRiepilogo'
+import { CostiManuali } from './CostiManuali'
 
-export function EventCostiTab({ event }) {
+export function EventCostiTab({ event, eventType }) {
   const preventivi = useCostsStore(s => s.preventivi)
   const costs = useCostsStore(s => s.costs)
+  const hotelCosti = useCostsStore(s => s.hotelCosti)
+  const trasportiCosti = useCostsStore(s => s.trasportiCosti)
   const loading = useCostsStore(s => s.loading)
   const costsError = useCostsStore(s => s.error)
   const fetchEventPreventivi = useCostsStore(s => s.fetchEventPreventivi)
   const fetchEventCosts = useCostsStore(s => s.fetchEventCosts)
+  const fetchEventTrasferte = useCostsStore(s => s.fetchEventTrasferte)
   const createPreventivo = useCostsStore(s => s.createPreventivo)
   const approvePreventivo = useCostsStore(s => s.approvePreventivo)
   const rejectPreventivo = useCostsStore(s => s.rejectPreventivo)
@@ -35,6 +41,9 @@ export function EventCostiTab({ event }) {
   const canManage = hasPermission('gestione_costi')
   const canApprove = hasPermission('approva_preventivi')
 
+  const hotelTracked = richiedeHotel(eventType)
+  const trasportiTracked = richiedeTrasporti(eventType)
+
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ descrizione: '', importo: '', fornitore_nome: '' })
   const [actionDialog, setActionDialog] = useState(null) // { type, preventivo, nota }
@@ -42,7 +51,12 @@ export function EventCostiTab({ event }) {
   useEffect(() => {
     fetchEventPreventivi(event.id)
     fetchEventCosts(event.id)
+    fetchEventTrasferte(event.id)
   }, [event.id])
+
+  const breakdown = useMemo(() => computeCostBreakdown({
+    preventivi, costs, hotels: hotelCosti, trasporti: trasportiCosti, hotelTracked, trasportiTracked,
+  }), [preventivi, costs, hotelCosti, trasportiCosti, hotelTracked, trasportiTracked])
 
   const setField = (key, value) => setForm(f => ({ ...f, [key]: value }))
 
@@ -73,19 +87,7 @@ export function EventCostiTab({ event }) {
   }
 
   const approvedPreventivi = preventivi.filter(p => p.stato === 'approvato')
-
-  // Budget summary — uses only preventivi data
   const budgetPrevisto = event.budget_previsto || 0
-  const costiApprovati = approvedPreventivi.reduce((sum, p) => sum + (p.importo || 0), 0)
-  const costiEffettivi = approvedPreventivi.reduce((sum, p) => sum + (p.importo_effettivo || 0), 0)
-  const hasEffettivo = approvedPreventivi.some(p => p.importo_effettivo != null)
-  const maxBudget = Math.max(budgetPrevisto, costiApprovati, costiEffettivi, 1)
-  const { scostamento, scostamentoPct, semaforo } = computeScostamento({
-    budget: budgetPrevisto,
-    approvato: costiApprovati,
-    effettivo: costiEffettivi,
-    hasEffettivo,
-  })
 
   return (
     <div className="space-y-6">
@@ -106,54 +108,13 @@ export function EventCostiTab({ event }) {
         </div>
       )}
 
-      {/* Budget bar */}
-      <div className={CARD_STYLE}>
-        <h3 className="font-semibold text-lg">Budget</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Previsto</span>
-            <span className="font-medium">{formatCurrency(budgetPrevisto)}</span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-mikai-400 rounded-full" style={{ width: `${Math.min((budgetPrevisto / maxBudget) * 100, 100)}%` }} />
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Approvato</span>
-            <span className={`font-medium ${costiApprovati > budgetPrevisto ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(costiApprovati)}</span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${costiApprovati > budgetPrevisto ? 'bg-red-400' : 'bg-green-400'}`} style={{ width: `${Math.min((costiApprovati / maxBudget) * 100, 100)}%` }} />
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Effettivo</span>
-            <span className="font-medium">{formatCurrency(costiEffettivi)}</span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-400 rounded-full" style={{ width: `${Math.min((costiEffettivi / maxBudget) * 100, 100)}%` }} />
-          </div>
-        </div>
-
-        {/* Scostamento vs budget con semaforo */}
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-          <span className="text-sm font-medium text-gray-600">Scostamento sul budget</span>
-          {costiApprovati === 0 && !hasEffettivo ? (
-            <span className="text-sm text-gray-400">Nessun preventivo approvato</span>
-          ) : scostamento == null ? (
-            <span className="text-sm text-gray-400">Budget previsto non impostato</span>
-          ) : (
-            <span className={`inline-flex items-center gap-2 text-base font-semibold ${COLOR_TEXT_600[semaforo]}`}>
-              <span className={`w-3 h-3 rounded-full ${COLOR_BG_400[semaforo]}`} aria-hidden="true" />
-              {scostamento >= 0 ? '+' : ''}{formatCurrency(scostamento)}
-              {scostamentoPct != null && <span className="text-gray-400 font-normal">({scostamento >= 0 ? '+' : ''}{formatPercentage(scostamentoPct, 1)})</span>}
-            </span>
-          )}
-        </div>
-        {scostamento != null && (costiApprovati > 0 || hasEffettivo) && (
-          <p className="text-xs text-gray-400 mt-1">
-            Confronto tra {hasEffettivo ? 'costo effettivo' : 'preventivato approvato'} e budget previsto.
-          </p>
-        )}
-      </div>
+      {/* Riepilogo budget effettivo + ripartizione per categoria */}
+      <CostiRiepilogo
+        budgetPrevisto={budgetPrevisto}
+        breakdown={breakdown}
+        hotelTracked={hotelTracked}
+        trasportiTracked={trasportiTracked}
+      />
 
       {/* Preventivi */}
       <div className={CARD_STYLE}>
@@ -222,6 +183,9 @@ export function EventCostiTab({ event }) {
           )}
         </div>
       </div>
+
+      {/* Altre voci di costo (event_costs manuali) */}
+      <CostiManuali eventId={event.id} costs={costs} canManage={canManage} />
 
       {/* Consuntivo */}
       {approvedPreventivi.length > 0 && (

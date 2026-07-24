@@ -53,11 +53,12 @@ function ScostamentoCell({ row }) {
 export function ConsuntivoPerEvento() {
   const navigate = useNavigate()
   const fetchConsuntivoData = useConsuntivoStore(s => s.fetchConsuntivoData)
-  const { labels: eventTypeLabels } = useEventTypes()
+  const { labels: eventTypeLabels, eventTypes } = useEventTypes()
   const { exporting, handleExportMultiSheet } = useExportHandler()
 
   const [period, setPeriod] = useState('anno')
   const [rows, setRows] = useState([])
+  const [trasferte, setTrasferte] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [sortKey, setSortKey] = useState('scostamento')
@@ -68,20 +69,31 @@ export function ConsuntivoPerEvento() {
     setLoading(true)
     setError(false)
     const { start, end } = period === 'trimestre' ? getQuarterRange() : getYearRange()
-    fetchConsuntivoData(start, end).then(({ data, error: err }) => {
+    fetchConsuntivoData(start, end).then(({ data, trasferte: tr, error: err }) => {
       if (!active) return
       if (err) {
         setError(true)
         setRows([])
+        setTrasferte(null)
       } else {
         setRows(data || [])
+        setTrasferte(tr || null)
       }
       setLoading(false)
     })
     return () => { active = false }
   }, [period])
 
-  const perEvento = useMemo(() => aggregateByEvento(rows), [rows])
+  const eventTypesByCodice = useMemo(() => {
+    const m = {}
+    for (const t of eventTypes || []) m[t.codice] = t
+    return m
+  }, [eventTypes])
+
+  const perEvento = useMemo(
+    () => aggregateByEvento(rows, trasferte ? { ...trasferte, eventTypesByCodice } : null),
+    [rows, trasferte, eventTypesByCodice]
+  )
   const sorted = useMemo(() => sortRows(perEvento, sortKey, sortDir), [perEvento, sortKey, sortDir])
 
   const handleSort = (key) => {
@@ -137,6 +149,7 @@ export function ConsuntivoPerEvento() {
       ) : sorted.length === 0 ? (
         <EmptyState title="Nessun dato" description="Non ci sono eventi con preventivi nel periodo selezionato." />
       ) : (
+        <>
         <div className={CARD_STYLE}>
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
@@ -197,6 +210,10 @@ export function ConsuntivoPerEvento() {
             ))}
           </div>
         </div>
+        <p className="text-xs text-gray-400 px-1">
+          "Effettivo" include i preventivi approvati (consuntivo se presente, altrimenti importo approvato), le voci manuali, l'ospitalità e i trasporti, come nel tab Costi dell'evento. "Approvato" mostra solo il preventivato approvato, come confronto.
+        </p>
+        </>
       )}
     </div>
   )

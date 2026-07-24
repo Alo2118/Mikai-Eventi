@@ -296,6 +296,7 @@ export const ACTION_ICONS = {
   chevron_right: ChevronRight,
   clearFilter: FilterX,
   edit: Pencil,
+  delete: Trash2,
   upload: Upload,
   sortAsc: ArrowUpNarrowWide,
   sortDesc: ArrowDownWideNarrow,
