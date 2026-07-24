@@ -40,8 +40,8 @@ export function TovSuggestions({ suggestions, loading }) {
           <Icon icon={FEEDBACK_ICONS.warning} size={18} className="text-yellow-600 mt-0.5 shrink-0" />
           <p className="text-sm font-medium text-yellow-800">
             {daRegistrare.length === 1
-              ? "C'è 1 voce di ospitalità/viaggio di un HCP non ancora registrata come trasferimento di valore."
-              : `Ci sono ${daRegistrare.length} voci di ospitalità/viaggio di HCP non ancora registrate come trasferimenti di valore.`}
+              ? "C'è 1 voce di ospitalità (hotel/pasti) o viaggio di un HCP non ancora registrata come trasferimento di valore."
+              : `Ci sono ${daRegistrare.length} voci di ospitalità (hotel/pasti) o viaggio di HCP non ancora registrate come trasferimenti di valore.`}
           </p>
         </div>
       )}
@@ -61,7 +61,7 @@ export function TovSuggestions({ suggestions, loading }) {
                   )}
                 </div>
                 <p className="text-xs text-gray-500">
-                  {TIPO_TOV[s.tipo]} — {formatCurrencyDecimals(s.importo)}{s.hcp_azienda ? ` — ${s.hcp_azienda}` : ''}
+                  {TIPO_TOV[s.tipo]}{s.dettaglio ? ` (${s.dettaglio})` : ''} — {formatCurrencyDecimals(s.importo)}{s.hcp_azienda ? ` — ${s.hcp_azienda}` : ''}
                 </p>
                 {!s.consenso_privacy && (
                   <p className="text-xs text-yellow-700 mt-1 flex items-center gap-1">

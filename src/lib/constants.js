@@ -621,12 +621,14 @@ export const TIPO_TOV_COLORE = {
 export const STATO_TOV = {
   registrato: 'Registrato',
   verificato: 'Verificato',
+  rendicontato: 'Rendicontato',
   segnalato: 'Segnalato',
 }
 
 export const STATO_TOV_COLORE = {
   registrato: 'yellow',
   verificato: 'green',
+  rendicontato: 'mikai',
   segnalato: 'red',
 }
 

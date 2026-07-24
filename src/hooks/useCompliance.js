@@ -310,6 +310,9 @@ export const useComplianceStore = create((set, get) => ({
     // Compute stats
     const totaleImporto = (tovData || []).reduce((sum, t) => sum + Number(t.importo), 0)
     const daVerificare = (tovData || []).filter(t => t.stato === 'registrato').length
+    // Verificati non ancora rendicontati (pubblicati alla disclosure) vs già rendicontati
+    const daRendicontare = (tovData || []).filter(t => t.stato === 'verificato').length
+    const rendicontati = (tovData || []).filter(t => t.stato === 'rendicontato').length
     const hcpCoinvolti = new Set((tovData || []).map(t => t.hcp_id)).size
 
     const perTipo = {}
@@ -325,6 +328,8 @@ export const useComplianceStore = create((set, get) => ({
     const stats = {
       totaleImporto,
       daVerificare,
+      daRendicontare,
+      rendicontati,
       hcpCoinvolti,
       hcpTotali: hcpTotali || 0,
       tovCount: (tovData || []).length,
@@ -333,6 +338,25 @@ export const useComplianceStore = create((set, get) => ({
 
     set({ stats, statsLoading: false })
     return { data: stats }
+  },
+
+  // Chiude un periodo di disclosure: marca in blocco i ToV 'verificato' del periodo
+  // come 'rendicontato', così alla prossima disclosure si distingue cosa è già stato
+  // pubblicato. Richiede un periodo specifico (non "tutti"). Non tocca gli altri stati.
+  closePeriod: async (periodo) => {
+    if (!periodo) return { data: null, error: 'Seleziona un periodo specifico prima di chiuderlo.' }
+    const { data, error } = await supabase
+      .from('trasferimenti_valore')
+      .update({ stato: 'rendicontato', updated_at: nowISO() })
+      .eq('periodo_riferimento', periodo)
+      .eq('stato', 'verificato')
+      .select('id')
+
+    if (!error) {
+      get().fetchDashboardStats(periodo)
+      if (get().tovList.length) get().fetchTovList()
+    }
+    return { data: data || [], error: error?.message || null }
   },
 
   // ═══════════════════════════════════════════
@@ -350,7 +374,7 @@ export const useComplianceStore = create((set, get) => ({
     const [partRes, hotelRes, transpRes, existingRes] = await Promise.all([
       supabase
         .from('event_participants')
-        .select('contact_id, tipo, contatto:contacts!event_participants_contact_id_fkey(id, nome, cognome, azienda)')
+        .select('contact_id, tipo, costo_pasti, contatto:contacts!event_participants_contact_id_fkey(id, nome, cognome, azienda)')
         .eq('event_id', eventId),
       supabase
         .from('event_hotel')
@@ -417,15 +441,24 @@ export const useComplianceStore = create((set, get) => ({
         periodo_riferimento: periodo,
       }
 
-      const hotelCosto = hotelByContact.get(p.contact_id)
-      if (hotelCosto != null && hotelCosto > 0) {
+      // Ospitalità = hotel + pasti (entrambi sotto lo stesso tipo ToV 'ospitalita',
+      // aggregati in un'unica voce per rispettare l'anti-duplicati hcp_id|tipo).
+      const hotelCosto = hotelByContact.get(p.contact_id) || 0
+      const pastiCosto = p.costo_pasti != null ? Number(p.costo_pasti) || 0 : 0
+      const ospitalitaCosto = hotelCosto + pastiCosto
+      if (ospitalitaCosto > 0) {
+        const voci = []
+        if (hotelCosto > 0) voci.push('hotel')
+        if (pastiCosto > 0) voci.push('pasti')
+        const vociLabel = voci.join(' + ')
         suggestions.push({
           ...base,
           key: `${hcp.id}-ospitalita`,
           tipo: 'ospitalita',
-          importo: hotelCosto,
-          descrizione: `Ospitalità (hotel) — ${titolo}`,
-          giustificazione: `Pernottamento per partecipazione all'evento "${titolo}"`,
+          dettaglio: vociLabel,
+          importo: ospitalitaCosto,
+          descrizione: `Ospitalità (${vociLabel}) — ${titolo}`,
+          giustificazione: `Ospitalità (${vociLabel}) per la partecipazione all'evento "${titolo}"`,
           giaRegistrato: existing.has(`${hcp.id}|ospitalita`),
         })
       }
@@ -436,6 +469,7 @@ export const useComplianceStore = create((set, get) => ({
           ...base,
           key: `${hcp.id}-viaggio`,
           tipo: 'viaggio',
+          dettaglio: 'trasporti',
           importo: transpCosto,
           descrizione: `Viaggio/trasferimento — ${titolo}`,
           giustificazione: `Trasporto per partecipazione all'evento "${titolo}"`,

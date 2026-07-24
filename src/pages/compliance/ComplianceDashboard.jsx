@@ -8,9 +8,10 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { Button } from '../../components/ui/Button'
 import { ExportButton } from '../../components/ui/ExportButton'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { useToastStore } from '../../components/ui/Toast'
 import { COMPLIANCE_ICONS } from '../../lib/icons'
-import { TIPO_TOV, TIPO_TOV_COLORE, CHART_COLORS, COLOR_BG_50, COLOR_TEXT_600, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { TIPO_TOV, TIPO_TOV_COLORE, STATO_TOV, CHART_COLORS, COLOR_BG_50, COLOR_TEXT_600, SELECT_STYLE, CARD_STYLE, BADGE_BASE, COLOR_BADGE } from '../../lib/constants'
 import { formatCurrencyDecimals, formatPercentage } from '../../lib/format-utils'
 import { buildDisclosureReport } from '../../lib/export-utils'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -35,11 +36,38 @@ export function ComplianceDashboard() {
   const statsLoading = useComplianceStore(s => s.statsLoading)
   const fetchDashboardStats = useComplianceStore(s => s.fetchDashboardStats)
   const fetchDisclosureRows = useComplianceStore(s => s.fetchDisclosureRows)
+  const closePeriod = useComplianceStore(s => s.closePeriod)
   const addToast = useToastStore(s => s.add)
   const [periodo, setPeriodo] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [closing, setClosing] = useState(false)
 
   useEffect(() => { fetchDashboardStats(periodo || undefined) }, [periodo])
+
+  // "Chiudi periodo": marca i verificati del periodo come rendicontati.
+  // Richiede un periodo specifico e almeno un trasferimento verificato da rendicontare.
+  const daRendicontare = stats?.daRendicontare || 0
+  const rendicontati = stats?.rendicontati || 0
+  const canClose = !!periodo && daRendicontare > 0
+
+  const handleClosePeriod = async () => {
+    setConfirmClose(false)
+    setClosing(true)
+    const { data, error } = await closePeriod(periodo)
+    setClosing(false)
+    if (error) {
+      addToast(error, 'error')
+      return
+    }
+    const n = Array.isArray(data) ? data.length : 0
+    addToast(
+      n > 0
+        ? `Periodo chiuso: ${n} ${n === 1 ? 'trasferimento segnato' : 'trasferimenti segnati'} come rendicontati.`
+        : 'Nessun trasferimento da rendicontare in questo periodo.',
+      n > 0 ? 'success' : 'warning',
+    )
+  }
 
   const handleExportDisclosure = async () => {
     setExporting(true)
@@ -117,10 +145,52 @@ export function ComplianceDashboard() {
           loading={exporting}
           label="Esporta disclosure"
         />
+        <Button
+          variant="secondary"
+          onClick={() => setConfirmClose(true)}
+          loading={closing}
+          disabled={!canClose}
+          title={!canClose ? 'Seleziona un periodo specifico con almeno un trasferimento verificato da rendicontare.' : undefined}
+          aria-label="Chiudi periodo"
+        >
+          <Icon icon={COMPLIANCE_ICONS.rendicontato} size={18} />
+          <span className="ml-2">Chiudi periodo</span>
+        </Button>
       </div>
+
+      {periodo && (rendicontati > 0 || daRendicontare > 0) && (
+        <div className="flex flex-wrap items-center gap-2 -mt-3">
+          {daRendicontare > 0 && (
+            <span className={BADGE_BASE + ' ' + COLOR_BADGE.green + ' inline-flex items-center gap-1'}>
+              <Icon icon={COMPLIANCE_ICONS.verificato} size={13} />
+              {daRendicontare} da rendicontare
+            </span>
+          )}
+          {rendicontati > 0 && (
+            <span className={BADGE_BASE + ' ' + COLOR_BADGE.mikai + ' inline-flex items-center gap-1'}>
+              <Icon icon={COMPLIANCE_ICONS.rendicontato} size={13} />
+              {rendicontati} {STATO_TOV.rendicontato.toLowerCase()}
+            </span>
+          )}
+        </div>
+      )}
+
       <p className="text-xs text-gray-500 -mt-3">
         Il report distingue i professionisti con consenso privacy (foglio nominativo) da quelli senza consenso (foglio aggregato).
+        {!canClose && (
+          <> Per chiudere un periodo, selezionane uno specifico con almeno un trasferimento verificato da rendicontare.</>
+        )}
       </p>
+
+      <ConfirmDialog
+        open={confirmClose}
+        title="Chiudere il periodo?"
+        message={`I ${daRendicontare} trasferimenti verificati del periodo selezionato verranno segnati come rendicontati (già pubblicati alla disclosure). L'operazione non blocca nuovi trasferimenti.`}
+        confirmLabel="Chiudi periodo"
+        cancelLabel="Annulla"
+        onConfirm={handleClosePeriod}
+        onCancel={() => setConfirmClose(false)}
+      />
 
       {statsLoading ? (
         <LoadingSkeleton lines={4} />
