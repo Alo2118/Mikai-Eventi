@@ -1,21 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
-import { formatDateShort, nowISO, daysFromToday } from '../lib/date-utils'
-
-function toMonthKey(dateStr) {
-  if (!dateStr) return null
-  return dateStr.slice(0, 7)
-}
-
-function groupByMonth(items, dateExtractor, valueExtractor) {
-  const result = {}
-  for (const item of items) {
-    const key = toMonthKey(dateExtractor(item))
-    if (!key) continue
-    result[key] = (result[key] || 0) + (valueExtractor(item) || 0)
-  }
-  return result
-}
+import { formatDateShort, nowISO, daysFromToday, subtractYearsISO } from '../lib/date-utils'
+import { groupByMonth, aggregateEventCosts, percentDelta } from '../lib/analytics-utils'
 
 export const useAnalyticsStore = create((set, get) => ({
   eventiPerStato: {},
@@ -24,19 +10,28 @@ export const useAnalyticsStore = create((set, get) => ({
   confermaRate: { confermati: 0, totale: 0 },
   attivitaInRitardo: { count: 0, trend: 0 },
   materialeFuori: { count: 0, items: [] },
+  costMetrics: {
+    eventiCount: 0, partecipantiTotale: 0, budgetTotale: 0, effettivoTotale: 0,
+    costoMedioEvento: 0, costoPerPartecipante: 0, baseCosto: 'previsto',
+  },
+  perZona: [],
+  perPromotore: [],
+  confrontoYoY: null,
   loading: false,
   error: null,
 
   fetchKpiData: async (periodStart, periodEnd) => {
     set({ loading: true, error: null })
     try {
-      const [stati, tipi, budgets, conferme, ritardi, materiali] = await Promise.all([
+      const [stati, tipi, budgets, conferme, ritardi, materiali, aggregazioni, yoy] = await Promise.all([
         get().queryEventiPerStato(periodStart, periodEnd),
         get().queryEventiPerTipo(periodStart, periodEnd),
         get().queryBudgetBreakdown(periodStart, periodEnd),
         get().queryConfermaRate(periodStart, periodEnd),
-        get().queryAttivitaInRitardo(),
+        get().queryAttivitaInRitardo(periodStart, periodEnd),
         get().queryMaterialeFuori(),
+        get().queryEventAggregations(periodStart, periodEnd),
+        get().queryConfrontoYoY(periodStart, periodEnd),
       ])
       set({
         eventiPerStato: stati,
@@ -45,6 +40,10 @@ export const useAnalyticsStore = create((set, get) => ({
         confermaRate: conferme,
         attivitaInRitardo: ritardi,
         materialeFuori: materiali,
+        costMetrics: aggregazioni.costMetrics,
+        perZona: aggregazioni.perZona,
+        perPromotore: aggregazioni.perPromotore,
+        confrontoYoY: yoy,
         loading: false,
       })
     } catch (err) {
@@ -140,15 +139,88 @@ export const useAnalyticsStore = create((set, get) => ({
     return { confermati, totale: filtered.length }
   },
 
-  queryAttivitaInRitardo: async () => {
-    const { data, error } = await supabase
-      .from('event_activities')
-      .select('id')
-      .in('stato', ['da_fare', 'in_corso'])
-      .eq('obbligatoria', true)
-      .lt('deadline', nowISO())
-    if (error) throw error
-    return { count: (data || []).length, trend: 0 }
+  // Attività obbligatorie scadute nel periodo vs stesso periodo anno precedente (trend reale).
+  queryAttivitaInRitardo: async (start, end) => {
+    const now = nowISO()
+    const countOverdueInWindow = async (from, to) => {
+      if (!from || !to) return 0
+      const { data, error } = await supabase
+        .from('event_activities')
+        .select('id')
+        .in('stato', ['da_fare', 'in_corso'])
+        .eq('obbligatoria', true)
+        .gte('deadline', from).lte('deadline', to)
+        .lt('deadline', now)
+      if (error) throw error
+      return (data || []).length
+    }
+    const [current, previous] = await Promise.all([
+      countOverdueInWindow(start, end),
+      countOverdueInWindow(subtractYearsISO(start, 1), subtractYearsISO(end, 1)),
+    ])
+    return { count: current, trend: current - previous }
+  },
+
+  // Costo medio/evento, costo/partecipante, aggregazioni per zona e promotore.
+  queryEventAggregations: async (start, end) => {
+    // Prima gli eventi del periodo (filtro server-side su data_inizio), poi i preventivi
+    // limitati a quegli eventi: PostgREST non filtra su colonne in join, quindi scopare per
+    // event_id evita il cap arbitrario (.limit(2000)) che con l'accumulo pluriennale poteva
+    // sotto-contare i consuntivi. Sequenziale perché la seconda query dipende dagli eventIds.
+    const evRes = await supabase.from('events')
+      .select('id, budget_previsto, promotore:users!events_promotore_id_fkey(nome, cognome, zone:zones(nome)), promotore_agente:contacts!events_promotore_contact_id_fkey(nome, cognome, zone:zones(nome))')
+      .gte('data_inizio', start).lte('data_inizio', end)
+    if (evRes.error) throw evRes.error
+
+    const events = evRes.data || []
+    const eventIds = events.map(e => e.id)
+
+    const effByEvent = {}
+    if (eventIds.length) {
+      const { data: effRows, error: effErr } = await supabase.from('event_preventivi')
+        .select('importo_effettivo, event_id')
+        .not('importo_effettivo', 'is', null)
+        .in('event_id', eventIds)
+      if (effErr) throw effErr
+      for (const p of (effRows || [])) {
+        effByEvent[p.event_id] = (effByEvent[p.event_id] || 0) + (Number(p.importo_effettivo) || 0)
+      }
+    }
+
+    let partecipantiTotale = 0
+    if (eventIds.length) {
+      const { data: parts, error: pErr } = await supabase
+        .from('event_participants').select('event_id').in('event_id', eventIds).limit(10000)
+      if (pErr) throw pErr
+      partecipantiTotale = (parts || []).length
+    }
+    return aggregateEventCosts(events, effByEvent, partecipantiTotale)
+  },
+
+  // Confronto eventi e budget del periodo vs stesso periodo anno precedente.
+  queryConfrontoYoY: async (start, end) => {
+    const prevStart = subtractYearsISO(start, 1)
+    const prevEnd = subtractYearsISO(end, 1)
+    const [curr, prev] = await Promise.all([
+      supabase.from('events').select('budget_previsto').gte('data_inizio', start).lte('data_inizio', end),
+      supabase.from('events').select('budget_previsto').gte('data_inizio', prevStart).lte('data_inizio', prevEnd),
+    ])
+    if (curr.error) throw curr.error
+    if (prev.error) throw prev.error
+    const sumBudget = rows => (rows || []).reduce((s, r) => s + (Number(r.budget_previsto) || 0), 0)
+    const eventiCorrente = (curr.data || []).length
+    const eventiPrecedente = (prev.data || []).length
+    const budgetCorrente = sumBudget(curr.data)
+    const budgetPrecedente = sumBudget(prev.data)
+    return {
+      prevStart, prevEnd,
+      eventiCorrente, eventiPrecedente,
+      deltaEventi: eventiCorrente - eventiPrecedente,
+      deltaEventiPct: percentDelta(eventiCorrente, eventiPrecedente),
+      budgetCorrente, budgetPrecedente,
+      deltaBudget: budgetCorrente - budgetPrecedente,
+      deltaBudgetPct: percentDelta(budgetCorrente, budgetPrecedente),
+    }
   },
 
   queryMaterialeFuori: async () => {

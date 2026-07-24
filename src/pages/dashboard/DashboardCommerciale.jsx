@@ -8,6 +8,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { QuickActions } from '../../components/dashboard/QuickActions'
+import { MyNumbersSection } from '../../components/dashboard/MyNumbersSection'
 import { MyEventsSection } from '../../components/dashboard/MyEventsSection'
 import { MyActivitiesSection } from '../../components/dashboard/MyActivitiesSection'
 import { ParticipantConfirmation } from '../../components/dashboard/ParticipantConfirmation'
@@ -21,6 +22,7 @@ export function DashboardCommerciale() {
   const myEvents = useDashboardCommercialeStore(s => s.myEvents)
   const myActivities = useDashboardCommercialeStore(s => s.myActivities)
   const participantStats = useDashboardCommercialeStore(s => s.participantStats)
+  const myNumbers = useDashboardCommercialeStore(s => s.myNumbers)
   const zoneSummary = useDashboardCommercialeStore(s => s.zoneSummary)
   const recentContacts = useDashboardCommercialeStore(s => s.recentContacts)
   const loading = useDashboardCommercialeStore(s => s.loading)
@@ -55,6 +57,7 @@ export function DashboardCommerciale() {
         ) : (
           <>
             <QuickActions />
+            <MyNumbersSection myNumbers={myNumbers} events={myEvents} />
             {(profile?.ruolo === 'commerciale' || profile?.ruolo === 'area_manager') && (
               <AgentInventorySection />
             )}

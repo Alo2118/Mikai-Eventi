@@ -6,6 +6,7 @@ export const useDashboardCommercialeStore = create((set, get) => ({
   myEvents: [],
   myActivities: [],
   participantStats: null,
+  myNumbers: null,
   zoneSummary: null,
   recentContacts: [],
   loading: false,
@@ -24,11 +25,15 @@ export const useDashboardCommercialeStore = create((set, get) => ({
       const upcomingEventIds = events
         .filter(e => e.data_inizio >= todayISO())
         .map(e => e.id)
-      const participantStats = await get().fetchParticipantStats(upcomingEventIds)
+      const [participantStats, myNumbers] = await Promise.all([
+        get().fetchParticipantStats(upcomingEventIds),
+        get().fetchMyNumbers(events),
+      ])
       set({
         myEvents: events,
         myActivities: activities,
         participantStats,
+        myNumbers,
         zoneSummary: zone,
         recentContacts: contacts,
         loading: false,
@@ -42,13 +47,28 @@ export const useDashboardCommercialeStore = create((set, get) => ({
     const field = isManager ? 'manager_user_id' : 'promotore_id'
     const { data, error } = await supabase
       .from('events')
-      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, created_at')
+      .select('id, titolo, data_inizio, data_fine, stato, tipo_evento, budget_previsto, luogo, created_at')
       .eq(field, userId)
       .in('stato', ['proposto', 'confermato', 'in_preparazione', 'pronto', 'in_corso'])
       .order('data_inizio')
       .limit(10)
     if (error) throw error
     return data || []
+  },
+
+  // Riepilogo "I miei numeri": conteggio eventi, budget totale, partecipanti totali.
+  fetchMyNumbers: async (events) => {
+    const eventiCount = events.length
+    const budgetTotale = events.reduce((s, e) => s + (Number(e.budget_previsto) || 0), 0)
+    let partecipantiTotale = 0
+    const ids = events.map(e => e.id)
+    if (ids.length) {
+      const { data, error } = await supabase
+        .from('event_participants').select('event_id').in('event_id', ids).limit(5000)
+      if (error) throw error
+      partecipantiTotale = (data || []).length
+    }
+    return { eventiCount, budgetTotale, partecipantiTotale }
   },
 
   fetchMyActivities: async (userId) => {

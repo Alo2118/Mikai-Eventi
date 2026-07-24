@@ -3,7 +3,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday,
   addMonths, subMonths, getMonth, getYear,
-  differenceInDays, subDays,
+  differenceInDays, subDays, subYears,
   startOfYear, endOfYear
 } from 'date-fns'
 import { it } from 'date-fns/locale'
@@ -169,6 +169,18 @@ export function subtractDays(isoDateString, days) {
     const d = parseISO(isoDateString)
     if (!isValid(d)) return null
     return formatDayISO(subDays(d, days))
+  } catch {
+    return null
+  }
+}
+
+/** Returns the ISO date (YYYY-MM-DD) shifted back by N years. Used for year-over-year period comparison. */
+export function subtractYearsISO(isoDateString, years) {
+  if (!isoDateString) return null
+  try {
+    const d = parseISO(isoDateString)
+    if (!isValid(d)) return null
+    return formatDayISO(subYears(d, years))
   } catch {
     return null
   }

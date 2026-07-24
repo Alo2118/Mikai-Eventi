@@ -8,7 +8,7 @@ function personName(row) {
   return ''
 }
 
-function addSectionTitle(doc, title, y) {
+export function addSectionTitle(doc, title, y) {
   const pageWidth = doc.internal.pageSize.getWidth()
   y = checkPageBreak(doc, 16, y)
   doc.setFontSize(11)
@@ -24,7 +24,7 @@ function addSectionTitle(doc, title, y) {
   return y + 6
 }
 
-function addKeyValue(doc, label, value, y) {
+export function addKeyValue(doc, label, value, y) {
   y = checkPageBreak(doc, 6, y)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
@@ -44,7 +44,7 @@ function checkPageBreak(doc, neededHeight, currentY) {
   return currentY
 }
 
-function addAutoTable(doc, head, body, startY) {
+export function addAutoTable(doc, head, body, startY) {
   doc.autoTable({
     head: [head],
     body,
@@ -73,7 +73,7 @@ function addAutoTable(doc, head, body, startY) {
   return doc.lastAutoTable.finalY + 5
 }
 
-function addFooter(doc) {
+export function addFooter(doc) {
   const pageCount = doc.internal.getNumberOfPages()
   const today = formatDate(new Date())
   for (let i = 1; i <= pageCount; i++) {
@@ -89,7 +89,7 @@ function addFooter(doc) {
   }
 }
 
-function addEmptyMessage(doc, message, y) {
+export function addEmptyMessage(doc, message, y) {
   y = checkPageBreak(doc, 6, y)
   doc.setFontSize(8)
   doc.setTextColor(PDF_COLORS.muted)
