@@ -52,29 +52,21 @@ export const useStaffStore = create((set, get) => ({
     const ids = [...new Set((userIds || []).filter(Boolean))]
     if (ids.length === 0) return { data: {}, error: null }
 
-    const { data, error } = await supabase
-      .from('event_staff')
-      .select('user_id, event_id, evento:events!event_staff_event_id_fkey(id, titolo, data_inizio, data_fine, stato)')
-      .in('user_id', ids)
+    // RPC SECURITY DEFINER: bypassa la RLS can_see_event così i conflitti vengono
+    // rilevati anche su eventi di altri manager (altrimenti falsi negativi). L'esclusione
+    // evento, gli stati chiusi e la sovrapposizione date sono già applicati lato DB.
+    const { data, error } = await supabase.rpc('staff_conflicts', {
+      p_user_ids: ids,
+      p_win_start: window?.start || null,
+      p_win_end: window?.end || null,
+      p_exclude_event: excludeEventId || null,
+    })
     if (error) return { data: {}, error: error.message }
 
-    const closed = ['concluso', 'cancellato', 'rifiutato']
-    const winStart = window?.start || null
-    const winEnd = window?.end || null
     const map = {}
-
     for (const r of (data || [])) {
-      if (excludeEventId && r.event_id === excludeEventId) continue
-      if (closed.includes(r.evento?.stato)) continue
-      const rStart = r.evento?.data_inizio || null
-      const rEnd = r.evento?.data_fine || r.evento?.data_inizio || null
-      // Date mancanti su un lato: non possiamo escludere la sovrapposizione, avvisiamo (conservativo).
-      const overlaps = (!winStart || !winEnd || !rStart || !rEnd)
-        ? true
-        : (winStart <= rEnd && rStart <= winEnd)
-      if (!overlaps) continue
       if (!map[r.user_id]) map[r.user_id] = []
-      map[r.user_id].push({ id: r.evento.id, titolo: r.evento?.titolo || 'Evento', data_inizio: r.evento?.data_inizio, data_fine: r.evento?.data_fine })
+      map[r.user_id].push({ id: r.event_id, titolo: r.titolo || 'Evento', data_inizio: r.data_inizio, data_fine: r.data_fine })
     }
     return { data: map, error: null }
   },

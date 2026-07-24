@@ -127,14 +127,35 @@ async function runScan(supabase: SupabaseClient, hasVapid: boolean) {
 
   if (error) return jsonResponse({ ok: false, error: error.message }, 500)
 
-  const notifs = (data as NotifRow[] | null) || []
-  if (notifs.length === 0) return jsonResponse({ ok: true, mode: 'scan', processed: 0 })
+  const candidates = (data as NotifRow[] | null) || []
+  if (candidates.length === 0) return jsonResponse({ ok: true, mode: 'scan', processed: 0 })
 
-  // Senza VAPID resta inerte e NON marca pushed_at: le notifiche restano candidate
+  // Senza VAPID resta inerte e NON reclama: le notifiche restano candidate
   // così, appena configuri le chiavi, i push recenti partono al primo giro.
   if (!hasVapid) {
     console.log('[send-push] scan inerte: chiavi VAPID assenti')
-    return jsonResponse({ ok: true, mode: 'scan', skipped: true, reason: 'VAPID non configurato', pending: notifs.length })
+    return jsonResponse({ ok: true, mode: 'scan', skipped: true, reason: 'VAPID non configurato', pending: candidates.length })
+  }
+
+  // Claim atomico: marca pushed_at PRIMA di inviare e processa solo le righe
+  // effettivamente reclamate. Il cron gira ogni minuto e net.http_post è async, quindi
+  // due run possono sovrapporsi: senza claim entrambi selezionerebbero le stesse
+  // notifiche (pushed_at IS NULL) e le invierebbero due volte (TOCTOU). L'UPDATE con
+  // WHERE pushed_at IS NULL serializza le righe in Postgres → ogni notifica torna in
+  // `claimed` a un solo run; l'altro la trova già reclamata e la salta.
+  const nowISO = new Date().toISOString()
+  const { data: claimedData, error: claimError } = await supabase
+    .from('notifications')
+    .update({ pushed_at: nowISO })
+    .is('pushed_at', null)
+    .in('id', candidates.map((n) => n.id))
+    .select('id')
+  if (claimError) return jsonResponse({ ok: false, error: claimError.message }, 500)
+
+  const claimedIds = new Set(((claimedData as { id: string }[] | null) || []).map((r) => r.id))
+  const notifs = candidates.filter((n) => claimedIds.has(n.id))
+  if (notifs.length === 0) {
+    return jsonResponse({ ok: true, mode: 'scan', candidates: candidates.length, claimed: 0, sent: 0, failed: 0, retried: 0, removed: 0 })
   }
 
   const userIds = [...new Set(notifs.map((n) => n.user_id))]
@@ -161,14 +182,16 @@ async function runScan(supabase: SupabaseClient, hasVapid: boolean) {
   let sent = 0
   let failed = 0
   const allStale: string[] = []
-  // Marca pushed_at SOLO se non c'è nulla da ritentare (mute / nessuna subscription / almeno un invio riuscito).
-  // Le notifiche con soli fallimenti transitori restano non marcate → il prossimo scan ritenta (entro la finestra di 60 min).
-  const markIds: string[] = []
+  // Le righe sono già reclamate (pushed_at marcato). Le notifiche con fallimento SOLO
+  // transitorio (nessun invio riuscito e i fallimenti non sono subscription scadute)
+  // vengono RIMESSE in coda (pushed_at=null) così il prossimo scan le ritenta entro la
+  // finestra di recency. Mute / nessuna subscription restano reclamate (nulla da inviare).
+  const resetIds: string[] = []
   for (const n of notifs) {
-    // Mute rispettato: notifica processata (pushed_at marcato) ma non inviata.
-    if ((muteByUser.get(n.user_id) || []).includes(n.tipo)) { markIds.push(n.id); continue }
+    // Mute rispettato: notifica reclamata ma non inviata.
+    if ((muteByUser.get(n.user_id) || []).includes(n.tipo)) continue
     const subs = subsByUser.get(n.user_id) || []
-    if (subs.length === 0) { markIds.push(n.id); continue }
+    if (subs.length === 0) continue
     const payload = JSON.stringify({
       title: n.titolo,
       body: n.messaggio || '',
@@ -179,17 +202,19 @@ async function runScan(supabase: SupabaseClient, hasVapid: boolean) {
     sent += res.sent
     failed += res.failed
     allStale.push(...res.staleIds)
-    // Fallimento solo transitorio (nessun invio riuscito e i fallimenti non sono subscription scadute): non marcare, ritenta.
+    // Fallimento solo transitorio: rimetti in coda (reset pushed_at) per il prossimo scan.
     const transientOnly = res.sent === 0 && res.failed > res.staleIds.length
-    if (!transientOnly) markIds.push(n.id)
+    if (transientOnly) resetIds.push(n.id)
   }
 
-  await supabase.from('notifications').update({ pushed_at: new Date().toISOString() }).in('id', markIds)
+  if (resetIds.length > 0) {
+    await supabase.from('notifications').update({ pushed_at: null }).in('id', resetIds)
+  }
   if (allStale.length > 0) {
     await supabase.from('push_subscriptions').delete().in('id', allStale)
   }
 
-  return jsonResponse({ ok: true, mode: 'scan', candidates: notifs.length, marked: markIds.length, sent, failed, removed: allStale.length })
+  return jsonResponse({ ok: true, mode: 'scan', candidates: candidates.length, claimed: notifs.length, sent, failed, retried: resetIds.length, removed: allStale.length })
 }
 
 /** Explicit mode: invio diretto a user_ids con testo passato nel body. */
