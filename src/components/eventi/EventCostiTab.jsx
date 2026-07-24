@@ -7,9 +7,10 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToastStore } from '../ui/Toast'
 import { ACTION_ICONS, COSTI_ICONS } from '../../lib/icons'
-import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE, CARD_STYLE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE } from '../../lib/constants'
+import { STATO_PREVENTIVO, STATO_PREVENTIVO_COLORE, INPUT_STYLE, CARD_STYLE, CARD_HOVER_STYLE, FORM_CONTAINER_STYLE, COLOR_TEXT_600, COLOR_BG_400 } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
-import { formatCurrency } from '../../lib/format-utils'
+import { formatCurrency, formatPercentage } from '../../lib/format-utils'
+import { computeScostamento } from '../../hooks/useConsuntivo'
 import { ProgressIndicator } from '../ui/ProgressIndicator'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
@@ -77,7 +78,14 @@ export function EventCostiTab({ event }) {
   const budgetPrevisto = event.budget_previsto || 0
   const costiApprovati = approvedPreventivi.reduce((sum, p) => sum + (p.importo || 0), 0)
   const costiEffettivi = approvedPreventivi.reduce((sum, p) => sum + (p.importo_effettivo || 0), 0)
+  const hasEffettivo = approvedPreventivi.some(p => p.importo_effettivo != null)
   const maxBudget = Math.max(budgetPrevisto, costiApprovati, costiEffettivi, 1)
+  const { scostamento, scostamentoPct, semaforo } = computeScostamento({
+    budget: budgetPrevisto,
+    approvato: costiApprovati,
+    effettivo: costiEffettivi,
+    hasEffettivo,
+  })
 
   return (
     <div className="space-y-6">
@@ -124,6 +132,27 @@ export function EventCostiTab({ event }) {
             <div className="h-full bg-blue-400 rounded-full" style={{ width: `${Math.min((costiEffettivi / maxBudget) * 100, 100)}%` }} />
           </div>
         </div>
+
+        {/* Scostamento vs budget con semaforo */}
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+          <span className="text-sm font-medium text-gray-600">Scostamento sul budget</span>
+          {costiApprovati === 0 && !hasEffettivo ? (
+            <span className="text-sm text-gray-400">Nessun preventivo approvato</span>
+          ) : scostamento == null ? (
+            <span className="text-sm text-gray-400">Budget previsto non impostato</span>
+          ) : (
+            <span className={`inline-flex items-center gap-2 text-base font-semibold ${COLOR_TEXT_600[semaforo]}`}>
+              <span className={`w-3 h-3 rounded-full ${COLOR_BG_400[semaforo]}`} aria-hidden="true" />
+              {scostamento >= 0 ? '+' : ''}{formatCurrency(scostamento)}
+              {scostamentoPct != null && <span className="text-gray-400 font-normal">({scostamento >= 0 ? '+' : ''}{formatPercentage(scostamentoPct, 1)})</span>}
+            </span>
+          )}
+        </div>
+        {scostamento != null && (costiApprovati > 0 || hasEffettivo) && (
+          <p className="text-xs text-gray-400 mt-1">
+            Confronto tra {hasEffettivo ? 'costo effettivo' : 'preventivato approvato'} e budget previsto.
+          </p>
+        )}
       </div>
 
       {/* Preventivi */}

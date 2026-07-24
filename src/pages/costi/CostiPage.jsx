@@ -13,17 +13,20 @@ import { useEventTypes } from '../../hooks/useEventTypes'
 import { formatDate, formatDayISO } from '../../lib/date-utils'
 import { useExportHandler } from '../../hooks/useExportHandler'
 import { formatCurrency } from '../../lib/format-utils'
+import { ConsuntivoPerEvento } from './ConsuntivoPerEvento'
 
 const EXPORT_COLUMNS_PREVENTIVI = [
   { key: 'evento', label: 'Evento', format: v => v?.titolo || '' },
   { key: 'fornitore_ref', label: 'Fornitore', format: (v, row) => v ? `${v.nome} ${v.cognome}` : row.fornitore_nome || '' },
   { key: 'descrizione', label: 'Descrizione', width: 30 },
   { key: 'importo', label: 'Importo' },
+  { key: 'importo_effettivo', label: 'Importo effettivo', format: v => (v == null ? '' : v) },
   { key: 'stato', label: 'Stato', format: v => STATO_PREVENTIVO[v] || v },
 ]
 
 const TABS = [
   { id: 'approvazioni', label: 'In attesa' },
+  { id: 'consuntivo', label: 'Consuntivo' },
   { id: 'analisi', label: 'Analisi costi' },
 ]
 
@@ -244,7 +247,7 @@ export function CostiPage() {
       </div>
       <PageHeader
         title="Costi"
-        subtitle={activeTab === 'approvazioni' ? `${preventivi.length} preventivi da approvare` : 'Analisi costi cross-evento'}
+        subtitle={activeTab === 'approvazioni' ? `${preventivi.length} preventivi da approvare` : activeTab === 'consuntivo' ? 'Budget previsto, approvato e costo effettivo per evento' : 'Analisi costi cross-evento'}
         actions={activeTab === 'approvazioni' ? <ExportButton onClick={() => handleExport({ columns: EXPORT_COLUMNS_PREVENTIVI, rows: preventivi, filename: 'preventivi', sheetName: 'Preventivi' })} loading={exporting} /> : null}
       />
 
@@ -282,6 +285,8 @@ export function CostiPage() {
             )}
           </>
         )}
+
+        {activeTab === 'consuntivo' && <ConsuntivoPerEvento />}
 
         {activeTab === 'analisi' && <AnalisiCostiSection />}
       </div>
