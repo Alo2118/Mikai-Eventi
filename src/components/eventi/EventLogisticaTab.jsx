@@ -2,8 +2,6 @@ import { useEffect, useState, useMemo } from 'react'
 import { useLogisticsStore } from '../../hooks/useLogistics'
 import { useStaffStore } from '../../hooks/useStaff'
 import { useParticipantsStore } from '../../hooks/useParticipants'
-import { useContactsStore } from '../../hooks/useContacts'
-import { useUsersStore } from '../../hooks/useUsers'
 import { useAuthStore } from '../../hooks/useAuth'
 import { useTavoliStore } from '../../hooks/useTavoli'
 import { Button } from '../ui/Button'
@@ -28,10 +26,12 @@ import { MoreMenu, StaffPicker } from './LogisticaPickers'
 import { LogisticaPeopleFilters } from './LogisticaPeopleFilters'
 import { LogisticaPersonRow } from './LogisticaPersonRow'
 import { LogisticaPersonCard } from './LogisticaPersonCard'
+import { CateringSummary } from './CateringSummary'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { SearchInput } from '../ui/SearchInput'
 import { formatTime, formatDateShort } from '../../lib/date-utils'
+import { formatCurrency } from '../../lib/format-utils'
 import { exportToExcel } from '../../lib/export-utils'
 import { personKey, getPersonTavolo, sortLegs } from '../../lib/logistics-utils'
 import { useEventTypes } from '../../hooks/useEventTypes'
@@ -52,6 +52,8 @@ export function EventLogisticaTab({ event, users = [] }) {
   const addStaff = useStaffStore(s => s.addStaff)
   const updateStaff = useStaffStore(s => s.updateStaff)
   const removeStaff = useStaffStore(s => s.removeStaff)
+  const checkStaffConflict = useStaffStore(s => s.checkStaffConflict)
+  const fetchStaffConflicts = useStaffStore(s => s.fetchStaffConflicts)
 
   const participants = useParticipantsStore(s => s.participants)
   const fetchEventParticipants = useParticipantsStore(s => s.fetchEventParticipants)
@@ -70,9 +72,6 @@ export function EventLogisticaTab({ event, users = [] }) {
   const fetchEventTavoli = useTavoliStore(s => s.fetchEventTavoli)
   const distributeDiscenti = useTavoliStore(s => s.distributeDiscenti)
 
-  const updateContact = useContactsStore(s => s.updateContact)
-  const updateUser = useUsersStore(s => s.updateUser)
-
   const [selected, setSelected] = useState(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [groupBy, setGroupBy] = useState(null)
@@ -81,6 +80,8 @@ export function EventLogisticaTab({ event, users = [] }) {
   const [singleEdit, setSingleEdit] = useState(null)
 
   const [staffForm, setStaffForm] = useState(null)
+  const [staffConflictGate, setStaffConflictGate] = useState(null)
+  const [staffConflicts, setStaffConflicts] = useState([])
   const [partForm, setPartForm] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [showImport, setShowImport] = useState(false)
@@ -103,12 +104,27 @@ export function EventLogisticaTab({ event, users = [] }) {
     if (hasTavoli) fetchEventTavoli(event.id)
   }, [event.id])
 
-  const handleAddStaff = async () => {
-    if (!staffForm?.userId || !staffForm?.ruolo) return
+  const doAddStaff = async () => {
     const { error } = await addStaff(event.id, staffForm.userId, staffForm.ruolo)
     if (error) { addToast(error || 'Non è stato possibile aggiungere lo staff. Riprova.', 'error'); return }
     addToast('Staff aggiunto', 'success')
     setStaffForm(null)
+    setStaffConflictGate(null)
+  }
+
+  // Gate non bloccante: se la persona è già staff di un altro evento negli stessi giorni,
+  // chiediamo conferma esplicita (a volte è legittimo) invece di procedere alla cieca.
+  const handleAddStaff = async () => {
+    if (!staffForm?.userId || !staffForm?.ruolo) return
+    const usageWindow = { start: event.data_inizio, end: event.data_fine }
+    const { data: conflict } = await checkStaffConflict(staffForm.userId, { window: usageWindow, excludeEventId: event.id })
+    if (conflict?.hasConflict) {
+      const u = users.find(x => x.id === staffForm.userId)
+      const nome = u ? `${u.nome || ''} ${u.cognome || ''}`.trim() : 'Questa persona'
+      setStaffConflictGate({ nome, eventi: conflict.eventi })
+      return
+    }
+    doAddStaff()
   }
 
   const handleAddParticipant = async () => {
@@ -124,8 +140,10 @@ export function EventLogisticaTab({ event, users = [] }) {
       type: 'staff', id: s.user_id, staffId: s.id,
       nome: s.user?.nome, cognome: s.user?.cognome,
       ruolo: s.ruolo_evento, confermato: s.confermato, note: s.note,
-      esigenze_alimentari: s.user?.esigenze_alimentari,
-      esigenze_accessibilita: s.user?.esigenze_accessibilita,
+      // Esigenze per-evento con fallback al master SOLO se mai impostate (null): '' = azzerate per l'evento
+      esigenze_alimentari: s.esigenze_alimentari_evento ?? s.user?.esigenze_alimentari,
+      esigenze_accessibilita: s.esigenze_accessibilita_evento ?? s.user?.esigenze_accessibilita,
+      costo_pasti: s.costo_pasti,
     })),
     ...participants.map(p => ({
       type: 'participant', id: p.contact_id, participantId: p.id,
@@ -133,8 +151,9 @@ export function EventLogisticaTab({ event, users = [] }) {
       tipo_contatto: p.contact?.tipo_contatto,
       ruolo: p.tipo, statoIscrizione: p.stato_iscrizione, note: p.note,
       zona: p.contact?.zona?.nome || p.contact?.citta || null,
-      esigenze_alimentari: p.contact?.esigenze_alimentari,
-      esigenze_accessibilita: p.contact?.esigenze_accessibilita,
+      esigenze_alimentari: p.esigenze_alimentari_evento ?? p.contact?.esigenze_alimentari,
+      esigenze_accessibilita: p.esigenze_accessibilita_evento ?? p.contact?.esigenze_accessibilita,
+      costo_pasti: p.costo_pasti,
     })),
   ].sort((a, b) => (a.cognome || '').localeCompare(b.cognome || '', 'it') || (a.nome || '').localeCompare(b.nome || '', 'it'))
   , [staff, participants])
@@ -304,8 +323,34 @@ export function EventLogisticaTab({ event, users = [] }) {
     return [{ label: null, people: filteredPeople }]
   }, [filteredPeople, groupBy, tavoli, andataMap, ritornoMap])
 
-  const alerts = useMemo(() => computeAlerts(event, people, hotels, trasporti, staff, getHotel, getAndata, { hotelEnabled, trasportiEnabled })
-  , [event, people, hotels, trasporti, staff, hotelMap, andataMap, hotelEnabled, trasportiEnabled])
+  // Conflitti staff cross-evento (doppia prenotazione persona su eventi sovrapposti).
+  // Sola lettura, best-effort: alimenta la barra avvisi. Simmetrico al conflitto materiale.
+  // Chiave stabile sui MEMBRI: note/ruolo/conferma/esigenze non ri-eseguono il check (solo add/remove).
+  const staffKey = useMemo(() => staff.map(s => s.user_id).sort().join(','), [staff])
+  useEffect(() => {
+    let cancelled = false
+    if (staff.length === 0) { setStaffConflicts([]); return }
+    const run = async () => {
+      const usageWindow = { start: event.data_inizio, end: event.data_fine }
+      const { data: map } = await fetchStaffConflicts(staff.map(s => s.user_id), usageWindow, event.id)
+      if (cancelled || !map) return
+      const list = staff
+        .filter(s => map[s.user_id]?.length)
+        .map(s => ({ nome: s.user?.nome, cognome: s.user?.cognome, eventi: map[s.user_id] }))
+      setStaffConflicts(list)
+    }
+    run()
+    return () => { cancelled = true }
+  }, [staffKey, event.id, event.data_inizio, event.data_fine])
+
+  const alerts = useMemo(() => {
+    const base = computeAlerts(event, people, hotels, trasporti, staff, getHotel, getAndata, { hotelEnabled, trasportiEnabled })
+    const conflictAlerts = staffConflicts.map(c => ({
+      type: 'warning',
+      text: `${`${c.cognome || ''} ${c.nome || ''}`.trim() || 'Una persona'} è già staff di ${c.eventi.map(e => e.titolo).join(', ')} negli stessi giorni`,
+    }))
+    return [...conflictAlerts, ...base]
+  }, [event, people, hotels, trasporti, staff, hotelMap, andataMap, hotelEnabled, trasportiEnabled, staffConflicts])
 
   const handleModalDone = () => {
     setActiveModal(null)
@@ -369,6 +414,8 @@ export function EventLogisticaTab({ event, users = [] }) {
         { label: 'Ritorno', key: 'ritorno_summary', width: 40, format: (_, row) => getRitorno(row).map(r => [MEZZO_TRASPORTO[r.mezzo], r.codice, r.luogo_partenza, r.luogo_arrivo ? `→ ${r.luogo_arrivo}` : '', r.orario ? formatTime(r.orario) : ''].filter(Boolean).join(' ')).join(' + ') || '' },
         { label: 'Note', key: 'note', width: 25 },
         { label: 'Esigenze alimentari', key: 'esigenze_alimentari', width: 25 },
+        { label: 'Esigenze accessibilità', key: 'esigenze_accessibilita', width: 25 },
+        { label: 'Costo pasti', key: 'costo_pasti', width: 14, format: v => v != null ? formatCurrency(v) : '' },
       ]
       const title = (event.titolo || 'evento').replace(/[^a-zA-Z0-9àèéìòù ]/g, '').trim().replace(/ +/g, '_')
       await exportToExcel({ columns, rows: people, filename: `Persone_${title}`, sheetName: 'Persone' })
@@ -399,15 +446,21 @@ export function EventLogisticaTab({ event, users = [] }) {
     addToast('Ruolo aggiornato', 'success')
   }
 
+  // Scrive le esigenze sulle colonne PER-EVENTO (event_participants / event_staff),
+  // non più sul profilo master del contatto/utente. `updates` arriva dal modal con
+  // { esigenze_alimentari, esigenze_accessibilita, costo_pasti }.
   const handleEsigenzeSave = async (person, updates) => {
+    const payload = {
+      esigenze_alimentari_evento: updates.esigenze_alimentari,
+      esigenze_accessibilita_evento: updates.esigenze_accessibilita,
+    }
+    if ('costo_pasti' in updates) payload.costo_pasti = updates.costo_pasti
     if (person.type === 'participant') {
-      const { error } = await updateContact(person.id, updates)
+      const { error } = await updateParticipant(person.participantId, payload)
       if (error) return addToast('Non è stato possibile salvare le esigenze. Riprova.', 'error')
-      await fetchEventParticipants(event.id)
     } else {
-      const { error } = await updateUser(person.id, updates)
+      const { error } = await updateStaff(person.staffId, payload)
       if (error) return addToast('Non è stato possibile salvare le esigenze. Riprova.', 'error')
-      await fetchEventStaff(event.id)
     }
     addToast('Esigenze aggiornate', 'success')
   }
@@ -529,6 +582,8 @@ export function EventLogisticaTab({ event, users = [] }) {
           clearFilters={() => setActiveFilters(new Set())}
         />
       )}
+
+      {people.length > 0 && <CateringSummary people={people} />}
 
       {canEdit && selected.size > 0 && (
         <div className={SUMMARY_BAR_STYLE + ' flex items-center gap-3 flex-wrap'}>
@@ -723,6 +778,23 @@ export function EventLogisticaTab({ event, users = [] }) {
           if (error) addToast('Non è stato possibile aggiornare lo stato. Riprova.', 'error')
         }}
         onCancel={() => setStatoConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={!!staffConflictGate}
+        title="Persona già impegnata"
+        message={staffConflictGate
+          ? (
+            <span>
+              <strong>{staffConflictGate.nome}</strong> è già staff di{' '}
+              <strong>{staffConflictGate.eventi.map(e => e.titolo).join(', ')}</strong>{' '}
+              negli stessi giorni. Aggiungere comunque?
+            </span>
+          )
+          : ''}
+        confirmLabel="Aggiungi comunque"
+        onConfirm={doAddStaff}
+        onCancel={() => setStaffConflictGate(null)}
       />
 
       <ConfirmDialog

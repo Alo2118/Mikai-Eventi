@@ -620,6 +620,7 @@ export const COMPLIANCE_ICONS = {
   audit: History,
   privacy: Fingerprint,
   verificato: BadgeCheck,
+  rendicontato: FileCheck,
   segnalato: FileWarning,
   registrato: Clock,
   gavel: Gavel,

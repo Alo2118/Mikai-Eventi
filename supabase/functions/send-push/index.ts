@@ -7,13 +7,17 @@
 // non sono configurate, la function risponde 200 { skipped: true } senza inviare
 // (stesso pattern di email-digest con RESEND_API_KEY assente).
 //
-// Aggancio (da fare in DB, vedi needsUser): invocare questa function dai punti
-// critici — evento da approvare, materiale spedito, sollecito rientro — passando
-// gli user_ids destinatari e il testo. In alternativa, un trigger/cron può
-// leggere le `notifications` non ancora "pushate" e chiamarla in batch.
+// Due modalità:
+//   • scan mode — invocata dal cron 'send-push-scan' (ogni minuto) con
+//     { mode: 'scan' }. Seleziona le notifiche CRITICHE recenti con pushed_at IS
+//     NULL, le invia ai push_subscriptions dei destinatari (rispettando mute_types)
+//     e imposta pushed_at=now(). Senza VAPID risponde { skipped:true } e NON marca
+//     pushed_at, così i push partono appena le chiavi vengono configurate.
+//   • explicit mode — invocata a mano/da altro codice con user_ids + testo.
 //
 // Contratto POST (JSON):
-//   {
+//   scan:      { mode: 'scan' }
+//   explicit:  {
 //     user_ids: string[],   // destinatari (oppure user_id: string singolo)
 //     tipo?: string,        // tipo notifica → rispetta mute_types per il consenso
 //     title: string,
@@ -23,8 +27,22 @@
 //   }
 // ============================================================
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
+
+// Tipi notifica "critici" spinti via push in scan mode. Valori allineati al
+// CHECK notifications_tipo_check (vedi migrazioni notification_*).
+const CRITICAL_TYPES = [
+  'approvazione_richiesta', // evento/materiale da approvare
+  'materiale_spedito',
+  'sollecito_rientro',
+  'evento_imminente',
+]
+
+// Finestra di recency: in scan mode consideriamo solo le notifiche create di
+// recente, per non spingere in blocco lo storico al primo giro con VAPID attivo.
+const SCAN_WINDOW_MINUTES = 60
+const SCAN_LIMIT = 200
 
 interface PushSubRow {
   id: string
@@ -39,6 +57,213 @@ interface PrefRow {
   mute_types: string[]
 }
 
+interface NotifRow {
+  id: string
+  user_id: string
+  tipo: string
+  titolo: string
+  messaggio: string | null
+  link: string | null
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
+const jsonResponse = (obj: unknown, status = 200) =>
+  new Response(JSON.stringify(obj), { status, headers: JSON_HEADERS })
+
+/** Utenti che hanno silenziato `tipo` in notification_preferences.mute_types. */
+async function fetchMutedSet(
+  supabase: SupabaseClient,
+  userIds: string[],
+  tipo: string
+): Promise<Set<string>> {
+  const { data } = await supabase
+    .from('notification_preferences')
+    .select('user_id, mute_types')
+    .in('user_id', userIds)
+  return new Set(
+    ((data as PrefRow[] | null) || [])
+      .filter((p) => Array.isArray(p.mute_types) && p.mute_types.includes(tipo))
+      .map((p) => p.user_id)
+  )
+}
+
+/** Invia il payload a una lista di subscription. Ritorna esito + endpoint scaduti. */
+async function deliverToSubs(subs: PushSubRow[], payload: string) {
+  let sent = 0
+  let failed = 0
+  const staleIds: string[] = []
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      )
+      sent++
+    } catch (err) {
+      const statusCode = (err as { statusCode?: number }).statusCode
+      // 404/410 = subscription scaduta o revocata → rimuovila dal DB
+      if (statusCode === 404 || statusCode === 410) {
+        staleIds.push(sub.id)
+      } else {
+        failed++
+        console.error(`[send-push] invio fallito (${statusCode ?? '?'}): ${(err as Error).message}`)
+      }
+    }
+  }
+  return { sent, failed, staleIds }
+}
+
+/** Scan mode: spinge le notifiche critiche recenti non ancora pushate. */
+async function runScan(supabase: SupabaseClient, hasVapid: boolean) {
+  const sinceISO = new Date(Date.now() - SCAN_WINDOW_MINUTES * 60_000).toISOString()
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, user_id, tipo, titolo, messaggio, link')
+    .is('pushed_at', null)
+    .in('tipo', CRITICAL_TYPES)
+    .gte('created_at', sinceISO)
+    .order('created_at', { ascending: true })
+    .limit(SCAN_LIMIT)
+
+  if (error) return jsonResponse({ ok: false, error: error.message }, 500)
+
+  const candidates = (data as NotifRow[] | null) || []
+  if (candidates.length === 0) return jsonResponse({ ok: true, mode: 'scan', processed: 0 })
+
+  // Senza VAPID resta inerte e NON reclama: le notifiche restano candidate
+  // così, appena configuri le chiavi, i push recenti partono al primo giro.
+  if (!hasVapid) {
+    console.log('[send-push] scan inerte: chiavi VAPID assenti')
+    return jsonResponse({ ok: true, mode: 'scan', skipped: true, reason: 'VAPID non configurato', pending: candidates.length })
+  }
+
+  // Claim atomico: marca pushed_at PRIMA di inviare e processa solo le righe
+  // effettivamente reclamate. Il cron gira ogni minuto e net.http_post è async, quindi
+  // due run possono sovrapporsi: senza claim entrambi selezionerebbero le stesse
+  // notifiche (pushed_at IS NULL) e le invierebbero due volte (TOCTOU). L'UPDATE con
+  // WHERE pushed_at IS NULL serializza le righe in Postgres → ogni notifica torna in
+  // `claimed` a un solo run; l'altro la trova già reclamata e la salta.
+  const nowISO = new Date().toISOString()
+  const { data: claimedData, error: claimError } = await supabase
+    .from('notifications')
+    .update({ pushed_at: nowISO })
+    .is('pushed_at', null)
+    .in('id', candidates.map((n) => n.id))
+    .select('id')
+  if (claimError) return jsonResponse({ ok: false, error: claimError.message }, 500)
+
+  const claimedIds = new Set(((claimedData as { id: string }[] | null) || []).map((r) => r.id))
+  const notifs = candidates.filter((n) => claimedIds.has(n.id))
+  if (notifs.length === 0) {
+    return jsonResponse({ ok: true, mode: 'scan', candidates: candidates.length, claimed: 0, sent: 0, failed: 0, retried: 0, removed: 0 })
+  }
+
+  const userIds = [...new Set(notifs.map((n) => n.user_id))]
+  const { data: subsData } = await supabase
+    .from('push_subscriptions')
+    .select('id, user_id, endpoint, p256dh, auth')
+    .in('user_id', userIds)
+  const subsByUser = new Map<string, PushSubRow[]>()
+  for (const s of (subsData as PushSubRow[] | null) || []) {
+    const list = subsByUser.get(s.user_id) || []
+    list.push(s)
+    subsByUser.set(s.user_id, list)
+  }
+
+  const { data: prefsData } = await supabase
+    .from('notification_preferences')
+    .select('user_id, mute_types')
+    .in('user_id', userIds)
+  const muteByUser = new Map<string, string[]>()
+  for (const p of (prefsData as PrefRow[] | null) || []) {
+    muteByUser.set(p.user_id, Array.isArray(p.mute_types) ? p.mute_types : [])
+  }
+
+  let sent = 0
+  let failed = 0
+  const allStale: string[] = []
+  // Le righe sono già reclamate (pushed_at marcato). Le notifiche con fallimento SOLO
+  // transitorio (nessun invio riuscito e i fallimenti non sono subscription scadute)
+  // vengono RIMESSE in coda (pushed_at=null) così il prossimo scan le ritenta entro la
+  // finestra di recency. Mute / nessuna subscription restano reclamate (nulla da inviare).
+  const resetIds: string[] = []
+  for (const n of notifs) {
+    // Mute rispettato: notifica reclamata ma non inviata.
+    if ((muteByUser.get(n.user_id) || []).includes(n.tipo)) continue
+    const subs = subsByUser.get(n.user_id) || []
+    if (subs.length === 0) continue
+    const payload = JSON.stringify({
+      title: n.titolo,
+      body: n.messaggio || '',
+      url: n.link || '/Mikai-Eventi/',
+      tag: n.tipo,
+    })
+    const res = await deliverToSubs(subs, payload)
+    sent += res.sent
+    failed += res.failed
+    allStale.push(...res.staleIds)
+    // Fallimento solo transitorio: rimetti in coda (reset pushed_at) per il prossimo scan.
+    const transientOnly = res.sent === 0 && res.failed > res.staleIds.length
+    if (transientOnly) resetIds.push(n.id)
+  }
+
+  if (resetIds.length > 0) {
+    await supabase.from('notifications').update({ pushed_at: null }).in('id', resetIds)
+  }
+  if (allStale.length > 0) {
+    await supabase.from('push_subscriptions').delete().in('id', allStale)
+  }
+
+  return jsonResponse({ ok: true, mode: 'scan', candidates: candidates.length, claimed: notifs.length, sent, failed, retried: resetIds.length, removed: allStale.length })
+}
+
+/** Explicit mode: invio diretto a user_ids con testo passato nel body. */
+async function runExplicit(supabase: SupabaseClient, hasVapid: boolean, body: Record<string, unknown>) {
+  const userIds: string[] = Array.isArray(body.user_ids)
+    ? (body.user_ids as string[])
+    : body.user_id
+      ? [body.user_id as string]
+      : []
+  const tipo: string | null = (body.tipo as string) || null
+  const title: string = (body.title as string) || 'Eventi Mikai'
+  const message: string = (body.body as string) || 'Hai un nuovo aggiornamento.'
+  const url: string = (body.url as string) || '/Mikai-Eventi/'
+  const tag: string | undefined = (body.tag as string) || undefined
+
+  if (userIds.length === 0) {
+    return jsonResponse({ ok: false, error: 'Nessun destinatario (user_ids mancante)' }, 400)
+  }
+
+  // Feature inerte finché le chiavi VAPID non sono configurate.
+  if (!hasVapid) {
+    console.log('[send-push] INVIO DISATTIVATO: chiavi VAPID assenti')
+    return jsonResponse({ ok: true, skipped: true, reason: 'VAPID non configurato', recipients: userIds.length })
+  }
+
+  // Consenso: escludi gli utenti che hanno silenziato questo `tipo`.
+  let allowedUserIds = userIds
+  if (tipo) {
+    const muted = await fetchMutedSet(supabase, userIds, tipo)
+    allowedUserIds = userIds.filter((id) => !muted.has(id))
+  }
+  if (allowedUserIds.length === 0) {
+    return jsonResponse({ ok: true, sent: 0, skipped: 0, note: 'Tutti i destinatari hanno silenziato questo tipo' })
+  }
+
+  const { data: subs, error: subsError } = await supabase
+    .from('push_subscriptions')
+    .select('id, user_id, endpoint, p256dh, auth')
+    .in('user_id', allowedUserIds)
+  if (subsError) return jsonResponse({ ok: false, error: subsError.message }, 500)
+
+  const payload = JSON.stringify({ title, body: message, url, tag })
+  const { sent, failed, staleIds } = await deliverToSubs((subs as PushSubRow[] | null) || [], payload)
+  if (staleIds.length > 0) {
+    await supabase.from('push_subscriptions').delete().in('id', staleIds)
+  }
+  return jsonResponse({ ok: true, sent, failed, removed: staleIds.length })
+}
+
 Deno.serve(async (req) => {
   try {
     const supabase = createClient(
@@ -49,115 +274,18 @@ Deno.serve(async (req) => {
     const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')
     const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')
     const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:eventi@mikai.it'
-
-    const body = await req.json().catch(() => ({}))
-    const userIds: string[] = Array.isArray(body.user_ids)
-      ? body.user_ids
-      : body.user_id
-        ? [body.user_id]
-        : []
-    const tipo: string | null = body.tipo || null
-    const title: string = body.title || 'Eventi Mikai'
-    const message: string = body.body || 'Hai un nuovo aggiornamento.'
-    const url: string = body.url || '/Mikai-Eventi/'
-    const tag: string | undefined = body.tag || undefined
-
-    if (userIds.length === 0) {
-      return new Response(
-        JSON.stringify({ ok: false, error: 'Nessun destinatario (user_ids mancante)' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      )
+    const hasVapid = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY)
+    if (hasVapid) {
+      webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY!, VAPID_PRIVATE_KEY!)
     }
 
-    // Feature inerte finché le chiavi VAPID non sono configurate.
-    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-      console.log('[send-push] INVIO DISATTIVATO: chiavi VAPID assenti')
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          skipped: true,
-          reason: 'VAPID non configurato',
-          recipients: userIds.length,
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
+
+    if (body.mode === 'scan') {
+      return await runScan(supabase, hasVapid)
     }
-
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
-
-    // Consenso: escludi gli utenti che hanno silenziato questo `tipo`.
-    let allowedUserIds = userIds
-    if (tipo) {
-      const { data: prefs } = await supabase
-        .from('notification_preferences')
-        .select('user_id, mute_types')
-        .in('user_id', userIds)
-      const muted = new Set(
-        (prefs as PrefRow[] | null || [])
-          .filter((p) => Array.isArray(p.mute_types) && p.mute_types.includes(tipo))
-          .map((p) => p.user_id)
-      )
-      allowedUserIds = userIds.filter((id) => !muted.has(id))
-    }
-
-    if (allowedUserIds.length === 0) {
-      return new Response(
-        JSON.stringify({ ok: true, sent: 0, skipped: 0, note: 'Tutti i destinatari hanno silenziato questo tipo' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const { data: subs, error: subsError } = await supabase
-      .from('push_subscriptions')
-      .select('id, user_id, endpoint, p256dh, auth')
-      .in('user_id', allowedUserIds)
-
-    if (subsError) {
-      return new Response(
-        JSON.stringify({ ok: false, error: subsError.message }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const payload = JSON.stringify({ title, body: message, url, tag })
-    let sent = 0
-    let failed = 0
-    const staleIds: string[] = []
-
-    for (const sub of (subs as PushSubRow[] | null) || []) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          },
-          payload
-        )
-        sent++
-      } catch (err) {
-        const statusCode = (err as { statusCode?: number }).statusCode
-        // 404/410 = subscription scaduta o revocata → rimuovila dal DB
-        if (statusCode === 404 || statusCode === 410) {
-          staleIds.push(sub.id)
-        } else {
-          failed++
-          console.error(`[send-push] invio fallito (${statusCode ?? '?'}): ${(err as Error).message}`)
-        }
-      }
-    }
-
-    if (staleIds.length > 0) {
-      await supabase.from('push_subscriptions').delete().in('id', staleIds)
-    }
-
-    return new Response(
-      JSON.stringify({ ok: true, sent, failed, removed: staleIds.length }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
+    return await runExplicit(supabase, hasVapid, body)
   } catch (err) {
-    return new Response(
-      JSON.stringify({ ok: false, error: (err as Error).message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    )
+    return jsonResponse({ ok: false, error: (err as Error).message }, 500)
   }
 })
