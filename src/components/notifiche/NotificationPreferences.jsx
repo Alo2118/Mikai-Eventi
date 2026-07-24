@@ -5,6 +5,7 @@ import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { TIPO_NOTIFICA } from '../../lib/constants'
 import { NOTIFICA_ICONS } from '../../lib/icons'
+import { PushActivationCard } from './PushActivationCard'
 
 export function NotificationPreferences() {
   const preferences = useNotificationsStore(s => s.preferences)
@@ -83,6 +84,9 @@ export function NotificationPreferences() {
           Configura come ricevere le notifiche via email. Le notifiche in-app restano sempre attive.
         </p>
       </div>
+
+      {/* Push sul dispositivo (secondo canale, oltre a in-app ed email) */}
+      <PushActivationCard />
 
       {/* Email toggles */}
       <div className="space-y-3">
