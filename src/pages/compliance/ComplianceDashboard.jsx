@@ -151,7 +151,6 @@ export function ComplianceDashboard() {
           loading={closing}
           disabled={!canClose}
           title={!canClose ? 'Seleziona un periodo specifico con almeno un trasferimento verificato da rendicontare.' : undefined}
-          aria-label="Chiudi periodo"
         >
           <Icon icon={COMPLIANCE_ICONS.rendicontato} size={18} />
           <span className="ml-2">Chiudi periodo</span>

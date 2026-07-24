@@ -325,6 +325,8 @@ export function EventLogisticaTab({ event, users = [] }) {
 
   // Conflitti staff cross-evento (doppia prenotazione persona su eventi sovrapposti).
   // Sola lettura, best-effort: alimenta la barra avvisi. Simmetrico al conflitto materiale.
+  // Chiave stabile sui MEMBRI: note/ruolo/conferma/esigenze non ri-eseguono il check (solo add/remove).
+  const staffKey = useMemo(() => staff.map(s => s.user_id).sort().join(','), [staff])
   useEffect(() => {
     let cancelled = false
     if (staff.length === 0) { setStaffConflicts([]); return }
@@ -339,7 +341,7 @@ export function EventLogisticaTab({ event, users = [] }) {
     }
     run()
     return () => { cancelled = true }
-  }, [staff, event.id, event.data_inizio, event.data_fine])
+  }, [staffKey, event.id, event.data_inizio, event.data_fine])
 
   const alerts = useMemo(() => {
     const base = computeAlerts(event, people, hotels, trasporti, staff, getHotel, getAndata, { hotelEnabled, trasportiEnabled })
@@ -782,7 +784,13 @@ export function EventLogisticaTab({ event, users = [] }) {
         open={!!staffConflictGate}
         title="Persona già impegnata"
         message={staffConflictGate
-          ? `${staffConflictGate.nome} è già staff di ${staffConflictGate.eventi.map(e => e.titolo).join(', ')} negli stessi giorni. Aggiungere comunque?`
+          ? (
+            <span>
+              <strong>{staffConflictGate.nome}</strong> è già staff di{' '}
+              <strong>{staffConflictGate.eventi.map(e => e.titolo).join(', ')}</strong>{' '}
+              negli stessi giorni. Aggiungere comunque?
+            </span>
+          )
           : ''}
         confirmLabel="Aggiungi comunque"
         onConfirm={doAddStaff}

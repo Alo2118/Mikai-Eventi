@@ -388,7 +388,7 @@ export const useComplianceStore = create((set, get) => ({
         .not('contact_id', 'is', null),
       supabase
         .from('trasferimenti_valore')
-        .select('hcp_id, tipo')
+        .select('hcp_id, tipo, importo')
         .eq('evento_id', eventId),
     ])
 
@@ -406,8 +406,19 @@ export const useComplianceStore = create((set, get) => ({
     if (hcpErr) return { data: null, error: hcpErr.message || null }
 
     const hcpByContact = new Map((hcps || []).map(h => [h.contatto_id, h]))
-    // ToV già registrati per questo evento: chiave hcp_id|tipo per evitare duplicati
-    const existing = new Set((existingRes.data || []).map(t => `${t.hcp_id}|${t.tipo}`))
+    // ToV già registrati per questo evento: somma importi per chiave hcp_id|tipo.
+    // Un tipo si considera già coperto solo se l'importo registrato copre il totale
+    // calcolato: così un supplemento (es. pasti aggiunti dopo l'hotel) resta proponibile.
+    const registratoByKey = new Map()
+    for (const t of (existingRes.data || [])) {
+      const key = `${t.hcp_id}|${t.tipo}`
+      registratoByKey.set(key, (registratoByKey.get(key) || 0) + (Number(t.importo) || 0))
+    }
+    // Copre il totale se l'importo già registrato è >= totale (tolleranza arrotondamento).
+    const giaCoperto = (hcpId, tipo, totale) => {
+      const registrato = registratoByKey.get(`${hcpId}|${tipo}`)
+      return registrato != null && registrato >= totale - 0.01
+    }
 
     // Aggrega i costi per contatto (un HCP può avere più righe hotel/trasporto)
     const sumByContact = (rows) => {
@@ -459,7 +470,7 @@ export const useComplianceStore = create((set, get) => ({
           importo: ospitalitaCosto,
           descrizione: `Ospitalità (${vociLabel}) — ${titolo}`,
           giustificazione: `Ospitalità (${vociLabel}) per la partecipazione all'evento "${titolo}"`,
-          giaRegistrato: existing.has(`${hcp.id}|ospitalita`),
+          giaRegistrato: giaCoperto(hcp.id, 'ospitalita', ospitalitaCosto),
         })
       }
 
@@ -473,7 +484,7 @@ export const useComplianceStore = create((set, get) => ({
           importo: transpCosto,
           descrizione: `Viaggio/trasferimento — ${titolo}`,
           giustificazione: `Trasporto per partecipazione all'evento "${titolo}"`,
-          giaRegistrato: existing.has(`${hcp.id}|viaggio`),
+          giaRegistrato: giaCoperto(hcp.id, 'viaggio', transpCosto),
         })
       }
     }

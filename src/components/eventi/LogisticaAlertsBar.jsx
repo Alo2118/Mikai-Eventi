@@ -62,8 +62,9 @@ export function computeAlerts(event, people, hotels, trasporti, staff, getHotel,
 export function LogisticaAlertsBar({ alerts }) {
   const [dismissed, setDismissed] = useState(false)
 
-  // Reset dismissed when alerts content changes
-  useEffect(() => { setDismissed(false) }, [alerts.length])
+  // Riabilita la barra solo quando gli avvisi si azzerano: così un avviso che arriva
+  // in ritardo (es. conflitti staff async) non resuscita una barra appena chiusa dall'utente.
+  useEffect(() => { if (alerts.length === 0) setDismissed(false) }, [alerts.length])
 
   if (!alerts.length || dismissed) return null
 

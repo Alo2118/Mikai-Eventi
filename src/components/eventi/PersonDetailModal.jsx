@@ -17,8 +17,12 @@ export function PersonDetailModal({ person, onSaveNote, onSaveEsigenze, onSaveRo
   const handleSave = async () => {
     setLoading(true)
     const newNote = note.trim() || null
-    const newAlim = alimentari.trim() || null
-    const newAcc = accessibilita.trim() || null
+    // Esigenze PER-EVENTO: il campo vuoto va salvato come '' ("azzerato per questo evento"),
+    // non come null. null significherebbe "mai impostato" e farebbe re-ereditare il profilo
+    // master (vedi contratto in EventLogisticaTab: `esigenze_evento ?? master`). Coercendo a
+    // null l'azzeramento sarebbe silenziosamente ignorato e il valore master ricomparirebbe.
+    const newAlim = alimentari.trim()
+    const newAcc = accessibilita.trim()
     const parsedCosto = costoPasti.trim() === '' ? null : Number(costoPasti.replace(',', '.'))
     const newCosto = parsedCosto != null && Number.isFinite(parsedCosto) ? parsedCosto : null
 
@@ -28,7 +32,9 @@ export function PersonDetailModal({ person, onSaveNote, onSaveEsigenze, onSaveRo
     if (newNote !== (person.note || null)) {
       await onSaveNote(person, newNote)
     }
-    const esigenzeChanged = newAlim !== (person.esigenze_alimentari || null) || newAcc !== (person.esigenze_accessibilita || null)
+    // Confronto sul valore risolto (per-evento o master). Normalizzato a stringa così '' e null
+    // non generano falsi cambiamenti.
+    const esigenzeChanged = newAlim !== (person.esigenze_alimentari || '') || newAcc !== (person.esigenze_accessibilita || '')
     const costoChanged = mostraCostoPasti && newCosto !== (person.costo_pasti ?? null)
     if (esigenzeChanged || costoChanged) {
       const updates = { esigenze_alimentari: newAlim, esigenze_accessibilita: newAcc }

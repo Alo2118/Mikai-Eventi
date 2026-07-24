@@ -8,26 +8,32 @@ import { formatCurrency } from '../../lib/format-utils'
 // (es. "3 vegetariani, 1 celiaco"), le esigenze di accessibilità e il costo
 // pasti totale. Serve a chi organizza il vitto per avere il quadro in un colpo.
 export function CateringSummary({ people }) {
-  const { alimentari, accessibilitaCount, costoTotale } = useMemo(() => {
-    const gruppi = new Map()
-    let accessibilitaCount = 0
+  const { alimentari, accessibilita, costoTotale } = useMemo(() => {
+    const gruppiAlim = new Map()
+    const gruppiAcc = new Map()
     let costoTotale = 0
+    const conta = (mappa, testo) => {
+      const chiave = testo.toLowerCase()
+      const esistente = mappa.get(chiave)
+      if (esistente) esistente.count += 1
+      else mappa.set(chiave, { label: testo, count: 1 })
+    }
     for (const p of people) {
       const alim = (p.esigenze_alimentari || '').trim()
-      if (alim) {
-        const chiave = alim.toLowerCase()
-        const esistente = gruppi.get(chiave)
-        if (esistente) esistente.count += 1
-        else gruppi.set(chiave, { label: alim, count: 1 })
-      }
-      if ((p.esigenze_accessibilita || '').trim()) accessibilitaCount += 1
+      if (alim) conta(gruppiAlim, alim)
+      const acc = (p.esigenze_accessibilita || '').trim()
+      if (acc) conta(gruppiAcc, acc)
       if (p.costo_pasti != null) costoTotale += Number(p.costo_pasti) || 0
     }
-    const alimentari = [...gruppi.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'it'))
-    return { alimentari, accessibilitaCount, costoTotale }
+    const perCount = (a, b) => b.count - a.count || a.label.localeCompare(b.label, 'it')
+    return {
+      alimentari: [...gruppiAlim.values()].sort(perCount),
+      accessibilita: [...gruppiAcc.values()].sort(perCount),
+      costoTotale,
+    }
   }, [people])
 
-  if (alimentari.length === 0 && accessibilitaCount === 0 && costoTotale === 0) return null
+  if (alimentari.length === 0 && accessibilita.length === 0 && costoTotale === 0) return null
 
   return (
     <div className={CARD_STYLE + ' space-y-3'}>
@@ -38,25 +44,23 @@ export function CateringSummary({ people }) {
       {alimentari.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {alimentari.map(a => (
-            <span key={a.label} className={BADGE_BASE + ' ' + COLOR_BADGE.orange}>
+            <span key={a.label} className={BADGE_BASE + ' ' + COLOR_BADGE.red}>
               {a.count} {a.label}
             </span>
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-        {accessibilitaCount > 0 && (
-          <span className="inline-flex items-center gap-1.5">
-            <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_accessibilita} size={16} className="text-blue-400" />
-            {accessibilitaCount} {accessibilitaCount === 1 ? 'persona con esigenze di accessibilità' : 'persone con esigenze di accessibilità'}
-          </span>
-        )}
-        {costoTotale > 0 && (
-          <span className="inline-flex items-center gap-1.5 ml-auto font-medium text-gray-700">
-            Costo pasti totale: {formatCurrency(costoTotale)}
-          </span>
-        )}
-      </div>
+      {accessibilita.length > 0 && (
+        <div className="flex items-start gap-1.5 text-sm text-gray-600">
+          <Icon icon={LOGISTICA_PERSONE_ICONS.esigenze_accessibilita} size={16} className="text-blue-400 mt-0.5" />
+          <span>Accessibilità: {accessibilita.map(a => `${a.count} ${a.label}`).join(', ')}</span>
+        </div>
+      )}
+      {costoTotale > 0 && (
+        <div className="text-sm font-medium text-gray-700">
+          Costo pasti totale: {formatCurrency(costoTotale)}
+        </div>
+      )}
     </div>
   )
 }
