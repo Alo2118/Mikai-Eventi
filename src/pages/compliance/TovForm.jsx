@@ -5,8 +5,10 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { Button } from '../../components/ui/Button'
+import { Icon } from '../../components/ui/Icon'
 import { useToastStore } from '../../components/ui/Toast'
 import { TIPO_TOV, INPUT_STYLE, SELECT_STYLE, TEXTAREA_STYLE, CARD_STYLE } from '../../lib/constants'
+import { FEEDBACK_ICONS } from '../../lib/icons'
 import { todayISO } from '../../lib/date-utils'
 
 export function TovForm() {
@@ -33,6 +35,9 @@ export function TovForm() {
   useEffect(() => { fetchHcpList() }, [])
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+
+  const selectedHcp = hcpList.find(h => h.id === form.hcp_id)
+  const senzaConsenso = selectedHcp && !selectedHcp.consenso_privacy
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -96,6 +101,14 @@ export function TovForm() {
               </option>
             ))}
           </select>
+          {senzaConsenso && (
+            <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 mt-3" role="alert">
+              <Icon icon={FEEDBACK_ICONS.warning} size={18} className="text-yellow-600 mt-0.5 shrink-0" />
+              <p className="text-sm font-medium text-yellow-800">
+                Questo professionista non ha dato il consenso privacy: il trasferimento sarà pubblicabile solo in forma aggregata.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

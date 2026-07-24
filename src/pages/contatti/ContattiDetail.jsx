@@ -14,19 +14,46 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { useToastStore } from '../../components/ui/Toast'
 import { TIPO_CONTATTO, TIPO_CONTATTO_COLORE, CARD_STYLE } from '../../lib/constants'
 import { formatDate } from '../../lib/date-utils'
+import { normalizeWhatsappNumber } from '../../lib/format-utils'
 import { Icon } from '../../components/ui/Icon'
 import { CONTATTI_ICONS, TIPO_CONTATTO_ICONS, ACTION_ICONS } from '../../lib/icons'
 
-function InfoRow({ icon, label, value }) {
+function InfoRow({ icon, label, value, href, action }) {
   if (!value) return null
   return (
     <div className="py-2.5 border-b border-gray-100 flex items-start gap-3">
       <Icon icon={icon} size={16} className="text-gray-400 mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
         <dt className="text-xs text-gray-400">{label}</dt>
-        <dd className="text-base text-gray-900">{value}</dd>
+        <dd className="text-base text-gray-900">
+          {href ? (
+            <a
+              href={href}
+              className="inline-flex items-center min-h-[48px] text-mikai-600 hover:underline break-all"
+            >
+              {value}
+            </a>
+          ) : value}
+        </dd>
       </div>
+      {action}
     </div>
+  )
+}
+
+function WhatsappAction({ telefono }) {
+  const waNumber = normalizeWhatsappNumber(telefono)
+  if (!waNumber) return null
+  return (
+    <a
+      href={`https://wa.me/${waNumber}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="shrink-0 inline-flex items-center justify-center min-h-[48px] min-w-[48px] rounded-lg text-green-600 hover:bg-green-50"
+      aria-label={`Scrivi su WhatsApp a ${telefono}`}
+    >
+      <Icon icon={CONTATTI_ICONS.whatsapp} size={22} />
+    </a>
   )
 }
 
@@ -112,8 +139,8 @@ export function ContattiDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
               <div>
                 <InfoRow icon={CONTATTI_ICONS.azienda} label={isClinical ? 'Struttura / Ente' : 'Azienda'} value={contact.azienda} />
-                <InfoRow icon={CONTATTI_ICONS.email} label="Email" value={contact.email} />
-                <InfoRow icon={CONTATTI_ICONS.telefono} label="Telefono" value={contact.telefono} />
+                <InfoRow icon={CONTATTI_ICONS.email} label="Email" value={contact.email} href={contact.email ? `mailto:${contact.email}` : null} />
+                <InfoRow icon={CONTATTI_ICONS.telefono} label="Telefono" value={contact.telefono} href={contact.telefono ? `tel:${contact.telefono.replace(/\s/g, '')}` : null} action={<WhatsappAction telefono={contact.telefono} />} />
                 <InfoRow icon={CONTATTI_ICONS.zona} label="Zona" value={contact.zona?.nome} />
               </div>
               <div>

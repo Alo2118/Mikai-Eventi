@@ -35,6 +35,37 @@ export function formatPercentage(value, decimals = 0) {
   return Number(value).toFixed(decimals) + '%'
 }
 
+/**
+ * Normalizes an Italian phone number to E.164 digits for WhatsApp (wa.me).
+ * Handles spaces, dashes, parentheses, leading +, 00 international prefix,
+ * and adds the 39 country code when missing.
+ * Returns "39XXXXXXXXXX" (no + sign, as wa.me expects) or null if unusable.
+ * Examples: "+39 333 1234567" -> "393331234567", "0039 333..." -> "39333...",
+ *           "333 123 4567" -> "393331234567", "06 1234567" -> "39061234567".
+ */
+export function normalizeWhatsappNumber(raw) {
+  if (!raw) return null
+  let s = String(raw).trim()
+  // Strip everything except digits and a possible leading +
+  const hasPlus = s.startsWith('+')
+  let digits = s.replace(/\D/g, '')
+  if (!digits) return null
+  // 00 international prefix -> drop it (equivalent to +)
+  if (digits.startsWith('00')) {
+    digits = digits.slice(2)
+  } else if (!hasPlus && digits.startsWith('39') && digits.length > 11) {
+    // Already includes 39 country code without + (e.g. "39333...")
+    // keep as-is
+  } else if (!hasPlus) {
+    // Local Italian number without country code: add 39
+    digits = '39' + digits
+  }
+  // At this point digits should start with the country code.
+  // Guard against too-short numbers.
+  if (digits.length < 11) return null
+  return digits
+}
+
 // Returns promotore display name from event object (user or contact agente)
 export function getPromotoreName(event) {
   if (event?.promotore) return `${event.promotore.nome} ${event.promotore.cognome}`
