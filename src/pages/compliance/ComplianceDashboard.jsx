@@ -7,9 +7,12 @@ import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Icon } from '../../components/ui/Icon'
 import { Button } from '../../components/ui/Button'
+import { ExportButton } from '../../components/ui/ExportButton'
+import { useToastStore } from '../../components/ui/Toast'
 import { COMPLIANCE_ICONS } from '../../lib/icons'
 import { TIPO_TOV, TIPO_TOV_COLORE, CHART_COLORS, COLOR_BG_50, COLOR_TEXT_600, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 import { formatCurrencyDecimals, formatPercentage } from '../../lib/format-utils'
+import { buildDisclosureReport } from '../../lib/export-utils'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 function StatCard({ icon, label, value, color = 'mikai' }) {
@@ -31,9 +34,35 @@ export function ComplianceDashboard() {
   const stats = useComplianceStore(s => s.stats)
   const statsLoading = useComplianceStore(s => s.statsLoading)
   const fetchDashboardStats = useComplianceStore(s => s.fetchDashboardStats)
+  const fetchDisclosureRows = useComplianceStore(s => s.fetchDisclosureRows)
+  const addToast = useToastStore(s => s.add)
   const [periodo, setPeriodo] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => { fetchDashboardStats(periodo || undefined) }, [periodo])
+
+  const handleExportDisclosure = async () => {
+    setExporting(true)
+    const { data, error } = await fetchDisclosureRows(periodo || undefined)
+    if (error) {
+      setExporting(false)
+      addToast('Non siamo riusciti a preparare il report disclosure. Riprova.', 'error')
+      return
+    }
+    if (!data || data.length === 0) {
+      setExporting(false)
+      addToast('Nessun trasferimento da esportare per il periodo selezionato.', 'warning')
+      return
+    }
+    try {
+      const res = await buildDisclosureReport(data, { periodo: periodo || undefined })
+      addToast(`Report disclosure esportato (${res.nominativi} nominativi, ${res.aggregati} aggregati).`, 'success')
+    } catch {
+      addToast('Errore durante l\'esportazione del report. Riprova.', 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const pieData = stats?.perTipo
     ? Object.entries(stats.perTipo).map(([tipo, importo]) => ({
@@ -73,17 +102,25 @@ export function ComplianceDashboard() {
         }
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <select
           value={periodo}
           onChange={e => setPeriodo(e.target.value)}
-          className={SELECT_STYLE + ' max-w-xs'}
+          className={SELECT_STYLE + ' sm:max-w-xs'}
         >
           {periodi.map(p => (
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
+        <ExportButton
+          onClick={handleExportDisclosure}
+          loading={exporting}
+          label="Esporta disclosure"
+        />
       </div>
+      <p className="text-xs text-gray-500 -mt-3">
+        Il report distingue i professionisti con consenso privacy (foglio nominativo) da quelli senza consenso (foglio aggregato).
+      </p>
 
       {statsLoading ? (
         <LoadingSkeleton lines={4} />

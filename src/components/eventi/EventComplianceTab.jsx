@@ -11,6 +11,7 @@ import { Modal } from '../ui/Modal'
 import { useToastStore } from '../ui/Toast'
 import { TIPO_TOV, STATO_TOV, STATO_TOV_COLORE, TIPO_INTERAZIONE_HCP, SELECT_STYLE, INPUT_STYLE, TEXTAREA_STYLE, SUMMARY_BAR_STYLE, CARD_STYLE } from '../../lib/constants'
 import { COMPLIANCE_ICONS, ACTION_ICONS } from '../../lib/icons'
+import { TovSuggestions } from './TovSuggestions'
 import { formatDate, todayISO } from '../../lib/date-utils'
 import { formatCurrencyDecimals } from '../../lib/format-utils'
 
@@ -82,9 +83,12 @@ export function EventComplianceTab({ event }) {
   const hcpList = useComplianceStore(s => s.hcpList)
   const fetchHcpList = useComplianceStore(s => s.fetchHcpList)
   const createInterazione = useComplianceStore(s => s.createInterazione)
+  const suggestTovFromEvent = useComplianceStore(s => s.suggestTovFromEvent)
   const addToast = useToastStore(s => s.add)
 
   const [showInterazione, setShowInterazione] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true)
   // Errore locale derivato dai 3 fetch paralleli: il campo `error` dello store è
   // condiviso tra hcp/tov/interazioni, quindi guidarci un guard causerebbe una race
   // (l'ultimo fetch sovrascrive l'errore degli altri). Deriviamo dai valori ritornati.
@@ -93,12 +97,16 @@ export function EventComplianceTab({ event }) {
   useEffect(() => {
     let cancelled = false
     setLoadError(false)
+    setSuggestionsLoading(true)
     Promise.all([
       fetchTovList({ evento_id: event.id }),
       fetchInterazioni({ evento_id: event.id }),
       fetchHcpList(),
     ]).then(results => {
       if (!cancelled && results.some(r => r?.error)) setLoadError(true)
+    })
+    suggestTovFromEvent(event).then(({ data }) => {
+      if (!cancelled) { setSuggestions(data || []); setSuggestionsLoading(false) }
     })
     return () => { cancelled = true }
   }, [event.id])
@@ -144,6 +152,9 @@ export function EventComplianceTab({ event }) {
           </Button>
         </div>
       </div>
+
+      {/* ToV suggeriti dal ponte ospitalità HCP → trasferimenti di valore */}
+      <TovSuggestions suggestions={suggestions} loading={suggestionsLoading} />
 
       {/* ToV list */}
       <div className="space-y-3">
