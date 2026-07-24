@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useEventsStore } from '../../hooks/useEvents'
+import { useActivitiesStore, notifyTemplateInstantiation } from '../../hooks/useActivities'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -16,6 +17,7 @@ export function EventApprovalBar({ event, onUpdate }) {
   const approveEvent = useEventsStore(s => s.approveEvent)
   const rejectEvent = useEventsStore(s => s.rejectEvent)
   const canAreaManagerApprove = useEventsStore(s => s.canAreaManagerApprove)
+  const instantiateTemplate = useActivitiesStore(s => s.instantiateTemplate)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const hasRole = useAuthStore(s => s.hasRole)
   const addToast = useToastStore(s => s.add)
@@ -39,9 +41,20 @@ export function EventApprovalBar({ event, onUpdate }) {
   const handleApprove = async () => {
     setLoading(true)
     const { error } = await approveEvent(event.id)
+    if (error) {
+      setLoading(false)
+      addToast(error, 'error')
+      return
+    }
+    // Istanzia la checklist dal modello (tipo + modalità). Non-bloccante: l'evento
+    // è già approvato, un modello mancante o un errore qui non annullano l'esito.
+    const { error: tmplError, noTemplate, added } = await instantiateTemplate(
+      event.id, event.tipo_evento, event.modalita, event.data_inizio
+    )
     setLoading(false)
-    if (error) addToast(error, 'error')
-    else { addToast('Evento approvato!', 'success'); onUpdate?.() }
+    addToast('Evento approvato!', 'success')
+    notifyTemplateInstantiation(addToast, { noTemplate, tmplError, added })
+    onUpdate?.()
   }
 
   const handleReject = async () => {

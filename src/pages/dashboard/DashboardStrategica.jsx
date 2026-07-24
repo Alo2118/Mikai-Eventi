@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useEventsStore } from '../../hooks/useEvents'
-import { useActivitiesStore } from '../../hooks/useActivities'
+import { useActivitiesStore, notifyTemplateInstantiation } from '../../hooks/useActivities'
 import { useAnalyticsStore } from '../../hooks/useAnalytics'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton'
@@ -94,6 +94,7 @@ export function DashboardStrategica() {
   const [semaphores, setSemaphores] = useState({})
   const approveEvent = useEventsStore(s => s.approveEvent)
   const rejectEvent = useEventsStore(s => s.rejectEvent)
+  const instantiateTemplate = useActivitiesStore(s => s.instantiateTemplate)
   const permissions = useAuthStore(s => s.permissions)
   const profile = useAuthStore(s => s.profile)
   const addToast = useToastStore(s => s.add)
@@ -168,11 +169,25 @@ export function DashboardStrategica() {
   // Actions
   const handleApprove = async () => {
     setApproving(true)
+    // Cattura i dati evento prima di azzerare approvingId: servono per il modello.
+    const target = proposti.find(e => e.id === approvingId)
     const { error } = await approveEvent(approvingId)
+    if (error) {
+      setApproving(false)
+      setApprovingId(null)
+      addToast('Errore nell\'approvazione. Riprova.', 'error')
+      return
+    }
+    // Istanzia la checklist dal modello (non-bloccante): l'evento è già approvato.
+    if (target) {
+      const { error: tmplError, noTemplate, added } = await instantiateTemplate(
+        target.id, target.tipo_evento, target.modalita, target.data_inizio
+      )
+      notifyTemplateInstantiation(addToast, { noTemplate, tmplError, added })
+    }
     setApproving(false)
     setApprovingId(null)
-    if (error) addToast('Errore nell\'approvazione. Riprova.', 'error')
-    else addToast('Evento approvato!', 'success')
+    addToast('Evento approvato!', 'success')
   }
 
   const handleReject = async () => {

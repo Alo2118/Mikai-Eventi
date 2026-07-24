@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { useEventsStore } from '../../hooks/useEvents'
+import { useEventsStore, computeGatePronto } from '../../hooks/useEvents'
 import { useAuthStore } from '../../hooks/useAuth'
 import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
@@ -167,7 +167,6 @@ export function EventiDetail() {
   const { labels: tipoLabels, eventTypes } = useEventTypes()
   const [event, setEvent] = useState(null)
   const eventType = useMemo(() => event ? (eventTypes.find(t => t.codice === event.tipo_evento) || null) : null, [eventTypes, event?.tipo_evento])
-  const shippingEnabled = useMemo(() => richiedeSpedizione(eventType) && event?.modalita !== 'contributo', [eventType, event?.modalita])
   const hotelTracked = useMemo(() => richiedeHotel(eventType), [eventType])
   const trasportiTracked = useMemo(() => richiedeTrasporti(eventType), [eventType])
   const [loading, setLoading] = useState(true)
@@ -231,6 +230,25 @@ export function EventiDetail() {
       ])
     }
   }, [event?.id])
+
+  // Gate in_preparazione → pronto: calcolo SINCRONO PURO sui dati già caricati
+  // (event, attività, materiale, tipo evento). Nessuna query: il pulsante di
+  // avanzamento si sblocca all'istante appena i requisiti sono soddisfatti, senza
+  // finestra async in cui il gate è null (quindi mai un disabled senza spiegazione).
+  // Gli stati diversi da in_preparazione avanzano liberamente (il gate 'concluso'
+  // resta gestito in EventStatusFlow via checkGateConcluded).
+  const gate = useMemo(() => {
+    if (!event || !['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(event.stato)) {
+      return { canAdvance: false, blockerText: null, noActivities: false }
+    }
+    if (event.stato !== 'in_preparazione') {
+      return { canAdvance: true, blockerText: null, noActivities: false }
+    }
+    const { canAdvance, blockerText, hasActivities } = computeGatePronto({
+      event, activities: eventActivities, materials: eventMaterials, eventType,
+    })
+    return { canAdvance, blockerText, noActivities: !hasActivities }
+  }, [event, eventActivities, eventMaterials, eventType])
 
   const tabStatuses = useMemo(() => {
     if (!event) return {}
@@ -437,26 +455,9 @@ export function EventiDetail() {
           <EventStatusFlow
             event={event}
             onUpdate={refreshEvent}
-            canAdvance={(() => {
-              if (!['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(event.stato)) return false
-              if (event.stato === 'in_preparazione') {
-                const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata')
-                const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
-                const shipped = !shippingEnabled || !!event.spedizione_data
-                return mandatoryIncomplete.length === 0 && (!hasMat || shipped)
-              }
-              return true
-            })()}
-            blockerText={(() => {
-              if (event.stato !== 'in_preparazione') return null
-              const mandatoryIncomplete = eventActivities.filter(a => a.obbligatoria && !a.post_evento && a.stato !== 'completata' && a.stato !== 'disattivata')
-              const hasMat = eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0
-              const shipped = !shippingEnabled || !!event.spedizione_data
-              if (mandatoryIncomplete.length > 0 && hasMat && !shipped) return 'Completa le attività e registra la spedizione'
-              if (mandatoryIncomplete.length > 0) return 'Completa le attività obbligatorie'
-              if (hasMat && !shipped) return 'Registra la spedizione del materiale'
-              return null
-            })()}
+            canAdvance={gate.canAdvance}
+            blockerText={gate.blockerText}
+            noActivities={gate.noActivities}
             hasContent={eventActivities.length > 0 || eventMaterials.filter(m => m.stato !== 'rifiutato').length > 0 || staff.length > 0 || participants.length > 0}
           />
         </div>

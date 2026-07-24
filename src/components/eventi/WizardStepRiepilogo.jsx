@@ -1,13 +1,40 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MODALITA_EVENTO, FORM_CONTAINER_STYLE, INPUT_STYLE, TEXTAREA_STYLE } from '../../lib/constants'
 import { useEventTypes } from '../../hooks/useEventTypes'
-import { formatDateRange } from '../../lib/date-utils'
+import { useActivityTemplatesStore } from '../../hooks/useActivityTemplates'
+import { formatDateRange, daysBetween, todayISO } from '../../lib/date-utils'
 import { FormField } from '../ui/FormField'
+import { Icon } from '../ui/Icon'
+import { FEEDBACK_ICONS } from '../../lib/icons'
 
 export function WizardStepRiepilogo({ data, onChange, promotoreNome, managerNome }) {
   const [touched, setTouched] = useState({})
+  const [tempiStretti, setTempiStretti] = useState(false)
   const { labels: tipoLabels } = useEventTypes()
+  const fetchTemplatePreview = useActivityTemplatesStore(s => s.fetchTemplatePreview)
   const touch = (field) => setTouched(t => ({ ...t, [field]: true }))
+
+  // Avviso "tempi stretti": se l'evento è proposto con meno giorni di anticipo del
+  // massimo lead-time richiesto dal template (max |giorni_prima_evento| tra gli item
+  // che scadono prima dell'evento), alcune attività risulteranno subito urgenti.
+  useEffect(() => {
+    let active = true
+    if (!data.tipo_evento || !data.modalita || !data.data_inizio) {
+      setTempiStretti(false)
+      return
+    }
+    fetchTemplatePreview(data.tipo_evento, data.modalita).then(({ data: items }) => {
+      if (!active) return
+      if (!items?.length) { setTempiStretti(false); return }
+      const maxLeadTime = items.reduce(
+        (max, i) => (i.giorni_prima_evento < 0 ? Math.max(max, -i.giorni_prima_evento) : max),
+        0
+      )
+      const giorniAllEvento = daysBetween(data.data_inizio, todayISO())
+      setTempiStretti(giorniAllEvento < maxLeadTime)
+    })
+    return () => { active = false }
+  }, [data.tipo_evento, data.modalita, data.data_inizio, fetchTemplatePreview])
 
   const budgetError = touched.budget_previsto && data.budget_previsto !== '' && data.budget_previsto !== null && Number(data.budget_previsto) < 0
     ? 'Il budget non può essere negativo'
@@ -57,6 +84,18 @@ export function WizardStepRiepilogo({ data, onChange, promotoreNome, managerNome
           </div>
         )}
       </div>
+
+      {tempiStretti && (
+        <div
+          className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 mb-6"
+          role="status"
+        >
+          <Icon icon={FEEDBACK_ICONS.warning} size={18} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+          <span>
+            <span className="font-semibold">Tempi stretti:</span> l'evento è vicino, alcune attività di preparazione risulteranno già urgenti. Puoi comunque inviare la proposta.
+          </span>
+        </div>
+      )}
 
       <div className="space-y-4">
         <FormField label="Budget previsto (€)" hint="Facoltativo" error={budgetError}>

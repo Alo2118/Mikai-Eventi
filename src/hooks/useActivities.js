@@ -2,6 +2,19 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { nowISO, todayISO, calculateDeadline } from '../lib/date-utils'
 
+// Presentazione toast condivisa per l'esito di instantiateTemplate (stesso contratto
+// di ritorno: { noTemplate } / { tmplError } / { added }). Colocata col contratto per
+// non duplicare le copy tra EventApprovalBar e DashboardStrategica.
+export function notifyTemplateInstantiation(addToast, { noTemplate, tmplError, added } = {}) {
+  if (noTemplate) {
+    addToast('Nessun modello attività per questo tipo: crea le attività manualmente.', 'info')
+  } else if (tmplError) {
+    addToast('Attività dal modello non create. Puoi crearle dalla tab Preparazione.', 'warning')
+  } else if (added > 0) {
+    addToast(`${added} attività create dal modello.`, 'success')
+  }
+}
+
 export const useActivitiesStore = create((set, get) => ({
   // State — separate keys to avoid collisions between views
   eventActivities: [],     // activities for a single event (convergence dashboard)
@@ -166,40 +179,89 @@ export const useActivitiesStore = create((set, get) => ({
     return map
   },
 
+  // Istanzia la checklist dal modello per (tipo_evento, modalità).
+  // ADDITIVA e IDEMPOTENTE: non cancella nulla (le attività custom restano),
+  // inserisce solo gli item del template non ancora presenti per l'evento.
+  // Contratto di ritorno:
+  //  - { data, error: null, added }        → ok (added può essere 0 se già tutto presente)
+  //  - { data: null, error: null, noTemplate: true } → nessun modello (non-bloccante)
+  //  - { data: null, error: '…' }          → errore di query (bloccante per il chiamante)
   instantiateTemplate: async (eventId, tipoEvento, modalita, dataInizio) => {
-    const { error: delError } = await supabase
-      .from('event_activities')
-      .delete()
-      .eq('event_id', eventId)
-    if (delError) return { data: null, error: delError.message }
-
-    const { data: templates } = await supabase
+    const { data: templates, error: tmplError } = await supabase
       .from('event_templates')
       .select('id')
       .eq('tipo_evento', tipoEvento)
       .eq('modalita', modalita)
       .limit(1)
-    if (!templates?.length) return { data: null, error: `Nessun template per ${tipoEvento} ${modalita}. Crealo in Amministrazione → Template.` }
+    if (tmplError) return { data: null, error: tmplError.message }
+    // Nessun modello per questa combinazione: non è un errore, il chiamante crea a mano.
+    if (!templates?.length) return { data: null, error: null, noTemplate: true }
 
-    const { data: items } = await supabase
+    const { data: items, error: itemsError } = await supabase
       .from('template_items')
       .select('*')
       .eq('template_id', templates[0].id)
       .eq('tipo', 'checklist')
       .order('ordine')
+    if (itemsError) return { data: null, error: itemsError.message }
+    if (!items || items.length === 0) {
+      await get().fetchEventActivities(eventId)
+      return { data: [], error: null, added: 0 }
+    }
 
-    if (!items || items.length === 0) return { data: null, error: 'Template vuoto' }
+    // Attività già presenti: base per idempotenza (niente doppioni) e per il seeding
+    // di ordine (append in coda alla categoria) e dipendenze (link verso item esistenti).
+    // template_item_id è il link robusto; il match (categoria, descrizione) è una guardia
+    // anti-doppione SOLO tra righe esse stesse template-originate — un'attività custom con
+    // lo stesso testo NON deve mascherare l'item del modello (perderebbe obbligatoria/
+    // deadline/tipo_verifica). dipende_da serve per il ricollegamento delle dipendenze.
+    const { data: existing, error: existingError } = await supabase
+      .from('event_activities')
+      .select('id, template_item_id, categoria, descrizione, ordine, dipende_da')
+      .eq('event_id', eventId)
+    if (existingError) return { data: null, error: existingError.message }
+
+    const existingByTemplateItem = {}
+    const existingKeys = new Set()
+    const maxOrdineByCat = {}
+    const currentDepByActivity = {}
+    for (const a of (existing || [])) {
+      currentDepByActivity[a.id] = a.dipende_da ?? null
+      // Solo le righe template-originate contano per l'idempotenza logica.
+      if (a.template_item_id) {
+        existingByTemplateItem[a.template_item_id] = a.id
+        existingKeys.add(`${a.categoria || 'organizzazione'}||${a.descrizione}`)
+      }
+      const cat = a.categoria || 'organizzazione'
+      if (a.ordine != null) maxOrdineByCat[cat] = Math.max(maxOrdineByCat[cat] ?? -1, a.ordine)
+    }
+
+    // Solo gli item non ancora presenti (per link o per categoria+descrizione).
+    const newItems = items.filter(item =>
+      !existingByTemplateItem[item.id] &&
+      !existingKeys.has(`${item.categoria || 'organizzazione'}||${item.descrizione}`)
+    )
+    if (newItems.length === 0) {
+      await get().fetchEventActivities(eventId)
+      return { data: [], error: null, added: 0 }
+    }
 
     const eventDate = new Date(dataInizio)
-    const templateIdMap = {}
+    const today = todayISO()
 
-    // Semina l'ordine manuale dell'evento dall'ordine del template (già ordinato
-    // per `ordine` dalla query), numerato per categoria.
+    // Semina l'ordine manuale appendendo in coda alla categoria: parte da
+    // max(ordine esistente)+1, poi numera progressivamente i nuovi item.
     const ordineByCat = {}
-    const activitiesToInsert = items.map(item => {
+    const activitiesToInsert = newItems.map(item => {
       const categoria = item.categoria || 'organizzazione'
-      const ordine = ordineByCat[categoria] ?? 0
-      ordineByCat[categoria] = ordine + 1
+      const base = (maxOrdineByCat[categoria] ?? -1) + 1
+      const offset = ordineByCat[categoria] ?? 0
+      ordineByCat[categoria] = offset + 1
+      // Clamp lead-time: per eventi proposti all'ultimo, le deadline calcolate che
+      // cadrebbero già nel passato vengono portate a oggi, così le attività risultano
+      // "urgenti/oggi" invece che nate già in ritardo (semaforo rosso demoralizzante).
+      const rawDeadline = calculateDeadline(eventDate, item.giorni_prima_evento)
+      const deadline = rawDeadline && rawDeadline < today ? today : rawDeadline
       return {
         event_id: eventId,
         template_item_id: item.id,
@@ -207,12 +269,12 @@ export const useActivitiesStore = create((set, get) => ({
         categoria: item.categoria,
         permesso_responsabile: item.permesso_responsabile,
         stato: 'da_fare',
-        deadline: calculateDeadline(eventDate, item.giorni_prima_evento),
+        deadline,
         obbligatoria: item.obbligatorio,
         post_evento: item.post_evento || false,
         tipo_verifica: item.tipo_verifica || 'manuale',
         verifica_automatica: item.verifica_automatica,
-        ordine,
+        ordine: base + offset,
       }
     })
 
@@ -220,30 +282,44 @@ export const useActivitiesStore = create((set, get) => ({
       .from('event_activities')
       .insert(activitiesToInsert)
       .select()
-
     if (error) return { data: null, error: error.message }
 
-    if (inserted) {
-      for (const act of inserted) {
-        if (act.template_item_id) templateIdMap[act.template_item_id] = act.id
-      }
-      const depUpdates = items
-        .filter(item => item.dipende_da && templateIdMap[item.dipende_da] && templateIdMap[item.id])
-        .map(item => supabase
+    // Mappa template_item_id → activity id combinando esistenti + nuovi, così le
+    // dipendenze si ricostruiscono anche verso item già presenti nell'evento.
+    const templateIdMap = { ...existingByTemplateItem }
+    for (const act of (inserted || [])) {
+      if (act.template_item_id) templateIdMap[act.template_item_id] = act.id
+      currentDepByActivity[act.id] = act.dipende_da ?? null
+    }
+    // Indice item modello per id, per risalire alla dipendenza dichiarata.
+    const itemById = {}
+    for (const item of items) itemById[item.id] = item
+    // Collega le dipendenze per OGNI attività template-originata (nuova o già presente)
+    // il cui item modello dichiara un dipende_da ora risolvibile nell'evento: copre anche
+    // il caso di un'attività preesistente che dipende da un item appena inserito. Salta se
+    // il link corrente è già quello giusto (niente update ridondanti).
+    const depUpdates = []
+    for (const [templateItemId, activityId] of Object.entries(templateIdMap)) {
+      const item = itemById[templateItemId]
+      if (!item?.dipende_da) continue
+      const targetId = templateIdMap[item.dipende_da]
+      if (!targetId || currentDepByActivity[activityId] === targetId) continue
+      depUpdates.push(
+        supabase
           .from('event_activities')
-          .update({ dipende_da: templateIdMap[item.dipende_da] })
-          .eq('id', templateIdMap[item.id])
-        )
-      if (depUpdates.length > 0) {
-        const results = await Promise.all(depUpdates)
-        results.forEach(r => {
-          if (r.error) console.warn('Errore nel collegamento dipendenza:', r.error.message)
-        })
-      }
+          .update({ dipende_da: targetId })
+          .eq('id', activityId)
+      )
+    }
+    if (depUpdates.length > 0) {
+      const results = await Promise.all(depUpdates)
+      results.forEach(r => {
+        if (r.error) console.warn('Errore nel collegamento dipendenza:', r.error.message)
+      })
     }
 
     await get().fetchEventActivities(eventId)
-    return { data: inserted, error: null }
+    return { data: inserted, error: null, added: inserted?.length || 0 }
   },
 
   updateActivity: async (id, updates) => {

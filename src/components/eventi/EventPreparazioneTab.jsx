@@ -237,7 +237,7 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
 
   async function handleConfirmTemplate() {
     setShowTemplatePreview(false)
-    const { error } = await instantiateTemplate(
+    const { error, noTemplate, added } = await instantiateTemplate(
       event.id,
       event.tipo_evento,
       event.modalita,
@@ -245,8 +245,13 @@ export function EventPreparazioneTab({ event, onShowPackingList, onUpdate }) {
     )
     if (error) {
       addToast(error, 'warning')
-    } else {
+    } else if (noTemplate) {
+      addToast('Nessun modello attività per questo tipo: crea le attività manualmente.', 'info')
+    } else if (added > 0) {
       addToast('Attività create dal template.', 'success')
+    } else {
+      // Idempotenza: erano già tutte presenti (es. istanziate all'approvazione).
+      addToast('Le attività erano già presenti.', 'success')
     }
   }
 
