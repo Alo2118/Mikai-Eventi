@@ -53,6 +53,12 @@ export const useAuthStore = create((set, get) => ({
         set({ profile: null, permissions: [], profileError: 'Non siamo riusciti a caricare il tuo profilo. Riprova.' })
         return
       }
+      // Account disattivato: RLS revoca ruolo/permessi lato DB. Non impostare il
+      // profilo, altrimenti l'utente entrerebbe in un'app vuota e incoerente.
+      if (profileRes.data.attivo === false) {
+        set({ profile: null, permissions: [], profileError: 'Il tuo account è stato disattivato. Contatta l\'amministratore.' })
+        return
+      }
       set({
         profile: profileRes.data,
         permissions: (permsRes.data || []).map(p => p.permission),
@@ -66,8 +72,6 @@ export const useAuthStore = create((set, get) => ({
   hasPermission: (perm) => get().profile?.ruolo === 'admin' || get().permissions.includes(perm),
 
   hasRole: (...roles) => roles.includes(get().profile?.ruolo),
-
-  hasOperativeRole: (role) => (get().profile?.ruoli_operativi || []).includes(role),
 
   signIn: async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })

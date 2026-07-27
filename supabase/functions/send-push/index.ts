@@ -29,6 +29,7 @@
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
+import { requireServiceRole } from '../_shared/require-service-role.ts'
 
 // Tipi notifica "critici" spinti via push in scan mode. Valori allineati al
 // CHECK notifications_tipo_check (vedi migrazioni notification_*).
@@ -266,6 +267,11 @@ async function runExplicit(supabase: SupabaseClient, hasVapid: boolean, body: Re
 
 Deno.serve(async (req) => {
   try {
+    // Solo il processo interno (cron/service role) può inviare push. Blocca anon
+    // e utenti autenticati: impedisce push spoofate con la anon key pubblica.
+    const denied = requireServiceRole(req)
+    if (denied) return denied
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
