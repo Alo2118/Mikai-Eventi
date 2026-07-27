@@ -361,15 +361,6 @@ export const PERMESSO_BADGE_COLORE = {
   gestione_staff_evento: 'gray',
 }
 
-export const RUOLI_OPERATIVI = {
-  segreteria_org: 'Segreteria organizzativa',
-  marketing: 'Marketing',
-  logistica_spedizioni: 'Logistica spedizioni',
-  logistica_ordini: 'Logistica ordini',
-  amministrazione: 'Amministrazione',
-  formatore: 'Formatore',
-}
-
 export const TIPO_MATERIALE = {
   demo_kit: 'Kit demo',
   montaggio: 'Montaggio',

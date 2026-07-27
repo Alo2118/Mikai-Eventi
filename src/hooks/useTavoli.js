@@ -76,11 +76,11 @@ async function notifyTavoliMaterialChange(eventId, changeType, count) {
     removed: `Un prodotto è stato rimosso dai tavoli — verificare la lista materiale`,
   }
 
-  // Notify warehouse staff — batch insert
+  // Notify warehouse staff — batch insert.
+  // RPC evita il blocco della nuova RLS su user_permissions (un non-admin
+  // leggerebbe solo i propri permessi → destinatari mancanti).
   const { data: warehouseUsers } = await supabase
-    .from('user_permissions')
-    .select('user_id')
-    .in('permission', ['gestione_magazzino', 'approva_materiale'])
+    .rpc('get_users_with_permissions', { perms: ['gestione_magazzino', 'approva_materiale'] })
 
   const notifRows = (warehouseUsers || [])
     .filter(u => u.user_id !== user.id)

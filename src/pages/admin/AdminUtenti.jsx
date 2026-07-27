@@ -11,9 +11,13 @@ import { Breadcrumb } from '../../components/layout/Breadcrumb'
 import { MobileHeader } from '../../components/layout/MobileHeader'
 import { Icon } from '../../components/ui/Icon'
 import { ACTION_ICONS, ADMIN_ICONS } from '../../lib/icons'
-import { RUOLI, PERMESSI, RUOLI_OPERATIVI, ROLE_PERMISSION_PRESETS, INPUT_STYLE, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
+import { RUOLI, PERMESSI, ROLE_PERMISSION_PRESETS, INPUT_STYLE, SELECT_STYLE, CARD_STYLE } from '../../lib/constants'
 
 const CHECK = 'w-5 h-5 rounded border-gray-300 text-mikai-400 focus:ring-mikai-400'
+// Permessi sensibili: solo un admin può concederli/revocarli (il DB li preserva comunque)
+const SENSITIVE_PERMS = ['gestione_utenti', 'compliance']
+// Ruoli privilegiati: assegnabili solo da un admin
+const PRIVILEGED_ROLES = ['admin', 'direzione']
 
 function generatePassword(nome) {
   return (nome || 'utente').toLowerCase().replace(/\s+/g, '') + '@@@'
@@ -81,13 +85,17 @@ export function AdminUtenti() {
 
   const currentUserId = useAuthStore(s => s.user?.id)
   const reloadProfile = useAuthStore(s => s.loadProfile)
+  const editorRuolo = useAuthStore(s => s.profile?.ruolo)
+  const editorIsAdmin = editorRuolo === 'admin'
+  // Un editor non-admin non può modificare i permessi di se stesso (bloccato dal DB)
+  const permsLocked = !editorIsAdmin && !!editing && editing.id === currentUserId
+  const roleAllowed = ([k]) => editorIsAdmin || !PRIVILEGED_ROLES.includes(k)
 
   const handleSave = async () => {
     setSaving(true)
     const payload = {
       ruolo: editing.ruolo || null,
       attivo: editing.attivo !== false,
-      ruoli_operativi: editing.ruoli_operativi || [],
       zone_id: editing.zone_id || null,
     }
     const { error } = await updateUser(editing.id, payload)
@@ -144,12 +152,6 @@ export function AdminUtenti() {
     )
   }
 
-  const toggleRuoloOperativo = (ruolo) => {
-    const current = editing.ruoli_operativi || []
-    const updated = current.includes(ruolo) ? current.filter(r => r !== ruolo) : [...current, ruolo]
-    setEditing({ ...editing, ruoli_operativi: updated })
-  }
-
   const handleResetPassword = async () => {
     if (!editing) return
     const tempPw = generatePassword(editing.nome)
@@ -170,14 +172,25 @@ export function AdminUtenti() {
       <div className={CARD_STYLE + ' md:p-6'}>
         <h3 className="text-base font-semibold text-gray-900 mb-3">Permessi</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {Object.entries(PERMESSI).map(([k, v]) => (
-            <label key={k} className="flex items-center gap-2 text-base text-gray-700 cursor-pointer min-h-[48px]">
-              <input type="checkbox" className={CHECK} checked={selectedPermissions.includes(k)} onChange={() => togglePermission(k)} />
-              {v}
-            </label>
-          ))}
+          {Object.entries(PERMESSI).map(([k, v]) => {
+            const sensitiveLocked = !editorIsAdmin && SENSITIVE_PERMS.includes(k)
+            const disabled = permsLocked || sensitiveLocked
+            return (
+              <label key={k} className={`flex items-center gap-2 text-base min-h-[48px] ${disabled ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 cursor-pointer'}`}>
+                <input type="checkbox" className={CHECK} checked={selectedPermissions.includes(k)} onChange={() => togglePermission(k)} disabled={disabled} />
+                {v}
+                {sensitiveLocked && <span className="text-xs text-gray-400">(solo admin)</span>}
+              </label>
+            )
+          })}
         </div>
-        <p className="text-sm text-gray-400 mt-3">I permessi sono pre-compilati dal ruolo. Puoi modificarli manualmente.</p>
+        {permsLocked ? (
+          <p className="text-sm text-amber-600 mt-3">Non puoi modificare i tuoi stessi permessi. Deve farlo un altro amministratore.</p>
+        ) : !editorIsAdmin ? (
+          <p className="text-sm text-gray-400 mt-3">I permessi sono pre-compilati dal ruolo. Puoi modificarli manualmente. Solo un amministratore può gestire i permessi sensibili (gestione utenti, compliance).</p>
+        ) : (
+          <p className="text-sm text-gray-400 mt-3">I permessi sono pre-compilati dal ruolo. Puoi modificarli manualmente.</p>
+        )}
       </div>
     )
   }
@@ -237,7 +250,7 @@ export function AdminUtenti() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
                   <select className={SELECT_STYLE} value={newUser.ruolo} onChange={e => handleNewRuoloChange(e.target.value)}>
-                    {Object.entries(RUOLI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {Object.entries(RUOLI).filter(roleAllowed).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 {needsZone(newUser.ruolo) && (
@@ -272,8 +285,16 @@ export function AdminUtenti() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
                   <select className={SELECT_STYLE} value={editing.ruolo || ''} onChange={e => handleEditRuoloChange(e.target.value)}>
                     <option value="">-- Seleziona --</option>
-                    {Object.entries(RUOLI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {Object.entries(RUOLI)
+                      // Mantieni visibile il ruolo attuale ma disabilita quelli privilegiati per i non-admin
+                      .filter(([k]) => roleAllowed([k]) || k === editing.ruolo)
+                      .map(([k, v]) => (
+                        <option key={k} value={k} disabled={!roleAllowed([k])}>{v}</option>
+                      ))}
                   </select>
+                  {!editorIsAdmin && (
+                    <p className="text-sm text-gray-400 mt-1">Solo un amministratore può assegnare i ruoli Amministratore e Direzione.</p>
+                  )}
                 </div>
                 {needsZone(editing.ruolo) && (
                   <div>
@@ -314,18 +335,6 @@ export function AdminUtenti() {
                   <p className="text-xs text-green-600">Comunicala all'utente.</p>
                 </div>
               )}
-            </div>
-
-            <div className={CARD_STYLE + ' md:p-6'}>
-              <h3 className="text-base font-semibold text-gray-900 mb-3">Ruoli operativi</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {Object.entries(RUOLI_OPERATIVI).map(([k, v]) => (
-                  <label key={k} className="flex items-center gap-2 text-base text-gray-700 cursor-pointer min-h-[48px]">
-                    <input type="checkbox" className={CHECK} checked={(editing.ruoli_operativi || []).includes(k)} onChange={() => toggleRuoloOperativo(k)} />
-                    {v}
-                  </label>
-                ))}
-              </div>
             </div>
 
             <PermissionSection />
