@@ -15,6 +15,54 @@ export function notifyTemplateInstantiation(addToast, { noTemplate, tmplError, a
   }
 }
 
+// Query condivisa per lo stato attività di più eventi. Semafori e readiness usano
+// gli stessi identici record: la centralizziamo per non emettere due volte la stessa
+// richiesta quando una pagina calcola entrambi (vedi fetchActivityReadiness).
+async function fetchActivityRows(eventIds) {
+  const { data, error } = await supabase
+    .from('event_activities')
+    .select('event_id, stato, obbligatoria, post_evento, deadline')
+    .in('event_id', eventIds)
+    .neq('stato', 'disattivata')
+  if (error || !data) return []
+  return data
+}
+
+function reduceSemaphores(rows, eventIds) {
+  const grouped = {}
+  for (const row of rows) {
+    if (!grouped[row.event_id]) grouped[row.event_id] = []
+    grouped[row.event_id].push(row)
+  }
+  const today = todayISO()
+  const semaphores = {}
+  for (const eid of eventIds) {
+    const activities = grouped[eid] || []
+    const mandatory = activities.filter(a => a.obbligatoria && !a.post_evento)
+    if (mandatory.length === 0) { semaphores[eid] = 'yellow'; continue }
+    const overdue = mandatory.some(a =>
+      (a.stato === 'da_fare' || a.stato === 'in_corso') &&
+      a.deadline && a.deadline < today
+    )
+    const allDone = mandatory.every(a => a.stato === 'completata')
+    semaphores[eid] = overdue ? 'red' : allDone ? 'green' : 'yellow'
+  }
+  return semaphores
+}
+
+function reduceActivityStatus(rows) {
+  const today = todayISO()
+  const map = {}
+  for (const a of rows) {
+    if (a.post_evento) continue
+    if (!map[a.event_id]) map[a.event_id] = { total: 0, completate: 0, inRitardo: 0 }
+    map[a.event_id].total++
+    if (a.stato === 'completata') map[a.event_id].completate++
+    if (a.obbligatoria && a.deadline && a.deadline < today && a.stato !== 'completata') map[a.event_id].inRitardo++
+  }
+  return map
+}
+
 export const useActivitiesStore = create((set, get) => ({
   // State — separate keys to avoid collisions between views
   eventActivities: [],     // activities for a single event (convergence dashboard)
@@ -131,52 +179,21 @@ export const useActivitiesStore = create((set, get) => ({
 
   fetchEventSemaphores: async (eventIds) => {
     if (!eventIds?.length) return {}
-    const { data } = await supabase
-      .from('event_activities')
-      .select('event_id, stato, obbligatoria, post_evento, deadline')
-      .in('event_id', eventIds)
-      .neq('stato', 'disattivata')
-
-    const grouped = {}
-    for (const row of (data || [])) {
-      if (!grouped[row.event_id]) grouped[row.event_id] = []
-      grouped[row.event_id].push(row)
-    }
-
-    const today = todayISO()
-    const semaphores = {}
-    for (const eid of eventIds) {
-      const activities = grouped[eid] || []
-      const mandatory = activities.filter(a => a.obbligatoria && !a.post_evento)
-      if (mandatory.length === 0) { semaphores[eid] = 'yellow'; continue }
-      const overdue = mandatory.some(a =>
-        (a.stato === 'da_fare' || a.stato === 'in_corso') &&
-        a.deadline && a.deadline < today
-      )
-      const allDone = mandatory.every(a => a.stato === 'completata')
-      semaphores[eid] = overdue ? 'red' : allDone ? 'green' : 'yellow'
-    }
-    return semaphores
+    return reduceSemaphores(await fetchActivityRows(eventIds), eventIds)
   },
 
   fetchBatchActivityStatus: async (eventIds) => {
     if (!eventIds?.length) return {}
-    const { data, error } = await supabase
-      .from('event_activities')
-      .select('event_id, stato, obbligatoria, post_evento, deadline')
-      .in('event_id', eventIds)
-      .neq('stato', 'disattivata')
-    if (error || !data) return {}
-    const today = todayISO()
-    const map = {}
-    for (const a of data) {
-      if (a.post_evento) continue
-      if (!map[a.event_id]) map[a.event_id] = { total: 0, completate: 0, inRitardo: 0 }
-      map[a.event_id].total++
-      if (a.stato === 'completata') map[a.event_id].completate++
-      if (a.obbligatoria && a.deadline && a.deadline < today && a.stato !== 'completata') map[a.event_id].inRitardo++
-    }
-    return map
+    return reduceActivityStatus(await fetchActivityRows(eventIds))
+  },
+
+  // Semafori + readiness in una sola query: da usare quando una pagina ha bisogno
+  // di entrambi per gli stessi eventi (EventiList, DashboardOperativa) così da non
+  // interrogare event_activities due volte.
+  fetchActivityReadiness: async (eventIds) => {
+    if (!eventIds?.length) return { semaphores: {}, status: {} }
+    const rows = await fetchActivityRows(eventIds)
+    return { semaphores: reduceSemaphores(rows, eventIds), status: reduceActivityStatus(rows) }
   },
 
   // Istanzia la checklist dal modello per (tipo_evento, modalità).
