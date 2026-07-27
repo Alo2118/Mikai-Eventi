@@ -8,11 +8,16 @@ export function SearchInput({ value, onChange, placeholder = 'Cerca...', delay =
   useEffect(() => { setLocal(value) }, [value])
 
   useEffect(() => {
+    // Emette onChange SOLO quando l'utente ha realmente modificato l'input (local
+    // diverge dal value del parent). Salta il mount e la ri-sincronizzazione dal
+    // parent: senza questa guardia il debounce sparava onChange(value) al mount,
+    // causando un secondo fetch a vuoto su ogni lista che filtra lato server.
+    if (local === value) return
     const timer = setTimeout(() => {
       onChange(local)
     }, delay)
     return () => clearTimeout(timer)
-  }, [local, delay])
+  }, [local, value, delay])
 
   function handleClear() {
     setLocal('')

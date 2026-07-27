@@ -89,8 +89,7 @@ export function DashboardOperativa({ warehouseOnly = false }) {
   const fetchCompletedToday = useActivitiesStore(s => s.fetchCompletedToday)
   const completedTodayCount = useActivitiesStore(s => s.completedTodayCount)
   const completedTodayTeamCount = useActivitiesStore(s => s.completedTodayTeamCount)
-  const fetchEventSemaphores = useActivitiesStore(s => s.fetchEventSemaphores)
-  const fetchBatchActivityStatus = useActivitiesStore(s => s.fetchBatchActivityStatus)
+  const fetchActivityReadiness = useActivitiesStore(s => s.fetchActivityReadiness)
 
   // Auth
   const permissions = useAuthStore(s => s.permissions)
@@ -152,10 +151,10 @@ export function DashboardOperativa({ warehouseOnly = false }) {
     const promises = [
       fetchCompletedToday(user?.id).catch(() => null),
       eventIds.length > 0
-        ? fetchEventSemaphores(eventIds).then(setEventSemaphores).catch(() => null)
-        : Promise.resolve(),
-      eventIds.length > 0
-        ? fetchBatchActivityStatus(eventIds).then(setActivityStatus).catch(() => null)
+        ? fetchActivityReadiness(eventIds).then(({ semaphores, status }) => {
+            setEventSemaphores(semaphores)
+            setActivityStatus(status)
+          }).catch(() => null)
         : Promise.resolve(),
     ]
     if (showMaterial) {

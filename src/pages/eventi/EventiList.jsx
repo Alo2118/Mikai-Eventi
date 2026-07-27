@@ -65,8 +65,7 @@ export function EventiList() {
   const user = useAuthStore(s => s.user)
   const hasPermission = useAuthStore(s => s.hasPermission)
   const ruolo = useAuthStore(s => s.profile?.ruolo)
-  const fetchEventSemaphores = useActivitiesStore(s => s.fetchEventSemaphores)
-  const fetchBatchActivityStatus = useActivitiesStore(s => s.fetchBatchActivityStatus)
+  const fetchActivityReadiness = useActivitiesStore(s => s.fetchActivityReadiness)
   const fetchBatchMaterialStatus = useMaterialsStore(s => s.fetchBatchMaterialStatus)
   const fetchBatchLogisticsStatus = useLogisticsStore(s => s.fetchBatchLogisticsStatus)
   const fetchBatchCostsStatus = useCostsStore(s => s.fetchBatchCostsStatus)
@@ -98,21 +97,26 @@ export function EventiList() {
   // Fetch semaphores + readiness data for events in preparation states
   useEffect(() => {
     if (!events.length) return
+    // Salta se un fetch della lista è in corso: al montaggio/rientro `events` (store
+    // condiviso con le dashboard) può contenere i dati di un'altra pagina. Quando
+    // parte il fetch di questa lista `loading` è già true, così non lanciamo un giro
+    // di query sui dati stale; alla risoluzione `events` arriva con loading:false e
+    // l'effetto rigira sui dati freschi.
+    if (useEventsStore.getState().loading) return
     const prepEvents = events
       .filter(e => ['confermato', 'in_preparazione', 'pronto', 'in_corso'].includes(e.stato))
       .map(e => e.id)
     if (!prepEvents.length) return
-    // Semaphores (for attention section)
-    fetchEventSemaphores(prepEvents).then(result => {
-      if (result && typeof result === 'object') setSemaphores(result)
-    }).catch(() => null)
-    // Readiness data (for readiness strip on cards)
+    // Semafori (sezione attenzione) + readiness (strip sulle card) condividono la
+    // stessa query attività: fetchActivityReadiness la esegue una sola volta.
     Promise.all([
-      fetchBatchActivityStatus(prepEvents),
+      fetchActivityReadiness(prepEvents),
       fetchBatchMaterialStatus(prepEvents),
       fetchBatchLogisticsStatus(prepEvents),
       fetchBatchCostsStatus(prepEvents),
-    ]).then(([activityData, materialData, logisticsData, costsData]) => {
+    ]).then(([activity, materialData, logisticsData, costsData]) => {
+      if (activity?.semaphores) setSemaphores(activity.semaphores)
+      const activityData = activity?.status || {}
       const map = {}
       for (const eid of prepEvents) {
         map[eid] = {
@@ -123,7 +127,7 @@ export function EventiList() {
         }
       }
       setReadinessMap(map)
-    })
+    }).catch(() => null)
   }, [events])
 
   useEffect(() => {
@@ -131,6 +135,8 @@ export function EventiList() {
       setInvolvementMap({})
       return
     }
+    // Vedi effetto readiness: salta il calcolo sui dati stale mentre il fetch è in corso.
+    if (useEventsStore.getState().loading) return
     // Set sync data immediately (promotore/manager)
     const syncMap = {}
     for (const e of events) {

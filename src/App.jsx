@@ -45,11 +45,25 @@ function PageFallback() {
   return <div className="p-6"><LoadingSkeleton lines={5} /></div>
 }
 
+// Splash di avvio: condivide il layout della pagina Login (stesso sfondo e titolo
+// centrato) così la transizione boot → login non "lampeggia" con lo scheletro dei
+// contenuti prima di sapere se esiste una sessione.
+function AuthSplash() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="max-w-sm w-full text-center">
+        <h1 className="text-2xl font-bold text-mikai-400 mb-2">Mikai Eventi</h1>
+        <p role="status" className="text-gray-500">Caricamento…</p>
+      </div>
+    </div>
+  )
+}
+
 function ProtectedRoute({ children }) {
   const session = useAuthStore(s => s.session)
   const loading = useAuthStore(s => s.loading)
 
-  if (loading) return <LoadingSkeleton lines={5} />
+  if (loading) return <AuthSplash />
   if (!session) return <Navigate to="/login" replace />
   return children
 }
