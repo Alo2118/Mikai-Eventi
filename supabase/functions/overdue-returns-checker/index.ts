@@ -1,7 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireServiceRole } from '../_shared/require-service-role.ts'
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
   try {
+    // Solo il cron (service role) può innescare la scansione/notifiche.
+    const denied = requireServiceRole(req)
+    if (denied) return denied
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -9,6 +14,14 @@ Deno.serve(async (_req) => {
 
     const todayStr = new Date().toISOString().slice(0, 10)
     let notificationsCreated = 0
+
+    // Utenti con gestione_magazzino: dipende solo dai permessi, non dal movimento.
+    // Caricato UNA volta fuori dal loop (#14 N+1: prima veniva rilanciato per ogni
+    // materiale in ritardo).
+    const { data: warehouseUsers } = await supabase
+      .from('user_permissions')
+      .select('user_id')
+      .eq('permission', 'gestione_magazzino')
 
     // 1. Query overdue movements: outbound shipments with past return dates
     const { data: movements } = await supabase
@@ -59,12 +72,7 @@ Deno.serve(async (_req) => {
         notificationsCreated++
       }
 
-      // Notify all users with gestione_magazzino permission
-      const { data: warehouseUsers } = await supabase
-        .from('user_permissions')
-        .select('user_id')
-        .eq('permission', 'gestione_magazzino')
-
+      // Notify all users with gestione_magazzino permission (lista già caricata sopra)
       for (const u of (warehouseUsers || [])) {
         // Skip if already notified as responsabile
         if (u.user_id === movement.responsabile_id) continue

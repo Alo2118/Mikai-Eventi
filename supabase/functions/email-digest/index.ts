@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireServiceRole } from '../_shared/require-service-role.ts'
 
 interface DigestSection {
   title: string
@@ -105,6 +106,10 @@ async function logDelivery(
 
 Deno.serve(async (req) => {
   try {
+    // Solo il cron (service role) può innescare l'invio email a tutti gli utenti.
+    const denied = requireServiceRole(req)
+    if (denied) return denied
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
