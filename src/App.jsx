@@ -39,6 +39,8 @@ const TovDetail = lazy(() => import('./pages/compliance/TovDetail').then(m => ({
 const HcpList = lazy(() => import('./pages/compliance/HcpList').then(m => ({ default: m.HcpList })))
 const HcpDetail = lazy(() => import('./pages/compliance/HcpDetail').then(m => ({ default: m.HcpDetail })))
 const AuditTrailPage = lazy(() => import('./pages/admin/AuditTrailPage').then(m => ({ default: m.AuditTrailPage })))
+const NuovaPassword = lazy(() => import('./pages/auth/NuovaPassword').then(m => ({ default: m.NuovaPassword })))
+const PasswordDimenticata = lazy(() => import('./pages/auth/PasswordDimenticata').then(m => ({ default: m.PasswordDimenticata })))
 const AltroPage = lazy(() => import('./pages/altro/AltroPage').then(m => ({ default: m.AltroPage })))
 
 function PageFallback() {
@@ -79,6 +81,8 @@ function App() {
       <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/password-dimenticata" element={<Suspense fallback={<AuthSplash />}><PasswordDimenticata /></Suspense>} />
+        <Route path="/nuova-password" element={<Suspense fallback={<AuthSplash />}><NuovaPassword /></Suspense>} />
         <Route
           element={
             <ProtectedRoute>

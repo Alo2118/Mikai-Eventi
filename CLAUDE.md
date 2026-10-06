@@ -29,7 +29,7 @@ The system works by **roles, not people** — replacements inherit the role.
 Sales reps, area managers, back-office with **highly variable digital literacy**. UI must work for someone who only uses WhatsApp — no training assumed.
 
 ### Project status
-All phases (1–6C), Optimization, UX Overhaul, Hardening, **Event Flow Branching (2026-05-07)** are **Done**. 45+ DB tables, 65+ migrations, 31 lazy routes. Readiness Engine spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md`. Event flow branching plan: `/home/nicola/.claude/plans/analizza-il-flusso-esecutivo-merry-valley.md`.
+All phases (1–6C), Optimization, UX Overhaul, Hardening, **Event Flow Branching (2026-05-07)** are **Done**. 45+ DB tables, 185+ migrations, 35 lazy routes. Readiness Engine spec: `docs/superpowers/specs/2026-03-19-readiness-engine-design.md`. Event flow branching plan: `/home/nicola/.claude/plans/analizza-il-flusso-esecutivo-merry-valley.md`.
 
 Key business rules:
 - Approval is pragmatic (anyone with `approva_eventi` can approve, including self-approval)
@@ -44,7 +44,8 @@ Key business rules:
 
 ### Supabase (Backend)
 - **Project ID:** `ncjpbbvlucquopyihios` — **URL:** `https://ncjpbbvlucquopyihios.supabase.co`
-- **Auth:** Email/password. Admin: `nicola@mikai.it`
+- **Auth:** Email/password. Admin: `nicola.mussolin@mikai.it` (role `admin`)
+- **Password recovery:** `/password-dimenticata` → `resetPasswordForEmail` with `redirectTo` = `<origin>/Mikai-Eventi/nuova-password` → `NuovaPassword` page sets the new password (implicit flow, hash `type=recovery` captured in `lib/supabase.js` as `arrivedFromRecoveryLink`). In the Supabase dashboard (Authentication → URL Configuration) **Site URL** must be `https://alo2118.github.io/Mikai-Eventi/` and `.../nuova-password` (+ `http://localhost:5173/Mikai-Eventi/nuova-password` for dev) must be in **Redirect URLs**, otherwise links land on `localhost:3000`
 - **Database:** PostgreSQL, RLS on every table
 - **Storage:** `event-documents` private bucket (10MB max)
 - **Edge Functions:** 3 Deno functions (deadline-checker, overdue-returns-checker, email-digest)
@@ -59,7 +60,7 @@ Key business rules:
 
 ### Commands
 ```bash
-npm run dev          # Dev server (localhost:5173/Eventi/)
+npm run dev          # Dev server (localhost:5173/Mikai-Eventi/). On WSL (/mnt/c) prefix CHOKIDAR_USEPOLLING=1, otherwise edits are not picked up
 npm run build        # Production build
 # Push migrations:
 source .env && SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN npx supabase db push -p "$SUPABASE_DB_PASSWORD"
@@ -192,7 +193,8 @@ Semantic HTML, `aria-label` on icon-only buttons, `aria-hidden` on decorative ic
 
 - Never modify existing migrations. Always create a new one.
 - Idempotent where possible (`IF NOT EXISTS`, `CREATE OR REPLACE`)
-- All functions: `search_path = public`
+- All functions: `search_path = public`. **Exception:** functions calling pgcrypto (`crypt`, `gen_salt`) need `search_path = public, extensions, auth` — with `public` only they fail at runtime (e.g. `reset_user_password`, `create_app_user`)
+- **FKs to users:** always `REFERENCES public.users(id)`, never `auth.users(id)`. PostgREST cannot see the `auth` schema, so joins like `users!table_col_fkey(...)` fail with PGRST200 (happened on compliance tables, fixed 2026-10-06)
 - **Column name verification (mandatory):** Before writing `.insert()/.update()/.select()/.order()/.eq()`, verify field names against migrations. PostgREST silently ignores unknown fields on INSERT/UPDATE (data loss).
 - Compliance tables: RLS via `has_compliance_permission()`. Audit triggers on key tables.
 - pg_cron for automated tasks. Edge Functions in `supabase/functions/` (Deno).

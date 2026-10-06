@@ -766,7 +766,7 @@ export const useMaterialsStore = create((set, get) => {
       .from('materials')
       .select(`
         id, nome, codice_inventario, tipo, posizione_attuale, presso_utente_id,
-        agente:users!materials_presso_utente_id_fkey(id, nome, cognome, ruolo, zona),
+        agente:users!materials_presso_utente_id_fkey(id, nome, cognome, ruolo, zone:zones(nome)),
         product:products(id, nome, codice, foto_url, brand:brands(id, nome))
       `)
       .eq('attivo', true)
@@ -796,7 +796,7 @@ export const useMaterialsStore = create((set, get) => {
       const aid = mat.presso_utente_id
       if (!grouped[aid]) {
         grouped[aid] = {
-          agente: mat.agente,
+          agente: mat.agente ? { ...mat.agente, zona: mat.agente.zone?.nome || null } : null,
           materials: [],
         }
       }

@@ -98,6 +98,18 @@ export const useAuthStore = create((set, get) => ({
     return { error: null }
   },
 
+  requestPasswordReset: async (email) => {
+    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}nuova-password`
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    return { error: error?.message || null }
+  },
+
+  // Solo dopo un link di recupero: la sessione è già quella dell'utente, non serve la password attuale
+  setNewPassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error: error?.message || null, code: error?.code || null }
+  },
+
   signOut: async () => {
     await supabase.auth.signOut()
     set({ session: null, user: null, profile: null, permissions: [] })

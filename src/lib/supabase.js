@@ -7,6 +7,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Mancano le variabili VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nel file .env')
 }
 
+// Letto PRIMA di createClient: il client consuma e ripulisce l'hash del link di
+// recupero password (#access_token=…&type=recovery) durante l'inizializzazione.
+export const arrivedFromRecoveryLink = window.location.hash.includes('type=recovery')
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Separate client for admin user creation — doesn't affect current session
