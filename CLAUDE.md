@@ -57,6 +57,7 @@ Key business rules:
 - **Base path:** `/Mikai-Eventi/` — **SPA routing:** `public/404.html` redirect trick
 - **CI/CD:** `.github/workflows/deploy.yml` — push to `master` → build → deploy (production branch)
 - **Secrets:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` in repository settings
+- **PWA:** the service worker precaches `index.html` **and** the JS chunks (heavy export libs excluded). Never drop `js` from `globPatterns`: a precached `index.html` pointing to chunks removed by the next deploy gives a blank page. `src/main.jsx` reloads once on `vite:preloadError` for tabs left open across a deploy
 
 ### Commands
 ```bash

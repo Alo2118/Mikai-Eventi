@@ -10,13 +10,16 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{css,html,svg,png,woff2}'],
+        // JS incluso: index.html precached deve restare coerente con i chunk che
+        // referenzia, altrimenti dopo un deploy il vecchio SW serve un index.html
+        // che punta a file già rimossi da GitHub Pages → pagina bianca.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // Handler Web Push (push + notificationclick) iniettati nel SW generato.
         // public/push-sw.js viene copiato in dist e importato a runtime dal SW.
         importScripts: ['push-sw.js'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api/],
-        // Precache only critical JS chunks, lazy-load the rest at runtime
+        // Librerie pesanti (export Excel/PDF) escluse: caricate a runtime
         globIgnores: ['**/exceljs*', '**/jspdf*', '**/html2canvas*'],
         runtimeCaching: [
           {
