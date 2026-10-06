@@ -103,7 +103,12 @@ export function TovList() {
         <EmptyState
           title="Nessun trasferimento"
           description="Non ci sono trasferimenti di valore registrati."
-          action={hasPermission('compliance') ? { label: 'Registra trasferimento', onClick: () => navigate('/compliance/tov/nuovo') } : undefined}
+          action={hasPermission('compliance') && (
+            <Button onClick={() => navigate('/compliance/tov/nuovo')}>
+              <Icon icon={ACTION_ICONS.add} size={18} className="mr-2" />
+              Registra trasferimento
+            </Button>
+          )}
         />
       ) : (
         <div className="space-y-3">

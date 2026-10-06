@@ -194,7 +194,12 @@ export function HcpList() {
         <EmptyState
           title="Nessun professionista HCP"
           description="Non ci sono profili HCP registrati."
-          action={hasPermission('compliance') ? { label: 'Aggiungi HCP', onClick: () => setShowForm(true) } : undefined}
+          action={hasPermission('compliance') && (
+            <Button onClick={() => setShowForm(true)}>
+              <Icon icon={ACTION_ICONS.add} size={18} className="mr-2" />
+              Aggiungi HCP
+            </Button>
+          )}
         />
       ) : (
         <div className="space-y-3">

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { BottomBar } from './BottomBar'
 import { ToastContainer } from '../ui/Toast'
+import { ErrorBoundary } from '../ui/ErrorBoundary'
 import { GlobalSearch } from '../ui/GlobalSearch'
 import { NotificationBell } from '../ui/NotificationBell'
 import { OfflineIndicator } from '../ui/OfflineIndicator'
@@ -11,6 +12,7 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { useNotificationsStore } from '../../hooks/useNotifications'
 
 export function AppShell() {
+  const { pathname } = useLocation()
   const profile = useAuthStore(s => s.profile)
   const profileError = useAuthStore(s => s.profileError)
   const user = useAuthStore(s => s.user)
@@ -63,7 +65,10 @@ export function AppShell() {
             </button>
           </div>
         )}
-        <Outlet />
+        {/* Errore in una pagina: resta confinato lì, menu usabile; si azzera cambiando pagina */}
+        <ErrorBoundary key={pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
       <BottomBar />
 
