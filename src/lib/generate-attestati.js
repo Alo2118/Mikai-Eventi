@@ -82,7 +82,7 @@ export async function generateAttestati({ event, people, corso }) {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     drawAttestato(doc, sfondo, {
       intestazione: ATTESTATO_INTESTAZIONE[p.titolo || ''],
-      nome: `${p.nome} ${p.cognome}`,
+      nome: `${p.nome} ${p.cognome}`.toLocaleUpperCase('it'),
       corso,
       data,
     })
