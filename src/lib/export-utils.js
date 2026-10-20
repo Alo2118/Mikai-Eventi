@@ -147,7 +147,7 @@ function getNestedValue(obj, path) {
   return path.split('.').reduce((o, k) => o?.[k], obj)
 }
 
-function downloadBlob(buffer, filename, mimeType) {
+export function downloadBlob(buffer, filename, mimeType) {
   const blob = new Blob([buffer], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

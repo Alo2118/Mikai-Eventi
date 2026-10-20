@@ -27,6 +27,7 @@ import { LogisticaPeopleFilters } from './LogisticaPeopleFilters'
 import { LogisticaPersonRow } from './LogisticaPersonRow'
 import { LogisticaPersonCard } from './LogisticaPersonCard'
 import { CateringSummary } from './CateringSummary'
+import { AttestatiModal } from './AttestatiModal'
 import { LoadingSkeleton } from '../ui/LoadingSkeleton'
 import { EmptyState } from '../ui/EmptyState'
 import { SearchInput } from '../ui/SearchInput'
@@ -85,6 +86,7 @@ export function EventLogisticaTab({ event, users = [] }) {
   const [partForm, setPartForm] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [showImport, setShowImport] = useState(false)
+  const [showAttestati, setShowAttestati] = useState(false)
   const [checklistMode, setChecklistMode] = useState(false)
   const [viewMode, setViewMode] = useState('lista')
   const [exporting, setExporting] = useState(false)
@@ -522,6 +524,7 @@ export function EventLogisticaTab({ event, users = [] }) {
               { label: 'Esporta', icon: ACTION_ICONS.upload, onClick: handleExport, disabled: exporting },
               ...(canEditPart ? [{ label: 'Importa contatti', icon: ACTION_ICONS.upload, onClick: () => setShowImport(true) }] : []),
               ...(['pronto', 'in_corso'].includes(event.stato) ? [{ label: 'Checklist presenze', icon: NAV_ICONS.checklist, onClick: () => setChecklistMode(true) }] : []),
+              ...(participants.some(p => p.tipo === 'discente') ? [{ label: 'Crea attestati', icon: LOGISTICA_PERSONE_ICONS.attestato, onClick: () => setShowAttestati(true) }] : []),
               ...(hasTavoli && canEdit && tavoli.length > 0 ? [{ divider: true }, { label: 'Distribuisci tavoli', icon: TAVOLI_ICONS.tavoli, onClick: handleDistribuisci }] : []),
             ]} />
           )}
@@ -739,6 +742,7 @@ export function EventLogisticaTab({ event, users = [] }) {
           onClose={() => setSingleEdit(null)} />
       )}
 
+      {showAttestati && <AttestatiModal event={event} onClose={() => setShowAttestati(false)} />}
       <BulkImportModal open={showImport} eventId={event.id} onComplete={() => { setShowImport(false); fetchEventParticipants(event.id) }} onClose={() => setShowImport(false)} />
 
       <ConfirmDialog

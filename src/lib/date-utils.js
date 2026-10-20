@@ -59,6 +59,17 @@ export function formatDateRange(start, end) {
   return `${formatDate(start)} — ${formatDate(end)}`
 }
 
+/** Full-month range for certificates: "15 ottobre 2026", "15-16 ottobre 2026", "30 settembre - 2 ottobre 2026" */
+export function formatDateRangeLong(start, end) {
+  const s = start ? parseISO(start) : null
+  if (!s || !isValid(s)) return ''
+  const e = end ? parseISO(end) : null
+  if (!e || !isValid(e) || formatDayISO(s) === formatDayISO(e)) return format(s, 'd MMMM yyyy', { locale: it })
+  if (getYear(s) !== getYear(e)) return `${format(s, 'd MMMM yyyy', { locale: it })} - ${format(e, 'd MMMM yyyy', { locale: it })}`
+  if (getMonth(s) !== getMonth(e)) return `${format(s, 'd MMMM', { locale: it })} - ${format(e, 'd MMMM yyyy', { locale: it })}`
+  return `${format(s, 'd')}-${format(e, 'd MMMM yyyy', { locale: it })}`
+}
+
 export function formatDateTime(dateStr) {
   if (!dateStr) return ''
   const d = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr

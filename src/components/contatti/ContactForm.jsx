@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
-import { TIPO_CONTATTO, INPUT_STYLE, SELECT_STYLE } from '../../lib/constants'
+import { TIPO_CONTATTO, TITOLO_CONTATTO, INPUT_STYLE, SELECT_STYLE } from '../../lib/constants'
 import { FEEDBACK_ICONS } from '../../lib/icons'
 import { useContactsStore } from '../../hooks/useContacts'
 
@@ -9,6 +9,7 @@ const CLINICAL_TYPES = ['medico', 'specializzando', 'infermiere']
 
 export function ContactForm({ contact, users = [], zones = [], onSave, onCancel, saving }) {
   const [form, setForm] = useState({
+    titolo: contact?.titolo || '',
     nome: contact?.nome || '',
     cognome: contact?.cognome || '',
     tipo_contatto: contact?.tipo_contatto || 'medico',
@@ -60,6 +61,7 @@ export function ContactForm({ contact, users = [], zones = [], onSave, onCancel,
       ...form,
       nome: capitalize(form.nome),
       cognome: capitalize(form.cognome),
+      titolo: form.titolo || null,
       azienda: form.azienda?.trim() || null,
       citta: capitalize(form.citta || '') || null,
       email: form.email?.trim().toLowerCase() || null,
@@ -75,7 +77,14 @@ export function ContactForm({ contact, users = [], zones = [], onSave, onCancel,
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Anagrafica */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[10rem_1fr_1fr] gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Titolo</label>
+          <select className={SELECT_STYLE} value={form.titolo} onChange={e => set('titolo', e.target.value)}>
+            <option value="">— Nessuno —</option>
+            {Object.entries(TITOLO_CONTATTO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Cognome <span className="text-red-500">*</span>

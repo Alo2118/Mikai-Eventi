@@ -9,7 +9,7 @@ export const useParticipantsStore = create((set, get) => ({
     set({ loading: true })
     const { data, error } = await supabase
       .from('event_participants')
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, titolo, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
       .eq('event_id', eventId)
       .order('created_at')
     set({ participants: data || [], loading: false })
@@ -20,7 +20,7 @@ export const useParticipantsStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('event_participants')
       .insert({ event_id: eventId, contact_id: contactId, tipo, stato_iscrizione: 'invitato' })
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, titolo, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
       .single()
     if (!error) set(s => ({ participants: [...s.participants, data] }))
     return { data, error: error?.message || null }
@@ -31,7 +31,7 @@ export const useParticipantsStore = create((set, get) => ({
       .from('event_participants')
       .update(updates)
       .eq('id', id)
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, titolo, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
       .single()
     if (!error) set(s => ({ participants: s.participants.map(r => r.id === id ? data : r) }))
     return { data, error: error?.message || null }
@@ -49,12 +49,32 @@ export const useParticipantsStore = create((set, get) => ({
       .from('event_participants')
       .update({ stato_iscrizione: nuovoStato })
       .in('id', ids)
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, titolo, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
     if (error) return { data: null, error: error.message, updated: 0, requested: ids.length }
     const rows = data || []
     const byId = new Map(rows.map(r => [r.id, r]))
     set(s => ({ participants: s.participants.map(r => byId.get(r.id) || r) }))
     return { data: rows, error: null, updated: rows.length, requested: ids.length }
+  },
+
+  // Salva il titolo (Dott./Dott.ssa/...) sui contatti, una query per valore. changes: { [contactId]: titolo|null }
+  updateContactsTitolo: async (changes) => {
+    const byTitolo = new Map()
+    Object.entries(changes).forEach(([contactId, titolo]) => {
+      byTitolo.set(titolo, [...(byTitolo.get(titolo) || []), contactId])
+    })
+    const updated = new Map()
+    for (const [titolo, ids] of byTitolo) {
+      const { data, error } = await supabase.from('contacts').update({ titolo }).in('id', ids).select('id, titolo')
+      if (error) return { error: error.message }
+      ;(data || []).forEach(c => updated.set(c.id, c.titolo))
+    }
+    set(s => ({
+      participants: s.participants.map(p => updated.has(p.contact_id)
+        ? { ...p, contact: { ...p.contact, titolo: updated.get(p.contact_id) } }
+        : p),
+    }))
+    return { error: null, updated: updated.size, requested: Object.keys(changes).length }
   },
 
   bulkAddParticipants: async (eventId, participants) => {
@@ -73,7 +93,7 @@ export const useParticipantsStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('event_participants')
       .upsert(rows, { onConflict: 'event_id,contact_id', ignoreDuplicates: true })
-      .select('*, contact:contacts(id, nome, cognome, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
+      .select('*, contact:contacts(id, nome, cognome, titolo, tipo_contatto, azienda, email, telefono, citta, esigenze_alimentari, esigenze_accessibilita, zona:zones!contacts_zone_id_fkey(id, nome))')
     if (error) return { data: null, error: error.message }
     const inserted = (data || []).length
     get().fetchEventParticipants(eventId)

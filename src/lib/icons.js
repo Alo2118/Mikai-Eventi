@@ -50,6 +50,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Check,
+  Award,
   X,
   Search,
   Filter,
@@ -485,6 +486,8 @@ export const LOGISTICA_PERSONE_ICONS = {
   esigenze_accessibilita: Accessibility,
   note: StickyNote,
   timeline: ToggleLeft,
+  attestato: Award,
+  selezionato: Check,
 }
 
 // ═══════════════════════════════════════════

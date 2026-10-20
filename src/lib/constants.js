@@ -187,6 +187,25 @@ export const TIPO_CONTATTO_COLORE = {
   altro: 'gray',
 }
 
+// Titolo di cortesia del contatto (contacts.titolo)
+export const TITOLO_CONTATTO = {
+  dott: 'Dott.',
+  dott_ssa: 'Dott.ssa',
+  prof: 'Prof.',
+  prof_ssa: 'Prof.ssa',
+}
+
+// Riga "Il Dott./La Dott.ssa" dell'attestato, per titolo. Chiave '' = titolo non indicato
+export const ATTESTATO_INTESTAZIONE = {
+  dott: 'Il Dott.',
+  dott_ssa: 'La Dott.ssa',
+  prof: 'Il Prof.',
+  prof_ssa: 'La Prof.ssa',
+  '': 'Il Dott./La Dott.ssa',
+}
+
+export const ATTESTATO_SEDE = ['Sede produttiva Mikai', 'Via Canestrello, 2 - Monteviale (VI)']
+
 // Tipologia per import in blocco — labels familiari, mapping a tipo_contatto + ruolo_medico
 export const TIPOLOGIA_IMPORT = {
   medico:          { label: 'Medico',          tipo_contatto: 'medico',        ruolo_medico: 'medico' },
